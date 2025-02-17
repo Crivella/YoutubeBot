@@ -1,0 +1,109 @@
+[build-system]
+# build the package with [flit](https://flit.readthedocs.io)
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+# See https://www.python.org/dev/peps/pep-0621/
+name = "concheddu_bot"
+dynamic = ["version"] # read from ocr_translate/__init__.py
+description = "Discord bot to play music"
+authors = [
+]
+readme = "README.md"
+license = { file = "LICENSE.txt"  }
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+]
+keywords = ["discord", "bot", "music"]
+requires-python = ">=3.10"
+dependencies = [
+    "discord.py",
+    "pynacl",
+    "yt_dlp",
+    "Django",
+]
+
+[project.urls]
+# Source = "https://github.com/crivella/ocr_translate"
+
+[project.optional-dependencies]
+mysql = [
+    "pymysql==1.1.0",
+]
+postgres = [
+    "psycopg[binary]==3.1.9",
+]
+# docs = [
+#     "docutils==0.20.1",
+#     "sphinx~=7.2.6",
+#     "sphinx_design~=0.5.0",
+#     "sphinx-rtd-theme~=2.0.0",
+#     "sphinx-rtd-dark-mode~=1.3.0",
+#     "sphinxcontrib-openapi==0.8.0",
+# ]
+# tests = [
+#     "pytest",
+#     "pytest-cov",
+#     "pytest-django~=4.5.2",
+#     "pytest-regressions~=2.4",
+# ]
+pre-commit = [
+    "pre-commit",
+    "pylint",
+    "pylint-pytest",
+    "pylint-django",
+]
+# release = [
+#     "flit"
+# ]
+
+[tool.flit.module]
+name = "concheddu_bot"
+
+[tool.flit.sdist]
+exclude = [
+    ".gitignore", ".github", ".pre-commit-config.yaml",
+    "icon.ico", "run_server.py", "run.bat",
+    "Dockerfile", "nginx.default", "start-server.sh",
+    "mysite/", "mysite/*", "manage.py", "tests/", "tests/*",
+    "docs/", "docs/*"
+    ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+DJANGO_SETTINGS_MODULE = "bot_config.settings"
+log_cli = 1
+
+[tool.pylint.main]
+load-plugins = [
+    "pylint_django",
+    "pylint_pytest"
+]
+django-settings-module = "bot_config.settings"
+
+[tool.pylint.messages_control]
+disable = [
+    "logging-fstring-interpolation",
+    "global-statement",
+    "broad-exception-caught",
+    "too-few-public-methods",
+]
+
+
+[tool.pylint.format]
+max-line-length = 120
+good-names = [
+    "_",
+    "l", "r", "b", "t",
+    "l1", "r1", "b1", "t1",
+    "l2", "r2", "b2", "t2",
+    "i", "j",
+    "k", "v",
+    "f",
+]
+
+[tool.pylint.design]
+max-args = 10
+max-locals = 20
+max-attributes = 12

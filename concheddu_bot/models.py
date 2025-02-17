@@ -1,3 +1,4 @@
+"""Models for the bot"""
 from django.db import models
 
 
@@ -36,10 +37,12 @@ class YTSong(models.Model):
 
     @property
     def times_played(self):
+        """Return the number of times the song has been played"""
         return self.play_events.count()
 
     @classmethod
     def last_played(cls):
+        """Return the last played song"""
         return cls.play_events.order_by('date').last()
 
 class PlayEvent(models.Model):
@@ -53,6 +56,6 @@ class PlayEvent(models.Model):
 class Playlist(models.Model):
     """Playlist model"""
     name = models.CharField(max_length=255)
-    songs = models.ManyToManyField(YTSong) 
+    songs = models.ManyToManyField(YTSong)
 
-    created_at = models.DateTimeField(auto_now_add=True)   
+    created_at = models.DateTimeField(auto_now_add=True)
