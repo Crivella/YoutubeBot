@@ -1,4 +1,6 @@
 discord.py
 pynacl
 yt_dlp
-python-dotenv
+# sqlalchemy
+psycopg[binary]
+Django
