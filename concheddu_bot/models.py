@@ -1,8 +1,23 @@
 """Models for the bot"""
+from functools import wraps
 from typing import Union
 
+import discord
 from django.db import models
 
+
+def with_discord_user(func):
+    """Decorator to add discord user to kwargs"""
+    @wraps(func)
+    def wrapper(self, *args, user: discord.User, **kwargs):
+        user_obj, _ = DiscordUser.objects.get_or_create(discord_id=user.id)
+        if user_obj.username != user.name:
+            user_obj.username = user.name
+            user_obj.save()
+        kwargs['user'] = user
+
+        return func(self, *args, user=user_obj, **kwargs)
+    return wrapper
 
 class DiscordServer(models.Model):
     """Server model"""
@@ -53,6 +68,7 @@ class YTSong(models.Model):
         """Return the last played song"""
         return cls.play_events.order_by('date').last()
 
+    @with_discord_user
     def play(self, user: DiscordUser):
         """Play the song"""
         PlayEvent.objects.create(user=user, song=self)
