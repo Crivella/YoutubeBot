@@ -5,16 +5,23 @@ import os
 import discord
 import django
 from discord.ext import commands
+from django.core.management import call_command
 
-import concheddu_bot as cdbot
+from concheddu_bot.bot import MyBot
 
-client = cdbot.bot.MyBot(
-    command_prefix=commands.when_mentioned_or('!'),
-    intents=discord.Intents.default()
-    # intents=discord.Intents(
-    #     voice_states=True, guilds=True, guild_messages=True, message_content=True
-    # )
-)
+client = None
+
+def get_bot():
+    global client
+    if client is None:
+        client = MyBot(
+            command_prefix=commands.when_mentioned_or('!'),
+            intents=discord.Intents.default()
+            # intents=discord.Intents(
+            #     voice_states=True, guilds=True, guild_messages=True, message_content=True
+            # )
+        )
+    return client
 
 def main():
     """Start the bot."""
@@ -27,19 +34,22 @@ def main():
         print(os.getcwd())
         return
     print('Django setup done')
+
+    print('Create database (if needed) and apply database migrations (if any)...')
+    call_command('migrate')
+    print('Database setup done')
+
     token = os.getenv('DISCORD_BOT_TOKEN')
     if not token:
         raise ValueError('Token not found')
 
-    # @client.event
-    # async def on_ready():
-    #     print(f'logged in successfully as {client.user.name}')
-    #     # fmt = await bot.tree.sync()
-    #     # print(f'Synced {fmt} commands')
+    from concheddu_bot.bot.music import Music
 
     print('Starting bot...')
-    client.add_cog(cdbot.bot.Music(client))
-    client.run(token)
+    bot = get_bot()
+    # bot.add_cog(Music(bot))
+    asyncio.run(bot.add_cog(Music(bot)))
+    bot.run(token)
 
 if __name__ == '__main__':
     main()

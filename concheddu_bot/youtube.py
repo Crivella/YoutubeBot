@@ -43,9 +43,15 @@ class YTDLSource(discord.PCMVolumeTransformer):
         super().__init__(source, volume)
 
         self.data = data
+        self.local_path = None
 
-        self.title = data.get('title')
-        self.url = data.get('url')
+    @classmethod
+    def from_path(cls, filename, metadata):
+        if filename is None or not os.path.exists(filename):
+            return None
+        res = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=metadata)
+        res.local_path = filename
+        return res
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
@@ -57,4 +63,18 @@ class YTDLSource(discord.PCMVolumeTransformer):
             data = data['entries'][0]
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        res = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        res.local_path = os.path.join(AUDIO_DIR, f'{data["id"]}.{data["ext"]}')
+        return res
+
+    @property
+    def title(self):
+        return self.data['title']
+
+    @property
+    def duration(self):
+        return self.data['duration']
+
+    # @property
+    # def url(self):
+    #     return self.data['url']

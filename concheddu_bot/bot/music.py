@@ -7,8 +7,18 @@ from discord import app_commands
 from discord.ext import commands
 
 from . import MyBot
-from ..import youtube as yt
-# from ..import models as m
+from ..import models as m
+
+async def get_vc_from_interaction(itc: discord.Interaction) -> discord.VoiceClient:
+    """Get the voice channel from the interaction"""
+    user = itc.user
+    guild = itc.guild
+
+    try:
+        vc = await user.voice.channel.connect()
+    except discord.errors.ClientException:
+        vc = guild.voice_client
+    return vc
 
 class Music(commands.Cog):
     """Play command"""
@@ -16,70 +26,77 @@ class Music(commands.Cog):
         self.bot = bot
 
     @app_commands.command()
-    # @commands.command()
-    async def play_test(self, itc: discord.Interaction, search: str):
+    async def play(self, itc: discord.Interaction, search: str):
         """Search and Play a song"""
-        from ..import models as m
         if not await self.sense_check(itc):
             return
 
-        user_dc = itc.user
+        user = itc.user
         response = itc.response
-        guild = user_dc.voice.channel.guild
+        guild = user.voice.channel.guild
 
         await response.send_message(f'Searching for {search}', ephemeral=True)
-        source = await yt.YTDLSource.from_url(search, loop=self.bot.loop)
-        data = source.data
-        ytid = source.data['id']
-        ext = source.data['ext']
-        song, created = await m.YTSong.objects.aget_or_create(youtube_id=ytid)
-        if created:
-            for attr in ['title', 'duration']:
-                setattr(song, attr, source.data[attr])
-        path = os.path.join(yt.AUDIO_DIR, f'{ytid}.{ext}')
-        if os.path.exists(path):
-            song.extension = ext
-            song.local_path = path
-            source = discord.FFmpegPCMAudio(path)
-        await song.asave()
+        song = await m.YTSong.from_search_string(search, user=user, server=guild)
 
-        # message = itc.original_response()
+        vc = await get_vc_from_interaction(itc)
+
         await itc.edit_original_response(content=f'Playing [{song.duration} s] {song.title}')
-        await song.play(user=user_dc)
-
-        try:
-            vc = await user_dc.voice.channel.connect()
-        except discord.errors.ClientException:
-            vc = guild.voice_client
-        self.bot.queues.setdefault(guild.id, {'queue': [], 'loop': False})
-        self.bot.queues[guild.id]['queue'].append((path, data))
-        if not vc.is_playing():
-            vc.play(
-                source,
-                after=lambda error=None, connection=vc, server_id=guild.id: self.after_track(
-                    error, connection, server_id
-                ),
-            )
+        await song.play(vc, user=user, server=guild)
 
     @app_commands.command()
     async def queue(self, itc: discord.Interaction):
         """Sync the bot commands"""
         guild = itc.guild
-        try:
-            queue = self.bot.queues[guild.id]['queue']
-        except KeyError:
-            queue = None
-        if queue == None:
-            await itc.response.send_message("the bot isn't playing anything")
-        else:
-            title_str = lambda val: (
-                f'‣ {val[1]}\n\n' if val[0] == 0 else '**%2d:** %s\n' % val
+        server = await m.DiscordServer.from_discord_guild(guild)
+        queue = server.queue
+        if not queue:
+            await itc.response.send_message(
+                "the bot isn't playing anything",
+                ephemeral=True,
+                delete_after=10
             )
-            queue_str = ''.join(map(title_str, enumerate([i[1]['title'] for i in queue])))
+        else:
+            res = []
+            idx = server.idx
+            for i,song in enumerate(queue):
+                pre = ' ‣‣‣' if idx == i else f'{i-idx:>4d}'
+                res.append(f'{pre} {song.title}')
+            queue_str = '\n'.join(res)
             embedVar = discord.Embed(color=0xFF0000)
             embedVar.add_field(name='Now playing:', value=queue_str)
-            await itc.response.send_message(embed=embedVar)
+            await itc.response.send_message(embed=embedVar, ephemeral=True)
         await self.sense_check(itc)
+
+    @app_commands.command()
+    async def jump(self, itc: discord.Interaction, pos: int = 1):
+        """Skip the current song"""
+        if not await self.sense_check(itc):
+            return
+
+        guild = itc.guild
+        server = await m.DiscordServer.from_discord_guild(guild)
+        vc = guild.voice_client
+        if not vc.is_playing():
+            await itc.response.send_message("the bot isn't playing anything")
+            return
+        if pos < 1:
+            await itc.response.send_message('you must skip at least one song')
+            return
+        server.jump(pos)
+        vc.stop()
+        await itc.response.send_message(f'skipped `{pos}` songs')
+
+    @app_commands.command()
+    async def play_last(self, itc: discord.Interaction):
+        """Play the last song"""
+        if not await self.sense_check(itc):
+            return
+        user = itc.user
+        guild = itc.guild
+        song = await m.YTSong.get_last_played(server=guild)
+        vc = await get_vc_from_interaction(itc)
+        await itc.response.send_message(f'Playing [{song.duration} s] {song.title}', ephemeral=True)
+        await song.play(vc, user=user, server=guild)
 
     # @app_commands.command()
     # async def sync(self, itc: discord.Interaction):
@@ -88,27 +105,18 @@ class Music(commands.Cog):
     #     print(f'Synced {fmt} commands')
     #     await itc.response.send_message(f'Synced {fmt} commands')
 
-    # @commands.command()
-    # async def sync_test(self, ctx: commands.Context):
-    #     """Sync the bot commands"""
-    #     guild_id = ctx.guild.id
-    #     await ctx.send(f'Syncing commands for {guild_id}')
-    #     fmt = await self.bot.tree.sync(guild_id)
-    #     print(f'Synced {fmt} commands')
-    #     await ctx.send(f'Synced {fmt} commands')
-
     async def sense_check(self, itc: discord.Interaction) -> bool:
         """Check if the user is in a voice channel"""
-        user_dc = itc.user
+        user = itc.user
         guild = itc.guild
-        if not user_dc.voice:
+        if not user.voice:
             await itc.response.send_message(
                 'You must be in a voice channel to use this command',
                 ephemeral=True
             )
             return False
         if guild.id in self.bot.playing_on:
-            if self.bot.id not in [mb.id for mb in user_dc.voice.channel.members]:
+            if self.bot.id not in [mb.id for mb in user.voice.channel.members]:
                 await itc.response.send_message(
                     'I must be in the same voice channel as you to use this command',
                     ephemeral=True

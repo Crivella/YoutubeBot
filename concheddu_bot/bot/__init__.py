@@ -11,20 +11,26 @@ class MyBot(commands.Bot):
         self.queues: dict[int, list[str]] = {}
 
     async def on_ready(self):
+        """Make sure the bot is ready before doing anything"""
         print(f'Logged in as {self.user.name} ID<{self.user.id}>')
         fmt = await self.tree.sync()
         print(f'Synced {fmt} commands')
+
+    # async def setup_hook(self):
+    #     """Setup the bot"""
+    #     fmt = await self.tree.sync()
+    #     print(f'Synced {fmt} commands')
 
     async def on_error(self, event, *args, **kwargs):
         print(f'Error in {event}')
         tpl = sys.exc_info()
         print(tpl)
 
-    async def on_command_error(self, ctx, error):
-        print(f'Error in {ctx.command} command {error}')
-        # if isinstance(error, commands.CommandNotFound):
-        #     return
-        # await ctx.send(f'Error: {error}')
+    # async def on_command_error(self, ctx, error):
+    #     print(f'Error in {ctx.command} command {error}')
+    #     # if isinstance(error, commands.CommandNotFound):
+    #     #     return
+    #     # await ctx.send(f'Error: {error}')
 
     async def on_voice_state_update(
         self, member: discord.User, before: discord.VoiceState, after: discord.VoiceState
@@ -41,9 +47,3 @@ class MyBot(commands.Bot):
                 self.queues.pop(server_id)
             except KeyError:
                 pass
-            # try:
-            #     shutil.rmtree(f'./dl/{server_id}/')
-            # except FileNotFoundError:
-            #     pass
-
-from .play import Music
