@@ -1,4 +1,5 @@
 """Models for the bot"""
+import asyncio
 from functools import wraps
 from typing import Union
 
@@ -6,17 +7,28 @@ import discord
 from django.db import models
 
 
-def with_discord_user(func):
+def with_discord_user_async(func):
     """Decorator to add discord user to kwargs"""
     @wraps(func)
-    def wrapper(self, *args, user: discord.User, **kwargs):
-        user_obj, _ = DiscordUser.objects.get_or_create(discord_id=user.id)
+    async def wrapper(self, *args, user: discord.User, **kwargs):
+        user_obj, _ = await DiscordUser.objects.aget_or_create(discord_id=user.id)
         if user_obj.username != user.name:
             user_obj.username = user.name
-            user_obj.save()
-        kwargs['user'] = user
+            await user_obj.asave()
 
-        return func(self, *args, user=user_obj, **kwargs)
+        return await func(self, *args, user=user_obj, **kwargs)
+    return wrapper
+
+def with_dicord_server_async(func):
+    """Decorator to add discord server to kwargs"""
+    @wraps(func)
+    async def wrapper(self, *args, server: discord.Guild, **kwargs):
+        server_obj, _ = await DiscordServer.objects.aget_or_create(discord_id=server.id)
+        if server_obj.name != server.name:
+            server_obj.name = server.name
+            await server_obj.asave()
+
+        return await func(self, *args, server=server_obj, **kwargs)
     return wrapper
 
 class DiscordServer(models.Model):
@@ -49,13 +61,15 @@ class FavoriteSongThrough(models.Model):
 
 class YTSong(models.Model):
     """Youtube song model"""
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, null=True)
     youtube_id = models.CharField(max_length=128)
-    duration = models.IntegerField()
+    extension = models.CharField(max_length=16, null=True)
+    duration = models.IntegerField(null=True)
+
+    local_path = models.CharField(max_length=512, null=True)
 
     times_played = models.IntegerField(default=0)
     times_favorited = models.IntegerField(default=0)
-    local_path = models.CharField(max_length=512)
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
@@ -68,12 +82,12 @@ class YTSong(models.Model):
         """Return the last played song"""
         return cls.play_events.order_by('date').last()
 
-    @with_discord_user
-    def play(self, user: DiscordUser):
+    @with_discord_user_async
+    async def play(self, *, user: DiscordUser):
         """Play the song"""
-        PlayEvent.objects.create(user=user, song=self)
+        await PlayEvent.objects.acreate(user=user, song=self)
         self.times_played += 1
-        self.save()
+        await self.asave()
 
     def favorite(self, user: DiscordUser):
         """Favorite the song"""
@@ -119,7 +133,17 @@ class Playlist(models.Model):
     name = models.CharField(max_length=255)
     songs = models.ManyToManyField(YTSong, through=PlaylistThrough, related_name='playlists')
 
+    server = models.ForeignKey(DiscordServer, on_delete=models.CASCADE)
+    owner = models.ForeignKey(DiscordUser, on_delete=models.CASCADE)
+
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    @with_dicord_server_async
+    @with_discord_user_async
+    async def get_playlists(cls, *, server: DiscordServer, user: DiscordUser):
+        """Return the playlists"""
+        return cls.objects.filter(server=server, owner=user).all()
 
     def get_songs(self, limit: int = None):
         """Return the songs in the playlist"""

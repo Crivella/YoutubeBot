@@ -72,7 +72,7 @@ exclude = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-DJANGO_SETTINGS_MODULE = "bot_config.settings"
+DJANGO_SETTINGS_MODULE = "concheddu_bot.settings"
 log_cli = 1
 
 [tool.pylint.main]
@@ -80,7 +80,7 @@ load-plugins = [
     "pylint_django",
     "pylint_pytest"
 ]
-django-settings-module = "bot_config.settings"
+django-settings-module = "concheddu_bot.settings"
 
 [tool.pylint.messages_control]
 disable = [

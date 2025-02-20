@@ -3,13 +3,14 @@ import asyncio
 import os
 
 import discord
-import youtube_dl
+import yt_dlp
 
-FORMAT = os.getenv('BOT_YTDL_FORMAT', 'bestaudio')
+FORMAT = os.getenv('BOT_YTDL_FORMAT', 'worstaudio')
 AUDIO_DIR = os.getenv('BOT_AUDIO_DIR', './dl')
-FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
+# FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
+FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
 
-ytdl = youtube_dl.YoutubeDL({
+ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
