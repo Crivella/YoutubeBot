@@ -100,6 +100,16 @@ class DiscordServer(models.Model):
     def loop_one(self, value):
         memo[self.discord_id]['loop_one'] = value
 
+    async def get_all_songs(self):
+        """Return all the songs in the server"""
+        q = AddedSongEvent.objects
+        q = q.filter(server=self)
+        q = q.select_related('song')
+        res = []
+        async for a in q:
+            res.append(a.song)
+        return res
+
     def get_next_song(self):
         """Return the next song"""
         if not self.queue:

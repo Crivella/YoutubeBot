@@ -98,6 +98,20 @@ class Music(commands.Cog):
         await itc.response.send_message(f'Playing [{song.duration} s] {song.title}', ephemeral=True)
         await song.play(vc, user=user, server=guild)
 
+    @app_commands.command()
+    async def list_songs(self, itc: discord.Interaction):
+        """List the songs in the database"""
+        guild = itc.guild
+        server = await m.DiscordServer.from_discord_guild(guild)
+        songs = await server.get_all_songs()
+        res = []
+        for song in songs:
+            res.append(f'{song.title}')
+        queue_str = '\n'.join(res)
+        embedVar = discord.Embed(color=0xFF0000)
+        embedVar.add_field(name='Songs:', value=queue_str)
+        await itc.response.send_message(embed=embedVar, ephemeral=True)
+
     # @app_commands.command()
     # async def sync(self, itc: discord.Interaction):
     #     """Sync the bot commands"""
