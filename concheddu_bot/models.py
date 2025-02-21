@@ -273,6 +273,18 @@ class YTSong(models.Model):
 
     @with_discord_user_async
     @with_discord_server_async
+    async def favorite_toggle(self, *, user: DiscordUser, server: DiscordServer) -> bool
+        """Toggle the favorite status"""
+        q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
+        if await q.aexists():
+            await q.adelete()
+            return False
+        else:
+            await FavoriteSongThrough.objects.acreate(user=user, song=self, server=server)
+            return True
+
+    @with_discord_user_async
+    @with_discord_server_async
     async def favorite(self, *, user: DiscordUser, server: DiscordServer):
         """Favorite the song"""
         q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
