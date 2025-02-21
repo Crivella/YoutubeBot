@@ -29,4 +29,4 @@ ENV \
 
 WORKDIR /bot
 
-CMD ["python ./start_bot.py"]
+CMD ["python", "./start_bot.py"]

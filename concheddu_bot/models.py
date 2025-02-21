@@ -232,7 +232,7 @@ class YTSong(models.Model):
         if hasattr(self, 'source') and self.source:
             return self.source
         return (
-            YTDLSource.from_path(self.local_path, self.metadata) or 
+            YTDLSource.from_path(self.local_path, self.metadata) or
             await YTDLSource.from_url(self.url, self.metadata)
         )
     async def download(self):
@@ -273,7 +273,7 @@ class YTSong(models.Model):
 
     @with_discord_user_async
     @with_discord_server_async
-    async def favorite_toggle(self, *, user: DiscordUser, server: DiscordServer) -> bool
+    async def favorite_toggle(self, *, user: DiscordUser, server: DiscordServer) -> bool:
         """Toggle the favorite status"""
         q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
         if await q.aexists():
@@ -320,7 +320,7 @@ class YTSong(models.Model):
         q = q.order_by('-times_favorited')
         q = q[:n]
         return [a async for a in q]
-        
+
 
 
 class PlayEvent(models.Model):
