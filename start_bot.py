@@ -44,12 +44,13 @@ def main():
     if not token:
         raise ValueError('Token not found')
 
-    from concheddu_bot.bot.music import Music
-
+    from concheddu_bot.bot import cmd
     print('Starting bot...')
     bot = get_bot()
     # bot.add_cog(Music(bot))
-    asyncio.run(bot.add_cog(Music(bot)))
+    asyncio.run(bot.add_cog(cmd.Music()))
+    asyncio.run(bot.add_cog(cmd.Playlists()))
+    asyncio.run(bot.add_cog(cmd.ServerUtils()))
     bot.run(token)
 
 if __name__ == '__main__':

@@ -6,8 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from . import MyBot
-from ..import models as m
+from ...import models as m
 
 async def get_vc_from_interaction(itc: discord.Interaction) -> discord.VoiceClient:
     """Get the voice channel from the interaction"""
@@ -44,9 +43,6 @@ def sense_check(func):
 
 class Music(commands.Cog):
     """Play command"""
-    def __init__(self, bot: MyBot):
-        self.bot = bot
-
     @app_commands.command()
     @sense_check
     async def play(self, itc: discord.Interaction, search: str):
@@ -91,15 +87,16 @@ class Music(commands.Cog):
     @sense_check
     async def jump(self, itc: discord.Interaction, pos: int = 1):
         """Skip the current song"""
-        guild = itc.guild
-        server = await m.DiscordServer.from_discord_guild(guild)
-        vc = guild.voice_client
+        vc = await get_vc_from_interaction(itc)
         if not vc.is_playing():
             await itc.response.send_message("the bot isn't playing anything")
             return
         if pos < 1:
             await itc.response.send_message('you must skip at least one song')
             return
+
+        guild = itc.guild
+        server = await m.DiscordServer.from_discord_guild(guild)
         server.jump_relative(pos)
         vc.stop()
         await itc.response.send_message(f'skipped `{pos}` songs')
@@ -146,7 +143,7 @@ class Music(commands.Cog):
     @sense_check
     async def stop(self, itc: discord.Interaction):
         """Stop the bot"""
-        vc = itc.guild.voice_client
+        vc = await get_vc_from_interaction(itc)
         await vc.disconnect()
         await itc.response.send_message('Stopped the bot')
 
@@ -158,37 +155,3 @@ class Music(commands.Cog):
     #     vc = itc.guild.voice_client
     #     vc.resume()
     #     await itc.response.send_message('Resumed the bot')
-
-    @app_commands.command()
-    async def list_songs(self, itc: discord.Interaction, favorite: bool = False):
-        """List the songs in the database
-
-        Args:
-            itc (discord.Interaction): _description_
-            favorite (bool, optional): If true show song you added to favorites. Defaults to False.
-        """
-        guild = itc.guild
-        server = await m.DiscordServer.from_discord_guild(guild)
-        if favorite:
-            user = await m.DiscordUser.from_discord_user(itc.user)
-            songs = await user.get_favorite_songs(server=server)
-        else:
-            songs = await server.get_all_songs()
-        res = []
-        for i,song in enumerate(songs):
-            res.append(f'**`{i:>4d}`** {song.title.strip()}')
-        queue_str = '\n'.join(res)
-        embedVar = discord.Embed(color=0xFF0000)
-        embedVar.add_field(name='Songs:', value=queue_str)
-        await itc.response.send_message(embed=embedVar, ephemeral=True)
-
-    @app_commands.command()
-    async def sync(self, itc: discord.Interaction):
-        """Sync the bot commands"""
-        fmt = await self.bot.tree.sync(guild=itc.guild)
-        print(f'Synced {fmt} commands')
-        await itc.response.send_message(f'Synced {fmt} commands')
-
-async def safe_disconnect(connection):
-    if not connection.is_playing():
-        await connection.disconnect()
