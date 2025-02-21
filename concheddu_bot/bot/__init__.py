@@ -33,6 +33,6 @@ class MyBot(commands.Bot):
         if before.channel is not None and after.channel is None:  # disconnected from vc
             # clean up
             print(f'Leaving {before.channel.name} on {before.channel.guild.name}')
-            server = await m.Server.from_discord_guild(before.channel.guild)
+            server = await m.DiscordServer.from_discord_guild(before.channel.guild)
             server.playing = False
             server.channel = None

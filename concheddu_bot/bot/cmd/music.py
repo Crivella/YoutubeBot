@@ -52,10 +52,16 @@ class Music(commands.Cog):
         guild = user.voice.channel.guild
 
         await response.send_message(f'Searching for {search}', ephemeral=True)
-        song = await m.YTSong.from_search_string(search, user=user, server=guild)
+        try:
+            song = await m.YTSong.from_search_string(search, user=user, server=guild)
+        except Exception as e:
+            await itc.edit_original_response(content=f'Error: {e}')
+            return
 
+        if song.need_download:
+            await itc.edit_original_response(content=f'Downloading `{song.title}`')
+            await song.download()
         vc = await get_vc_from_interaction(itc)
-
         await itc.edit_original_response(content=f'Playing [{song.duration} s] {song.title}')
         await song.play(vc, user=user, server=guild)
 
@@ -74,7 +80,7 @@ class Music(commands.Cog):
             )
         else:
             res = []
-            idx = server.idx
+            idx = server.queue.idx
             for i,song in enumerate(queue):
                 pre = ' ‣‣‣' if idx == i else f'{i-idx:>4d}'
                 res.append(f'{pre} {song.title}')
@@ -143,9 +149,11 @@ class Music(commands.Cog):
     @sense_check
     async def stop(self, itc: discord.Interaction):
         """Stop the bot"""
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        server.stop()
         vc = await get_vc_from_interaction(itc)
-        await vc.disconnect()
-        await itc.response.send_message('Stopped the bot')
+        await itc.response.send_message('Stopped the bot', ephemeral=True)
+        await vc.disconnect(force=True)
 
     # @app_commands.command()
     # @sense_check

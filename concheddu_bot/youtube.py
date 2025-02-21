@@ -1,6 +1,7 @@
 # pylint: skip-file
 import asyncio
 import os
+import urllib
 
 import discord
 import yt_dlp
@@ -8,17 +9,18 @@ import yt_dlp
 FORMAT = os.getenv('BOT_YTDL_FORMAT', 'worstaudio')
 AUDIO_DIR = os.getenv('BOT_AUDIO_DIR', './dl')
 # FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
+MAX_DURATION = int(os.getenv('BOT_MAX_DURATION', 7*60))
 FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
 
 ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    # 'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'ignoreerrors': False,
     'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
+    # 'quiet': True,
+    # 'no_warnings': True,
+    # 'default_search': 'auto',
 
     'source_address': '0.0.0.0',
     'default_search': 'ytsearch',
@@ -43,29 +45,36 @@ class YTDLSource(discord.PCMVolumeTransformer):
         super().__init__(source, volume)
 
         self.data = data
-        self.local_path = None
+        # self.local_path = None
 
     @classmethod
     def from_path(cls, filename, metadata):
         if filename is None or not os.path.exists(filename):
             return None
         res = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=metadata)
-        res.local_path = filename
+        # res.local_path = filename
         return res
 
     @classmethod
-    async def from_url(cls, url, *, loop=None, stream=False):
+    async def from_url(cls, url, data, *, loop=None):
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        await loop.run_in_executor(None, lambda: ytdl.download(url))
 
+        filename = ytdl.prepare_filename(data)
+        res = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        # res.local_path = os.path.join(AUDIO_DIR, f'{data["id"]}.{data["ext"]}')
+        return res
+
+    @staticmethod
+    async def get_info(url: str):
+        """Get the Youtube info from a URL"""
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
         if 'entries' in data:
             # take first item from a playlist
             data = data['entries'][0]
-
-        filename = data['url'] if stream else ytdl.prepare_filename(data)
-        res = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
-        res.local_path = os.path.join(AUDIO_DIR, f'{data["id"]}.{data["ext"]}')
-        return res
+        data['local_path'] = ytdl.prepare_filename(data)
+        return data
 
     @property
     def title(self):
@@ -75,6 +84,34 @@ class YTDLSource(discord.PCMVolumeTransformer):
     def duration(self):
         return self.data['duration']
 
-    # @property
-    # def url(self):
-    #     return self.data['url']
+    @staticmethod
+    def get_id_from_url(url: str) -> str:
+        """Get the YouTube ID from a URL
+
+        Args:
+            url (str): URL to validate
+
+        Returns:
+            str: yt_id
+        
+        Raises:
+            InvalidURLError: If URL is a valid URL but not a YouTube URL
+        """
+        if not urllib.parse.urlparse(url).scheme:
+            return url
+        if 'youtube.com' not in url:
+            raise YTDLSource.InvalidURLError(f'Not a valid YouTube URL')
+        ytid = url
+        try:
+            ytid = ytid.split('watch?v=')[1]
+            ytid = ytid.split('&')[0]
+        except IndexError:
+            raise YTDLSource.InvalidURLError(f'Not a valid YouTube URL')
+        return ytid
+
+    class MaxDurationError(Exception):
+        pass
+
+    class InvalidURLError(Exception):
+        pass
+

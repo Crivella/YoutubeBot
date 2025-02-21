@@ -68,7 +68,7 @@ class QueuedServer:
     @channel.setter
     def channel(self, value: discord.VoiceChannel):
         """Set the voice channel"""
-        self.queue.channel = value    
+        self.queue.channel = value
 
     def get_next_song(self):
         """Return the next song"""
@@ -82,3 +82,9 @@ class QueuedServer:
         """Jump to a position in the queue"""
         self.queue.jump_relative(pos)
 
+    def stop(self):
+        """Clean the queue"""
+        self.queue.clear()
+        self.queue.idx = 0
+        self.playing = False
+        self.channel = None

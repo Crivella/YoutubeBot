@@ -1,5 +1,6 @@
 """Models for the bot"""
 import asyncio
+import os
 import urllib
 from functools import wraps
 from typing import Union
@@ -170,23 +171,22 @@ class YTSong(models.Model):
         """Return the song from search string"""
         song = None
         if urllib.parse.urlparse(search).scheme:
-            if not 'youtube' in search:
-                raise ValueError('Only youtube links are allowed')
-            ytid = search
-            ytid = ytid.split('watch?v=')[1]
-            ytid = ytid.split('&')[0]
-            if not ytid:
-                raise ValueError('Invalid youtube link')
-            song = cls.objects.get(youtube_id=ytid)
+            ytid = YTDLSource.get_id_from_url(search)
+            q = cls.objects
+            q = q.filter(youtube_id=ytid)
+            if await q.aexists():
+                song = await q.aget()
         if song is None:
-            source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
-            data = source.data
+            data = await YTDLSource.get_info(search)
+            # source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
+
+            # data = source.data
             song, created = await cls.objects.aget_or_create(youtube_id=data['id'])
             if created:
                 song.title = data['title'].strip()
                 song.duration = data['duration']
                 song.extension = data['ext']
-                song.local_path = source.local_path
+                song.local_path = data['local_path']
 
         if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
             await AddedSongEvent.objects.acreate(user=user, song=song, server=server)
@@ -197,6 +197,21 @@ class YTSong(models.Model):
     def url(self):
         """Return the youtube url"""
         return f'https://www.youtube.com/watch?v={self.youtube_id}'
+
+    @property
+    def metadata(self):
+        """Return the metadata"""
+        return {
+            'title': self.title,
+            'duration': self.duration,
+            'ext': self.extension,
+            'id': self.youtube_id,
+        }
+
+    @property
+    def need_download(self):
+        """Return if the song needs to be downloaded"""
+        return self.local_path is None or not os.path.exists(self.local_path)
 
     @with_discord_server_async
     async def get_times_played(self, *, server: DiscordServer):
@@ -214,13 +229,15 @@ class YTSong(models.Model):
 
     async def get_source(self):
         """Return the source"""
-        metadata = {
-            'title': self.title,
-            'duration': self.duration,
-            'id': self.youtube_id,
-            'ext': self.extension
-        }
-        return YTDLSource.from_path(self.local_path, metadata) or await YTDLSource.from_url(self.url)
+        if hasattr(self, 'source') and self.source:
+            return self.source
+        return (
+            YTDLSource.from_path(self.local_path, self.metadata) or 
+            await YTDLSource.from_url(self.url, self.metadata)
+        )
+    async def download(self):
+        """Download the song"""
+        self.source = await YTDLSource.from_url(self.url, self.metadata)
 
     @with_discord_user_async
     @with_discord_server_async
