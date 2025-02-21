@@ -1,5 +1,5 @@
-import os
-import asyncio
+"""Music commands for the bot"""
+from functools import wraps
 
 import discord
 
@@ -20,17 +20,37 @@ async def get_vc_from_interaction(itc: discord.Interaction) -> discord.VoiceClie
         vc = guild.voice_client
     return vc
 
+def sense_check(func):
+    """Check if the user can use the command"""
+    @wraps(func)
+    async def wrapper(self, itc: discord.Interaction, *args, **kwargs):
+        user = itc.user
+        guild = itc.guild
+        if not user.voice:
+            await itc.response.send_message(
+                'You must be in a voice channel to use this command',
+                ephemeral=True
+            )
+            return
+        server = await m.DiscordServer.from_discord_guild(guild)
+        if server.playing and user.voice.channel != server.channel:
+            await itc.response.send_message(
+                'Bot already playing. You must be in the same voice channel as you to use this command',
+                ephemeral=True
+            )
+            return
+        return await func(self, itc, *args, **kwargs)
+    return wrapper
+
 class Music(commands.Cog):
     """Play command"""
     def __init__(self, bot: MyBot):
         self.bot = bot
 
     @app_commands.command()
+    @sense_check
     async def play(self, itc: discord.Interaction, search: str):
         """Search and Play a song"""
-        if not await self.sense_check(itc):
-            return
-
         user = itc.user
         response = itc.response
         guild = user.voice.channel.guild
@@ -44,6 +64,7 @@ class Music(commands.Cog):
         await song.play(vc, user=user, server=guild)
 
     @app_commands.command()
+    @sense_check
     async def queue(self, itc: discord.Interaction):
         """Sync the bot commands"""
         guild = itc.guild
@@ -65,14 +86,11 @@ class Music(commands.Cog):
             embedVar = discord.Embed(color=0xFF0000)
             embedVar.add_field(name='Now playing:', value=queue_str)
             await itc.response.send_message(embed=embedVar, ephemeral=True)
-        await self.sense_check(itc)
 
     @app_commands.command()
+    @sense_check
     async def jump(self, itc: discord.Interaction, pos: int = 1):
         """Skip the current song"""
-        if not await self.sense_check(itc):
-            return
-
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
         vc = guild.voice_client
@@ -82,15 +100,14 @@ class Music(commands.Cog):
         if pos < 1:
             await itc.response.send_message('you must skip at least one song')
             return
-        server.jump(pos)
+        server.jump_relative(pos)
         vc.stop()
         await itc.response.send_message(f'skipped `{pos}` songs')
 
     @app_commands.command()
+    @sense_check
     async def play_last(self, itc: discord.Interaction):
         """Play the last song"""
-        if not await self.sense_check(itc):
-            return
         user = itc.user
         guild = itc.guild
         song = await m.YTSong.get_last_played(server=guild)
@@ -99,72 +116,78 @@ class Music(commands.Cog):
         await song.play(vc, user=user, server=guild)
 
     @app_commands.command()
-    async def list_songs(self, itc: discord.Interaction):
-        """List the songs in the database"""
+    @sense_check
+    async def loop_one(self, itc: discord.Interaction):
+        """Loop the last song"""
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        server.queue.loop_all = False
+        server.queue.loop_one = True
+        await itc.response.send_message('Looping the last song')
+
+    @app_commands.command()
+    @sense_check
+    async def loop_all(self, itc: discord.Interaction):
+        """Loop all songs"""
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        server.queue.loop_all = True
+        server.queue.loop_one = False
+        await itc.response.send_message('Looping all songs')
+
+    @app_commands.command()
+    @sense_check
+    async def loop_stop(self, itc: discord.Interaction):
+        """Stop looping"""
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        server.queue.loop_all = False
+        server.queue.loop_one = False
+        await itc.response.send_message('Stopped looping')
+
+    @app_commands.command()
+    @sense_check
+    async def stop(self, itc: discord.Interaction):
+        """Stop the bot"""
+        vc = itc.guild.voice_client
+        await vc.disconnect()
+        await itc.response.send_message('Stopped the bot')
+
+    # @app_commands.command()
+    # @sense_check
+    # async def resume(self, itc: discord.Interaction):
+    #     """Resume the bot"""
+    #     raise NotImplementedError
+    #     vc = itc.guild.voice_client
+    #     vc.resume()
+    #     await itc.response.send_message('Resumed the bot')
+
+    @app_commands.command()
+    async def list_songs(self, itc: discord.Interaction, favorite: bool = False):
+        """List the songs in the database
+
+        Args:
+            itc (discord.Interaction): _description_
+            favorite (bool, optional): If true show song you added to favorites. Defaults to False.
+        """
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
-        songs = await server.get_all_songs()
+        if favorite:
+            user = await m.DiscordUser.from_discord_user(itc.user)
+            songs = await user.get_favorite_songs(server=server)
+        else:
+            songs = await server.get_all_songs()
         res = []
-        for song in songs:
-            res.append(f'{song.title}')
+        for i,song in enumerate(songs):
+            res.append(f'**`{i:>4d}`** {song.title.strip()}')
         queue_str = '\n'.join(res)
         embedVar = discord.Embed(color=0xFF0000)
         embedVar.add_field(name='Songs:', value=queue_str)
         await itc.response.send_message(embed=embedVar, ephemeral=True)
 
-    # @app_commands.command()
-    # async def sync(self, itc: discord.Interaction):
-    #     """Sync the bot commands"""
-    #     fmt = await self.bot.tree.sync()
-    #     print(f'Synced {fmt} commands')
-    #     await itc.response.send_message(f'Synced {fmt} commands')
-
-    async def sense_check(self, itc: discord.Interaction) -> bool:
-        """Check if the user is in a voice channel"""
-        user = itc.user
-        guild = itc.guild
-        if not user.voice:
-            await itc.response.send_message(
-                'You must be in a voice channel to use this command',
-                ephemeral=True
-            )
-            return False
-        if guild.id in self.bot.playing_on:
-            if self.bot.id not in [mb.id for mb in user.voice.channel.members]:
-                await itc.response.send_message(
-                    'I must be in the same voice channel as you to use this command',
-                    ephemeral=True
-                )
-                return False
-        return True
-
-    def after_track(self, error, connection, server_id):
-        if error is not None:
-            print(error)
-        try:
-            last_video_path = self.bot.queues[server_id]['queue'][0][0]
-            if not self.bot.queues[server_id]['loop']:
-                # os.remove(last_video_path)
-                self.bot.queues[server_id]['queue'].pop(0)
-        except KeyError:
-            return  # probably got disconnected
-        # if last_video_path not in [i[0] for i in self.bot.queues[server_id]['queue']]: # check that the same video isn't queued multiple times
-        #     try:
-        #         os.remove(last_video_path)
-        #     except FileNotFoundError:
-        #         pass
-        try:
-            nxt = self.bot.queues[server_id]['queue'][0][0]
-        except IndexError:  # that was the last item in queue
-            self.bot.queues.pop(server_id)  # directory will be deleted on disconnect
-            asyncio.run_coroutine_threadsafe(safe_disconnect(connection), self.bot.loop).result()
-        else:
-            connection.play(
-                discord.FFmpegOpusAudio(nxt),
-                after=lambda error=None, connection=connection, server_id=server_id: self.after_track(
-                    error, connection, server_id
-                ),
-            )
+    @app_commands.command()
+    async def sync(self, itc: discord.Interaction):
+        """Sync the bot commands"""
+        fmt = await self.bot.tree.sync(guild=itc.guild)
+        print(f'Synced {fmt} commands')
+        await itc.response.send_message(f'Synced {fmt} commands')
 
 async def safe_disconnect(connection):
     if not connection.is_playing():

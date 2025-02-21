@@ -3,6 +3,8 @@ import sys
 import discord
 from discord.ext import commands
 
+from .. import models as m
+
 
 class MyBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -16,21 +18,10 @@ class MyBot(commands.Bot):
         fmt = await self.tree.sync()
         print(f'Synced {fmt} commands')
 
-    # async def setup_hook(self):
-    #     """Setup the bot"""
-    #     fmt = await self.tree.sync()
-    #     print(f'Synced {fmt} commands')
-
     async def on_error(self, event, *args, **kwargs):
         print(f'Error in {event}')
         tpl = sys.exc_info()
         print(tpl)
-
-    # async def on_command_error(self, ctx, error):
-    #     print(f'Error in {ctx.command} command {error}')
-    #     # if isinstance(error, commands.CommandNotFound):
-    #     #     return
-    #     # await ctx.send(f'Error: {error}')
 
     async def on_voice_state_update(
         self, member: discord.User, before: discord.VoiceState, after: discord.VoiceState
@@ -42,8 +33,6 @@ class MyBot(commands.Bot):
         if before.channel is not None and after.channel is None:  # disconnected from vc
             # clean up
             print(f'Leaving {before.channel.name} on {before.channel.guild.name}')
-            server_id = before.channel.guild.id
-            try:
-                self.queues.pop(server_id)
-            except KeyError:
-                pass
+            server = await m.Server.from_discord_guild(before.channel.guild)
+            server.playing = False
+            server.channel = None

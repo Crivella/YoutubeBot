@@ -7,13 +7,14 @@ import django
 from discord.ext import commands
 from django.core.management import call_command
 
-from concheddu_bot.bot import MyBot
-
 client = None
 
 def get_bot():
     global client
     if client is None:
+        # This needs to be imported after django.setup()
+        #pylint: disable=import-outside-toplevel
+        from concheddu_bot.bot import MyBot  
         client = MyBot(
             command_prefix=commands.when_mentioned_or('!'),
             intents=discord.Intents.default()

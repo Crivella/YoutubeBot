@@ -1,79 +1,84 @@
 """Global runtime server variables."""
+from collections import defaultdict
 
-memo = {}
+import discord
 
-class QueuedServer:
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not hasattr(self, 'discord_id'):
-            raise AttributeError('discord_id attribute not found')
-        memo.setdefault(self.discord_id, {
-            'queue': [],
-            'idx': 0,
-            'loop_all': False,
-            'loop_one': False
-        })
 
-    @property
-    def queue(self) -> list:
-        """Return the queue"""
-        return memo[self.discord_id]['queue']
-    @queue.setter
-    def queue(self, value):
-        memo[self.discord_id]['queue'] = value
+class Queue(list):
+    def __init__(self):
+        # self.list = []
+        self.playing: bool = False
+        self.channel: discord.VoiceChannel = None
+        self.idx: int = 0
+        self.loop_all: bool = False
+        self.loop_one: bool = False
 
-    @property
-    def idx(self) -> int:
-        """Return the index"""
-        return memo[self.discord_id]['idx']
-    @idx.setter
-    def idx(self, value):
-        memo[self.discord_id]['idx'] = value
-
-    @property
-    def loop_all(self) -> bool:
-        """Return the loop all status"""
-        return memo[self.discord_id]['loop_all']
-    @loop_all.setter
-    def loop_all(self, value):
-        memo[self.discord_id]['loop_all'] = value
-
-    @property
-    def loop_one(self) -> bool:
-        """Return the loop one status"""
-        return memo[self.discord_id]['loop_one']
-    @loop_one.setter
-    def loop_one(self, value):
-        memo[self.discord_id]['loop_one'] = value
-
-    def get_next_song(self):
-        """Return the next song"""
-        if not self.queue:
+    def get_next(self):
+        if not self:
             return None
         if self.loop_one:
-            return self.queue[self.idx]
+            return self[self.idx]
         self.idx += 1
-        if self.idx >= len(self.queue):
+        if self.idx >= len(self):
             if self.loop_all:
                 self.idx = 0
             else:
                 return None
-        song = self.queue[self.idx]
-        return song
+        return self[self.idx]
+
+    def jump(self, pos: int):
+        """Jump to a position in the queue"""
+        self.idx = pos - 1
+        if self.idx >= len(self):
+            self.idx = len(self) - 1
+        if self.idx < 0:
+            self.idx = 0
+
+    def jump_relative(self, value: int):
+        """Jump to a position in the queue relative to the current position"""
+        self.idx += value - 1
+        if self.idx >= len(self):
+            self.idx = len(self) - 1
+        if self.idx < 0:
+            self.idx = 0
+
+
+memo: dict[int, Queue] = defaultdict(Queue)
+
+
+class QueuedServer:
+    @property
+    def queue(self) -> Queue:
+        """Return the queue"""
+        return memo[self.discord_id]
+
+    @property
+    def playing(self) -> bool:
+        """Return the playing status"""
+        return self.queue.playing
+    @playing.setter
+    def playing(self, value: bool):
+        """Set the playing status"""
+        self.queue.playing = value
+
+    @property
+    def channel(self) -> discord.VoiceChannel:
+        """Return the voice channel"""
+        return self.queue.channel
+    @channel.setter
+    def channel(self, value: discord.VoiceChannel):
+        """Set the voice channel"""
+        self.queue.channel = value    
+
+    def get_next_song(self):
+        """Return the next song"""
+        return self.queue.get_next()
 
     def add_song(self, song):
         """Add a song to the queue"""
         self.queue.append(song)
 
-    def jump(self, pos: int):
+    def jump_relative(self, pos: int):
         """Jump to a position in the queue"""
-        self.idx += pos - 1
-        if self.idx >= len(self.queue):
-            self.idx = len(self.queue) - 1
-        if self.idx < 0:
-            self.idx = 0
-
-    def set_loop_all(self, value: bool):
-        """Set loop all"""
-        self.loop_all = value
+        self.queue.jump_relative(pos)
 

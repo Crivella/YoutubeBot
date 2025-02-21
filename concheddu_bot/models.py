@@ -13,35 +13,41 @@ from .youtube import YTDLSource
 
 async def safe_disconnect(connection: discord.VoiceClient):
     """Disconnect the bot from the voice channel"""
-    if not connection.is_playing():
-        await connection.disconnect()
+    if connection.is_playing():
+        return
+    guild = connection.guild
+    server = await DiscordServer.from_discord_guild(guild)
+    server.playing = False
+    server.channel = None
+    await connection.disconnect()
 
 def with_discord_user_async(func):
     """Decorator to add discord user to kwargs"""
     @wraps(func)
-    async def wrapper(*args, user: discord.User, **kwargs):
-        user_obj, _ = await DiscordUser.objects.aget_or_create(discord_id=user.id)
-        if user_obj.username != user.name:
-            user_obj.username = user.name
-            await user_obj.asave()
-
+    async def wrapper(*args, user, **kwargs):
+        if isinstance(user, (discord.User, discord.Member)):
+            user_obj = await DiscordUser.from_discord_user(user)
+        elif isinstance(user, DiscordUser):
+            user_obj = user
+        else:
+            raise ValueError(f'Invalid user type {type(user)}')
         return await func(*args, user=user_obj, **kwargs)
     return wrapper
 
 def with_discord_server_async(func):
     """Decorator to add discord server to kwargs"""
     @wraps(func)
-    async def wrapper(*args, server: discord.Guild, **kwargs):
-        server_obj, _ = await DiscordServer.objects.aget_or_create(discord_id=server.id)
-        if server_obj.name != server.name:
-            server_obj.name = server.name
-            await server_obj.asave()
-
+    async def wrapper(*args, server, **kwargs):
+        if isinstance(server, discord.Guild):
+            server_obj = await DiscordServer.from_discord_guild(server)
+        elif isinstance(server, DiscordServer):
+            server_obj = server
+        else:
+            raise ValueError('Invalid server type')
         return await func(*args, server=server_obj, **kwargs)
     return wrapper
 
-memo = {}
-
+memo_server: dict[int, 'DiscordServer'] = {}
 
 class DiscordServer(QueuedServer, models.Model):
     """Server model"""
@@ -54,10 +60,15 @@ class DiscordServer(QueuedServer, models.Model):
     @classmethod
     async def from_discord_guild(cls, guild: discord.Guild):
         """Return the discord server"""
+        if guild.id in memo_server:
+            return memo_server[guild.id]
+
         server_obj, _ = await cls.objects.aget_or_create(discord_id=guild.id)
         if server_obj.name != guild.name:
             server_obj.name = guild.name
             await server_obj.asave()
+
+        memo_server[guild.id] = server_obj
         return server_obj
 
     async def get_all_songs(self):
@@ -66,6 +77,9 @@ class DiscordServer(QueuedServer, models.Model):
         q = q.filter(server=self)
         q = q.select_related('song')
         res = []
+        # https://docs.djangoproject.com/en/5.1/topics/async/#queries-the-orm
+        # Weirdly there is no asynchronous all `aall` method this was the only way
+        # I got this to work
         async for a in q:
             res.append(a.song)
         return res
@@ -75,9 +89,6 @@ class DiscordUser(models.Model):
     username = models.CharField(max_length=255)
     discord_id = models.IntegerField()
 
-    played_songs = models.ManyToManyField('YTSong', through='PlayEvent', related_name='users')
-    favorite_songs = models.ManyToManyField('YTSong', through='FavoriteSongThrough', related_name='users_favorite')
-
     @classmethod
     async def from_discord_user(cls, user: discord.User):
         """Return the discord user"""
@@ -86,6 +97,28 @@ class DiscordUser(models.Model):
             user_obj.username = user.name
             await user_obj.asave()
         return user_obj
+
+    @with_discord_server_async
+    async def get_played_songs(self, *, server: DiscordServer) -> list['YTSong']:
+        """Return the played songs"""
+        q = PlayEvent.objects
+        q = q.filter(user=self, server=server)
+        q = q.select_related('song')
+        res = set()
+        async for a in q:
+            res.add(a.song)
+        return list(res)
+
+    @with_discord_server_async
+    async def get_favorite_songs(self, *, server: DiscordServer) -> list['YTSong']:
+        """Return the favorite songs"""
+        q = FavoriteSongThrough.objects
+        q = q.filter(user=self, server=server)
+        q = q.select_related('song')
+        res = set()
+        async for a in q:
+            res.add(a.song)
+        return list(res)
 
 class DiscordChannel(models.Model):
     """Channel model"""
@@ -98,7 +131,7 @@ class FavoriteSongThrough(models.Model):
     song = models.ForeignKey('YTSong', on_delete=models.CASCADE)
     server = models.ForeignKey(DiscordServer, on_delete=models.CASCADE)
 
-    added_date = models.DateTimeField(auto_now_add=True)
+    date = models.DateTimeField(auto_now_add=True)
 
 class AddedSongEvent(models.Model):
     """Added song event model"""
@@ -117,7 +150,7 @@ class YTSong(models.Model):
 
     local_path = models.CharField(max_length=512, null=True)
 
-    added_by = models.ManyToManyField(DiscordUser, through=AddedSongEvent, related_name='added_songs')
+    # added_by = models.ManyToManyField(DiscordUser, through=AddedSongEvent, related_name='added_songs')
 
     @staticmethod
     @with_discord_server_async
@@ -150,7 +183,7 @@ class YTSong(models.Model):
             data = source.data
             song, created = await cls.objects.aget_or_create(youtube_id=data['id'])
             if created:
-                song.title = data['title']
+                song.title = data['title'].strip()
                 song.duration = data['duration']
                 song.extension = data['ext']
                 song.local_path = source.local_path
@@ -165,21 +198,19 @@ class YTSong(models.Model):
         """Return the youtube url"""
         return f'https://www.youtube.com/watch?v={self.youtube_id}'
 
-    @property
     @with_discord_server_async
-    def times_played(self, server: DiscordServer):
+    async def get_times_played(self, *, server: DiscordServer):
         """Return the number of times played"""
-        q = self.play_events
-        q = q.filter(server=server)
-        return q.count()
+        q = PlayEvent.objects
+        q = q.filter(song=self, server=server)
+        return await q.acount()
 
-    @property
     @with_discord_server_async
-    def times_favorited(self, server: DiscordServer):
+    async def get_times_favorited(self, *, server: DiscordServer):
         """Return the number of times favorited"""
-        q = self.users_favorite
-        q = q.filter(server=server)
-        return q.count()
+        q = FavoriteSongThrough.objects
+        q = q.filter(song=self, server=server)
+        return await q.acount()
 
     async def get_source(self):
         """Return the source"""
@@ -197,6 +228,8 @@ class YTSong(models.Model):
         """Play the song"""
         server.add_song(self)
         if not client.is_playing():
+            server.playing = True
+            server.channel = client.channel
             await self._play(client, user=user, server=server)
 
     async def _play(self, client: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
@@ -216,33 +249,49 @@ class YTSong(models.Model):
         next_song = server.get_next_song()
         if next_song is None:
             asyncio.run_coroutine_threadsafe(safe_disconnect(connection), connection.loop)
-            return
-        asyncio.run_coroutine_threadsafe(
-            next_song._play(connection, user=user, server=server), connection.loop
-        )
+        else:
+            asyncio.run_coroutine_threadsafe(
+                next_song._play(connection, user=user, server=server), connection.loop
+            )
 
     @with_discord_user_async
     @with_discord_server_async
     async def favorite(self, *, user: DiscordUser, server: DiscordServer):
         """Favorite the song"""
-        if not FavoriteSongThrough.objects.filter(user=user, song=self, server=server).exists():
-            FavoriteSongThrough.objects.create(user=user, song=self, server=server)
+        q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
+        if not await q.aexists():
+            await FavoriteSongThrough.objects.acreate(user=user, song=self, server=server)
 
     @with_discord_server_async
     @with_discord_user_async
     async def unfavorite(self, *, user: DiscordUser, server: DiscordServer):
         """Unfavorite the song"""
         q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
-        if q.exists():
-            q.delete()
+        if await q.aexists():
+            await q.adelete()
 
-    def get_top_n_played(self, n: int = 10):
+    @staticmethod
+    @with_discord_server_async
+    async def get_top_n_played(n: int = 10, *, server: DiscordServer) -> list['YTSong']:
         """Return the top n songs"""
-        return self.objects.order_by('times_played')[:n]
+        q = YTSong.objects
+        q = q.filter(playevent__server=server)
+        q = q.annotate(times_played=models.Count('playevent'))
+        q = q.order_by('-times_played')
+        q = q[:n]
+        return [a async for a in q]
 
-    def get_top_n_favorited(self, n: int = 10):
+    @staticmethod
+    @with_discord_server_async
+    async def get_top_n_favorited(n: int = 10, *, server: DiscordServer) -> list['YTSong']:
         """Return the top n favorited songs"""
-        return self.objects.order_by('times_favorited')[:n]
+        q = YTSong.objects
+        q = q.filter(favoritesongthrough__server=server)
+        q = q.annotate(times_favorited=models.Count('favoritesongthrough'))
+        q = q.order_by('-times_favorited')
+        q = q[:n]
+        return [a async for a in q]
+        
 
 
 class PlayEvent(models.Model):
