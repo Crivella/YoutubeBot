@@ -7,6 +7,7 @@ from typing import Union
 import discord
 from django.db import models
 
+from .queued import QueuedServer
 from .youtube import YTDLSource
 
 
@@ -42,7 +43,7 @@ def with_discord_server_async(func):
 memo = {}
 
 
-class DiscordServer(models.Model):
+class DiscordServer(QueuedServer, models.Model):
     """Server model"""
     name = models.CharField(max_length=255)
     discord_id = models.IntegerField()
@@ -59,47 +60,6 @@ class DiscordServer(models.Model):
             await server_obj.asave()
         return server_obj
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        memo.setdefault(self.discord_id, {
-            'queue': [],
-            'idx': 0,
-            'loop_all': False,
-            'loop_one': False
-        })
-
-    @property
-    def queue(self) -> list['YTSong']:
-        """Return the queue"""
-        return memo[self.discord_id]['queue']
-    @queue.setter
-    def queue(self, value):
-        memo[self.discord_id]['queue'] = value
-
-    @property
-    def idx(self) -> int:
-        """Return the index"""
-        return memo[self.discord_id]['idx']
-    @idx.setter
-    def idx(self, value):
-        memo[self.discord_id]['idx'] = value
-
-    @property
-    def loop_all(self) -> bool:
-        """Return the loop all status"""
-        return memo[self.discord_id]['loop_all']
-    @loop_all.setter
-    def loop_all(self, value):
-        memo[self.discord_id]['loop_all'] = value
-
-    @property
-    def loop_one(self) -> bool:
-        """Return the loop one status"""
-        return memo[self.discord_id]['loop_one']
-    @loop_one.setter
-    def loop_one(self, value):
-        memo[self.discord_id]['loop_one'] = value
-
     async def get_all_songs(self):
         """Return all the songs in the server"""
         q = AddedSongEvent.objects
@@ -109,33 +69,6 @@ class DiscordServer(models.Model):
         async for a in q:
             res.append(a.song)
         return res
-
-    def get_next_song(self):
-        """Return the next song"""
-        if not self.queue:
-            return None
-        if self.loop_one:
-            return self.queue[self.idx]
-        self.idx += 1
-        if self.idx >= len(self.queue):
-            if self.loop_all:
-                self.idx = 0
-            else:
-                return None
-        song = self.queue[self.idx]
-        return song
-
-    def add_song(self, song: 'YTSong'):
-        """Add a song to the queue"""
-        self.queue.append(song)
-
-    def jump(self, pos: int):
-        """Jump to a position in the queue"""
-        self.idx += pos - 1
-        if self.idx >= len(self.queue):
-            self.idx = len(self.queue) - 1
-        if self.idx < 0:
-            self.idx = 0
 
 class DiscordUser(models.Model):
     """User model"""
