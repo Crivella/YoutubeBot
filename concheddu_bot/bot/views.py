@@ -176,6 +176,7 @@ class ListPlay(discord.ui.Select):
     def __init__(self, songs: list[m.YTSong], *args, **kwargs):
 
         self.options_ = options = [SongOption(song) for song in songs]
+        self.songs_map = {opt.value: opt.song for opt in options}
         self.page = 0
         self.num_pages = len(options) // MAX_LIST_OPT
         super().__init__(
@@ -203,12 +204,7 @@ class ListPlay(discord.ui.Select):
     @sense_check
     async def callback(self, itc: discord.Interaction):
         song_id = self.values[0]
-        for opt in self.options:
-            if opt.value == song_id:
-                song = opt.song
-                break
-        else:
-            raise ValueError('Song not found')
+        song = self.songs_map.get(song_id)
 
         vc = await get_vc_from_interaction(itc)
         await song.play(vc, user=itc.user, server=itc.guild)
