@@ -239,8 +239,8 @@ class ListMultiSelect(discord.ui.Select):
         if page < 0 or page > self.num_pages:
             return
         self.page = page
-        start = page * self.MAX_OPTS
-        end = start + self.MAX_OPTS
+        start = page * MAX_LIST_OPT
+        end = start + MAX_LIST_OPT
 
         lst = self.options_[start:end]
         self.options = lst
