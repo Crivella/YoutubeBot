@@ -14,7 +14,7 @@ def get_bot():
     if client is None:
         # This needs to be imported after django.setup()
         #pylint: disable=import-outside-toplevel
-        from concheddu_bot.bot import MyBot  
+        from concheddu_bot.bot import MyBot
         client = MyBot(
             command_prefix=commands.when_mentioned_or('!'),
             intents=discord.Intents.default()
@@ -47,10 +47,9 @@ def main():
     from concheddu_bot.bot import cmd
     print('Starting bot...')
     bot = get_bot()
-    # bot.add_cog(Music(bot))
     asyncio.run(bot.add_cog(cmd.Music()))
     asyncio.run(bot.add_cog(cmd.Playlists()))
-    asyncio.run(bot.add_cog(cmd.ServerUtils()))
+    asyncio.run(bot.add_cog(cmd.ServerUtils(bot=bot)))
     bot.run(token)
 
 if __name__ == '__main__':

@@ -11,6 +11,10 @@ from ...youtube import AUDIO_DIR
 
 class ServerUtils(commands.Cog):
     """Play command"""
+    def __init__(self, *args, bot, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bot = bot
+
     @app_commands.command()
     async def sync(self, itc: discord.Interaction):
         """Sync the bot commands"""
