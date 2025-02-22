@@ -146,7 +146,7 @@ class SongListSelect(discord.ui.Select):
         await itc.response.send_message(
             f'Playing [{song.duration} s] {song.title}',
             ephemeral=True,
-            duration=5
+            delete_after=5
         )
 
 class SongListViewSelect(discord.ui.View):
