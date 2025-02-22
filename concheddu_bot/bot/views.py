@@ -5,7 +5,10 @@ import discord
 from .. import models as m
 from .cmd.music import get_vc_from_interaction, sense_check
 
-MAX_LIST_OPT = os.getenv('BOT_MAX_LIST_OPT', 5)
+try:
+    MAX_LIST_OPT = int(os.getenv('BOT_MAX_LIST_OPT', 10))
+except ValueError:
+    MAX_LIST_OPT = 10
 if MAX_LIST_OPT > 25:
     MAX_LIST_OPT = 25
 
