@@ -42,6 +42,12 @@ class Queue(list):
         if self.idx < 0:
             self.idx = 0
 
+    def clear(self):
+        super().clear()
+        self.idx = 0
+        self.playing = False
+        self.channel = None
+
 
 memo: dict[int, Queue] = defaultdict(Queue)
 

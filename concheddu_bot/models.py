@@ -379,17 +379,29 @@ class Playlist(models.Model):
     @classmethod
     @with_discord_server_async
     @with_discord_user_async
+    async def create_playlist(cls, name: str, *, server: DiscordServer, user: DiscordUser):
+        """Create a playlist"""
+        q = cls.objects
+        q = q.filter(server=server, owner=user, name=name)
+        if await q.aexists():
+            return None
+        return await cls.objects.acreate(name=name, server=server, owner=user)
+
+    @classmethod
+    @with_discord_server_async
+    @with_discord_user_async
     async def get_playlists(cls, *, server: DiscordServer, user: DiscordUser):
         """Return the playlists"""
         return cls.objects.filter(server=server, owner=user).all()
 
-    def get_songs(self, limit: int = None):
+    async def get_songs(self, limit: int = None):
         """Return the songs in the playlist"""
-        q = self.songs
-        q = q.order_by('playlistthrough__order')
+        q = PlaylistThrough.objects
+        q = q.filter(playlist=self)
+        q = q.select_related('song')
         if limit:
             q = q[:limit]
-        return q.all()
+        return [a.song async for a in q]
 
     def get_songs_order_dates(self, limit: int = None):
         """Return the songs in the playlist ordered by date"""
@@ -416,26 +428,38 @@ class Playlist(models.Model):
             q = q[:limit]
         return q.all()
 
-    def add_song(self, song: Union[YTSong, 'str'], order=None):
+    async def add_song(self, song: Union[YTSong, 'str'], order: int = None):
         """Add a song to the playlist"""
         if order is None:
-            order = self.songs.count()
+            order = await self.songs.acount()
         if isinstance(song, str):
             raise NotImplementedError
-        PlaylistThrough.objects.create(playlist=self, song=song, order=order)
+        await PlaylistThrough.objects.acreate(playlist=self, song=song, order=order)
 
-    def add_song_multiple(self, songs: list[Union[YTSong, 'str']]):
+    async def add_song_multiple(self, songs: list[Union[YTSong, 'str']]):
         """Add multiple songs to the playlist"""
-        cnt = self.songs.count()
+        cnt = await self.songs.acount()
         for i, song in enumerate(songs):
-            self.add_song(song, cnt + i)
+            await self.add_song(song, cnt + i)
 
-    @property
-    def songs_count(self):
+    # @property
+    # def songs_count(self):
+    #     """Return the number of songs in the playlist"""
+    #     return self.songs.count()
+
+    async def get_song_count(self):
         """Return the number of songs in the playlist"""
-        return self.songs.count()
+        return await self.songs.acount()
 
-    @property
-    def duration(self):
+    async def get_duration(self):
         """Return the duration of the playlist"""
-        return sum(song.duration for song in self.songs.all())
+        songs = await self.get_songs()
+        return sum(song.duration for song in songs)
+
+    # @property
+    # def duration(self):
+    #     """Return the duration of the playlist"""
+    #     q = PlaylistThrough.objects
+    #     q = q.filter(playlist=self)
+    #     q = q.select_related('song')
+    #     return sum(a.song.duration async for a in q.all())
