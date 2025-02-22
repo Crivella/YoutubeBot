@@ -40,12 +40,27 @@ class Playlists(commands.Cog):
             itc (discord.Interaction): _description_
             favorite (bool, optional): If true show song you added to favorites. Defaults to False.
         """
+        user = itc.user
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
-        if favorite:
-            user = await m.DiscordUser.from_discord_user(itc.user)
-            songs = await user.get_favorite_songs(server=server)
-        else:
-            songs = await server.get_all_songs()
-        view = SongListView(songs)
-        await itc.response.send_message(view=view, ephemeral=True)
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        favs = await user.get_favorite_songs(server=guild)
+
+        songs = favs if favorite else await server.get_all_songs()
+
+        if not songs:
+            await itc.response.send_message(
+                'No songs found',
+                ephemeral=True
+            )
+            return
+
+        view = SongListView(itc=itc)
+        for song in songs:
+            view.add_song(song, song in favs)
+        # embedVar = discord.Embed(color=0xFF0000)
+        # embedVar.add_field(name='Songs:', value='Click on the songs to toggle favorites')
+        await itc.response.send_message(
+            view=view, ephemeral=True,
+            # embed=embedVar
+        )

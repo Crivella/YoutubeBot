@@ -94,7 +94,7 @@ class DiscordUser(models.Model):
     async def from_discord_user(cls, user: discord.User):
         """Return the discord user"""
         user_obj, _ = await cls.objects.aget_or_create(discord_id=user.id)
-        if user_obj.username != user.name:
+        if hasattr(user, 'name') and user_obj.username != user.name:
             user_obj.username = user.name
             await user_obj.asave()
         return user_obj
