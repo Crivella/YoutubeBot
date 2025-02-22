@@ -53,7 +53,7 @@ memo_server: dict[int, 'DiscordServer'] = {}
 class DiscordServer(QueuedServer, models.Model):
     """Server model"""
     name = models.CharField(max_length=255)
-    discord_id = models.IntegerField()
+    discord_id = models.BigIntegerField()
 
     users = models.ManyToManyField('DiscordUser', related_name='servers')
     songs = models.ManyToManyField('YTSong', through='AddedSongEvent', related_name='servers')
@@ -88,7 +88,7 @@ class DiscordServer(QueuedServer, models.Model):
 class DiscordUser(models.Model):
     """User model"""
     username = models.CharField(max_length=255)
-    discord_id = models.IntegerField()
+    discord_id = models.BigIntegerField()
 
     @classmethod
     async def from_discord_user(cls, user: discord.User):
