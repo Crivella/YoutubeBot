@@ -245,7 +245,6 @@ class ListMultiSelect(discord.ui.Select):
         lst = self.options_[start:end]
         self.options = lst
 
-    @sense_check
     async def callback(self, itc: discord.Interaction):
         for song_id in self.values:
             for opt in self.options:
