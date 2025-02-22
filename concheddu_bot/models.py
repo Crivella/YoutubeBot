@@ -167,6 +167,32 @@ class YTSong(models.Model):
     @classmethod
     @with_discord_user_async
     @with_discord_server_async
+    async def from_youtube_id(cls, ytid: str, *, user: DiscordUser, server: DiscordServer):
+        """Return the song from search string"""
+        song = None
+        q = cls.objects
+        q = q.filter(youtube_id=ytid)
+        if await q.aexists():
+            song = await q.aget()
+        if song is None:
+            url = f'https://www.youtube.com/watch?v={ytid}'
+            data = await YTDLSource.get_info(url)
+            song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
+
+            song.title = data['title'].strip()
+            song.duration = data['duration']
+            song.extension = data['ext']
+            song.local_path = data['local_path']
+            await song.asave()
+
+        if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
+            await AddedSongEvent.objects.acreate(user=user, song=song, server=server)
+
+        return song
+
+    @classmethod
+    @with_discord_user_async
+    @with_discord_server_async
     async def from_search_string(cls, search: str, *, user: DiscordUser, server: DiscordServer):
         """Return the song from search string"""
         song = None
@@ -181,12 +207,11 @@ class YTSong(models.Model):
             # source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
 
             # data = source.data
-            song, created = await cls.objects.aget_or_create(youtube_id=data['id'])
-            if created:
-                song.title = data['title'].strip()
-                song.duration = data['duration']
-                song.extension = data['ext']
-                song.local_path = data['local_path']
+            song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
+            song.title = data['title'].strip()
+            song.duration = data['duration']
+            song.extension = data['ext']
+            song.local_path = data['local_path']
 
         if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
             await AddedSongEvent.objects.acreate(user=user, song=song, server=server)

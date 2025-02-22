@@ -114,3 +114,56 @@ class SongListView(discord.ui.View):
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
+
+class SongOption(discord.SelectOption):
+    def __init__(self, song: m.YTSong, *args, **kwargs):
+        super().__init__(
+            label=elide(song.title),
+            value=song.youtube_id,
+            description=f'[{song.duration} s]',
+            emoji='🎵',
+            *args, **kwargs
+        )
+        self.song = song
+
+class SongListSelect(discord.ui.Select):
+    def __init__(self, songs: list[m.YTSong], *args, **kwargs):
+        options = [SongOption(song) for song in songs]
+        super().__init__(placeholder='Select a song to play', options=options, *args, **kwargs)
+
+    @sense_check
+    async def callback(self, itc: discord.Interaction):
+        song_id = self.values[0]
+        for opt in self.options:
+            if opt.value == song_id:
+                song = opt.song
+                break
+        else:
+            raise ValueError('Song not found')
+        vc = await get_vc_from_interaction(itc)
+
+        await song.play(vc, user=itc.user, server=itc.guild)
+        await itc.response.send_message(
+            f'Playing [{song.duration} s] {song.title}',
+            ephemeral=True,
+            duration=5
+        )
+
+class SongListViewSelect(discord.ui.View):
+    def __init__(self, itc: discord.Interaction, songs: list[m.YTSong]):
+        super().__init__()
+        self.itc = itc
+
+        self.songs = songs
+
+        if songs:
+            self.add_item(SongListSelect(songs))
+        else:
+            self.add_item(discord.ui.Button(
+                label='No songs found',
+                style=discord.ButtonStyle.secondary,
+                disabled=True
+            ))
+
+    async def on_timeout(self):
+        await self.itc.delete_original_response()
