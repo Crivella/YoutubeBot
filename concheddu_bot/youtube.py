@@ -40,6 +40,9 @@ ffmpeg_options = {
     'options': FFMPEG_OPTIONS,
 }
 
+# audio_class = discord.FFmpegOpusAudio
+audio_class = discord.FFmpegPCMAudio
+
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
         super().__init__(source, volume)
@@ -51,7 +54,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     def from_path(cls, filename, metadata):
         if filename is None or not os.path.exists(filename):
             return None
-        res = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=metadata)
+        res = cls(audio_class(filename, **ffmpeg_options), data=metadata)
         # res.local_path = filename
         return res
 
@@ -61,7 +64,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         await loop.run_in_executor(None, lambda: ytdl.download(url))
 
         filename = ytdl.prepare_filename(data)
-        res = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        res = cls(audio_class(filename, **ffmpeg_options), data=data)
         # res.local_path = os.path.join(AUDIO_DIR, f'{data["id"]}.{data["ext"]}')
         return res
 
@@ -93,7 +96,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         Returns:
             str: yt_id
-        
+
         Raises:
             InvalidURLError: If URL is a valid URL but not a YouTube URL
         """
@@ -114,4 +117,3 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     class InvalidURLError(Exception):
         pass
-
