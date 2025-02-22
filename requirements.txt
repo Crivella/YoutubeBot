@@ -1,6 +1,0 @@
-discord.py
-pynacl
-yt_dlp
-# sqlalchemy
-psycopg[binary]
-Django

@@ -97,9 +97,6 @@ class Music(commands.Cog):
         if not vc.is_playing():
             await itc.response.send_message("the bot isn't playing anything")
             return
-        if pos < 1:
-            await itc.response.send_message('you must skip at least one song')
-            return
 
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)

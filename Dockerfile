@@ -7,12 +7,14 @@ RUN apt-get update && apt-get install \
 
 RUN mkdir -p /src
 
-COPY pyproject.toml /src
+RUN pip install --upgrade pip
+
 COPY concheddu_bot /src/concheddu_bot
 COPY README.md /src
 COPY LICENSE.txt /src
+COPY pyproject.toml /src
 
-RUN pip install /src
+RUN pip install /src[postgres,mysql]
 
 RUN mkdir -p /bot
 
