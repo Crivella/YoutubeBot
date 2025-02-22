@@ -83,8 +83,9 @@ class Playlists(commands.Cog):
     async def create_playlist(self, itc: discord.Interaction, name: str):
         """Create a playlist"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
+        user = await m.DiscordUser.from_discord_user(itc.user)
         songs = await server.get_all_songs()
-        if await m.Playlist.objects.filter(server=server, name=name).aexists():
+        if await m.Playlist.objects.filter(server=server, name=name, owner=user).aexists():
             await itc.response.send_message(
                 'Playlist already exists',
                 ephemeral=True,
