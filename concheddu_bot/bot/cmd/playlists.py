@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from ...import models as m
 from .. import views as v
-from ..cmd.music import get_vc_from_interaction
+from ..utils import get_vc_from_interaction
 
 class Playlists(commands.Cog):
     """Play command"""
