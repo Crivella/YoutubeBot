@@ -89,9 +89,11 @@ class ButtonBwd(discord.ui.Button):
 
 class Paged:
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.page = 0
         self.options__ = []
         self.num_pages = 0
+        self.follow_changes = False
 
     @property
     def options_(self):
@@ -115,7 +117,8 @@ class Paged:
         end = start + MAX_LIST_OPT
 
         lst = self.options_[start:end]
-        self.max_values = min(MAX_LIST_OPT, len(lst))
+        if self.follow_changes:
+            self.max_values = min(MAX_LIST_OPT, len(lst))
         self.options = lst
         return True
 
@@ -128,6 +131,7 @@ class ListPlay(discord.ui.Select, Paged):
             options=[],
             *args, **kwargs
         )
+        self.follow_changes = False
         self.songs = songs
         self.options_ = [SongOption(song) for song in songs]
         self.songs_map = {opt.value: opt.song for opt in self.options_}
@@ -135,6 +139,9 @@ class ListPlay(discord.ui.Select, Paged):
 
     @sense_check
     async def callback(self, itc: discord.Interaction):
+        if not self.values:
+            await safe_defer(itc)
+            return
         song_id = self.values[0]
         song = self.songs_map.get(song_id)
 
@@ -156,6 +163,7 @@ class ListMultiSelect(discord.ui.Select, Paged):
             options=[],
             *args, **kwargs
         )
+        self.follow_changes = True
         self.songs = songs
         self.options_ = [SongOption(song) for song in songs]
         self.go_to_page(0)
