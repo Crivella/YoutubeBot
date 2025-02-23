@@ -25,11 +25,11 @@ def elide_and_pad(text: str, length: int = 60) -> str:
     return elide(pad(text, length), length)
 
 class SongOption(discord.SelectOption):
-    def __init__(self, song: m.YTSong, *args, **kwargs):
+    def __init__(self, song: m.YTSong, *args,**kwargs):
         super().__init__(
             label=elide(song.title),
             value=song.youtube_id,
-            description=f'[{song.duration} s]',
+            description=f'[{song.duration} s] [{song.times_played_} plays]',
             emoji='🎵',
             *args, **kwargs
         )
@@ -133,6 +133,7 @@ class ListPlay(discord.ui.Select, Paged):
         )
         self.follow_changes = False
         self.songs = songs
+
         self.options_ = [SongOption(song) for song in songs]
         self.songs_map = {opt.value: opt.song for opt in self.options_}
         self.go_to_page(0)
@@ -151,7 +152,7 @@ class ListPlay(discord.ui.Select, Paged):
             await itc.response.send_message(
                 f'Playing [{song.duration} s] {song.title}',
                 ephemeral=True,
-                delete_after=5
+                delete_after=15
             )
         except discord.errors.NotFound:
             pass

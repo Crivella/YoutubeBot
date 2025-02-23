@@ -40,7 +40,7 @@ class Music(commands.Cog):
             num (int, optional): The number of random songs to play. Defaults to 1.
         """
         if num < 1 or num > 10:
-            await itc.response.send_message('Number of songs must be between 1 and 10', ephemeral=True, delete_after=5)
+            await itc.response.send_message('Number of songs must be between 1 and 10', ephemeral=True, delete_after=10)
             return
         user = itc.user
         guild = itc.guild
@@ -50,7 +50,7 @@ class Music(commands.Cog):
         for s in song:
             await s.play(vc, user=user, server=guild)
             res.append(f'[{s.duration} s] {s.title}')
-        await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=10)
+        await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=60)
 
     @app_commands.command()
     @sense_check

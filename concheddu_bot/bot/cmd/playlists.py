@@ -83,6 +83,8 @@ class Playlists(commands.Cog):
             )
             return
         songs = await m.YTSong.get_all_songs(server=server, n=num, sorting=sorting)
+        for song in songs:
+            song.times_played_ = await song.get_times_played(server=server)
         view = v.SongList(itc, songs)
         await itc.response.send_message(
             'Select a song to play',
@@ -107,7 +109,7 @@ class Playlists(commands.Cog):
             await itc.response.send_message(
                 'Playlist already exists',
                 ephemeral=True,
-                delete_after=5
+                delete_after=10
             )
             return
         view = v.CreatePlaylist(itc, songs, name)
@@ -144,7 +146,7 @@ class Playlists(commands.Cog):
             await itc.response.send_message(
                 f'Playlist `{name}` not found',
                 ephemeral=True,
-                delete_after=5
+                delete_after=10
             )
             return
         songs = await playlist.get_songs()
