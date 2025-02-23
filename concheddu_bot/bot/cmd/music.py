@@ -33,6 +33,27 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
+    async def play_random(self, itc: discord.Interaction, num: int = 1):
+        """Play from 1 to 10 random songs
+
+        Args:
+            num (int, optional): The number of random songs to play. Defaults to 1.
+        """
+        if num < 1 or num > 10:
+            await itc.response.send_message('Number of songs must be between 1 and 10', ephemeral=True, delete_after=5)
+            return
+        user = itc.user
+        guild = itc.guild
+        song = await m.YTSong.get_all_songs(server=guild, n=num, sorting='random')
+        vc = await get_vc_from_interaction(itc)
+        res = []
+        for s in song:
+            await s.play(vc, user=user, server=guild)
+            res.append(f'[{s.duration} s] {s.title}')
+        await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=10)
+
+    @app_commands.command()
+    @sense_check
     async def queue(self, itc: discord.Interaction):
         """Sync the bot commands"""
         guild = itc.guild
@@ -48,6 +69,10 @@ class Music(commands.Cog):
             res = []
             idx = server.queue.idx
             for i,song in enumerate(queue):
+                if i < idx-4:
+                    continue
+                if i > idx+7:
+                    break
                 pre = ' ‣‣‣' if idx == i else f'{i-idx:>4d}'
                 res.append(f'{pre} {song.title}')
             queue_str = '\n'.join(res)

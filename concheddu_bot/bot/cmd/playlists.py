@@ -67,17 +67,35 @@ class Playlists(commands.Cog):
     #     )
 
     @app_commands.command()
-    async def list_songs(self, itc: discord.Interaction):
-        """Invoke a select list"""
+    async def list_songs(self, itc: discord.Interaction, num: int = 20, sorting: str = 'times_played'):
+        """Generate a list of songs already known to the bot
+
+        Args:
+            num (int, optional): Number of songs to list. Defaults to 20.
+            sorting (str, optional): Sorting option. Defaults to 'times_played'.
+        """
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
-        songs = await server.get_all_songs()
+        if sorting not in m.YTSong.sort_map:
+            await itc.response.send_message(
+                'Invalid sorting option',
+                ephemeral=True
+            )
+            return
+        songs = await m.YTSong.get_all_songs(server=server, n=num, sorting=sorting)
         view = v.SongList(itc, songs)
         await itc.response.send_message(
             'Select a song to play',
             view=view,
             ephemeral=True
         )
+    @list_songs.autocomplete('sorting')
+    async def _list_songs_sorting(self, itc: discord.Interaction, current: str):
+        """Autocomplete the sorting option"""
+        return [
+            app_commands.Choice(name=m.YTSong.sort_desc[k], value=k) for k in m.YTSong.sort_map.keys()
+            if k.startswith(current)
+        ]
 
     @app_commands.command()
     async def create_playlist(self, itc: discord.Interaction, name: str):

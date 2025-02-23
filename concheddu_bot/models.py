@@ -152,6 +152,22 @@ class YTSong(models.Model):
     local_path = models.CharField(max_length=512, null=True)
 
     # added_by = models.ManyToManyField(DiscordUser, through=AddedSongEvent, related_name='added_songs')
+    sort_map = {
+        'title': lambda x: x.order_by('title'),
+        'duration': lambda x: x.order_by('-duration'),
+        'last_played': lambda x: x.annotate(last_played=models.Max('playevent__date')).order_by('-last_played'),
+        'times_played': lambda x: x.annotate(times_played=models.Count('playevent')).order_by('-times_played'),
+        'times_favorited': lambda x: x.annotate(times_favorited=models.Count('favoritesongthrough')).order_by('-times_favorited'),
+        'random': lambda x: x.order_by('?'),
+    }
+    sort_desc = {
+        'title': 'Sort by title',
+        'duration': 'Sort by duration',
+        'last_played': 'Sort by last played',
+        'times_played': 'Sort by times played',
+        'times_favorited': 'Sort by times added to playlists',
+        'random': 'Sort randomly',
+    }
 
     @staticmethod
     @with_discord_server_async
@@ -326,24 +342,41 @@ class YTSong(models.Model):
 
     @staticmethod
     @with_discord_server_async
-    async def get_top_n_played(n: int = 10, *, server: DiscordServer) -> list['YTSong']:
+    async def get_top_played(n: int = None, *, server: DiscordServer) -> list['YTSong']:
         """Return the top n songs"""
         q = YTSong.objects
         q = q.filter(playevent__server=server)
         q = q.annotate(times_played=models.Count('playevent'))
         q = q.order_by('-times_played')
-        q = q[:n]
+        if n:
+            q = q[:n]
         return [a async for a in q]
 
     @staticmethod
     @with_discord_server_async
-    async def get_top_n_favorited(n: int = 10, *, server: DiscordServer) -> list['YTSong']:
+    async def get_top_favorited(n: int = None, *, server: DiscordServer) -> list['YTSong']:
         """Return the top n favorited songs"""
         q = YTSong.objects
         q = q.filter(favoritesongthrough__server=server)
         q = q.annotate(times_favorited=models.Count('favoritesongthrough'))
         q = q.order_by('-times_favorited')
-        q = q[:n]
+        if n:
+            q = q[:n]
+        return [a async for a in q]
+
+    @staticmethod
+    @with_discord_server_async
+    async def get_all_songs(*, n: int = None, server: DiscordServer, sorting: str = 'title') -> list['YTSong']:
+        """Return n random songs"""
+        func = YTSong.sort_map.get(sorting)
+        if func is None:
+            raise ValueError(f'Invalid sorting scheme `{sorting}`')
+        q = YTSong.objects
+        q = q.filter(servers=server)
+        q = func(q)
+        if n:
+            q = q[:n]
+
         return [a async for a in q]
 
 
