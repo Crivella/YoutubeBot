@@ -53,9 +53,10 @@ class Music(commands.Cog):
         await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=60)
 
     @app_commands.command()
-    @sense_check
     async def queue(self, itc: discord.Interaction):
         """Sync the bot commands"""
+        pre = 4
+        post = 7
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
         queue = server.queue
@@ -68,13 +69,13 @@ class Music(commands.Cog):
         else:
             res = []
             idx = server.queue.idx
-            for i,song in enumerate(queue):
-                if i < idx-4:
-                    continue
-                if i > idx+7:
-                    break
-                pre = ' ‣‣‣' if idx == i else f'{i-idx:>4d}'
-                res.append(f'{pre} {song.title}')
+            if idx > pre:
+                res.append('`...`')
+            for i in range(max(0, idx-pre), min(len(queue), idx+post)):
+                pre = '`` ‣‣‣`' if idx == i else f'`{i-idx:>4d}`'
+                res.append(f'{pre} {queue[i].title}')
+            if idx + post < len(queue):
+                res.append('`...`')
             queue_str = '\n'.join(res)
             embedVar = discord.Embed(color=0xFF0000)
             embedVar.add_field(name='Now playing:', value=queue_str)
@@ -92,7 +93,11 @@ class Music(commands.Cog):
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
         server.jump_relative(pos)
-        vc.stop()
+        if vc.is_playing():
+            vc.stop()
+        else:
+            song = await server.queue.get_next_song()
+            await song._play(vc, user=itc.user, server=guild)
         await itc.response.send_message(f'skipped `{pos}` songs')
 
     @app_commands.command()
@@ -134,7 +139,6 @@ class Music(commands.Cog):
         await itc.response.send_message('Stopped looping')
 
     @app_commands.command()
-    @sense_check
     async def stop(self, itc: discord.Interaction):
         """Stop the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
