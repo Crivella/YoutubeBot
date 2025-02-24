@@ -153,12 +153,24 @@ class YTSong(models.Model):
 
     # added_by = models.ManyToManyField(DiscordUser, through=AddedSongEvent, related_name='added_songs')
     sort_map = {
-        'title': lambda x: x.order_by('title'),
-        'duration': lambda x: x.order_by('-duration'),
-        'last_played': lambda x: x.annotate(last_played=models.Max('playevent__date')).order_by('-last_played'),
-        'times_played': lambda x: x.annotate(times_played=models.Count('playevent')).order_by('-times_played'),
-        'times_favorited': lambda x: x.annotate(times_favorited=models.Count('favoritesongthrough')).order_by('-times_favorited'),
-        'random': lambda x: x.order_by('?'),
+        'title': lambda x, server: x.order_by('title'),
+        'duration': lambda x, server: x.order_by('-duration'),
+        'last_played': lambda x, server: x.annotate(last_played=models.Max(
+            models.Case(
+                models.When(playevent__server=server, then='playevent__date'),
+                output_field=models.DateTimeField()
+            ))
+        ).order_by('-last_played'),
+        'times_played': lambda x, server: x.annotate(
+            times_played=models.Count(
+                models.Case(
+                    models.When(playevent__server=server, then=1),
+                    output_field=models.IntegerField()
+                )
+            )
+        ).order_by('-times_played'),
+        'times_favorited': lambda x, server: x.annotate(times_favorited=models.Count('favoritesongthrough')).order_by('-times_favorited'),
+        'random': lambda x, server: x.order_by('?'),
     }
     sort_desc = {
         'title': 'Sort by title',
@@ -373,7 +385,7 @@ class YTSong(models.Model):
             raise ValueError(f'Invalid sorting scheme `{sorting}`')
         q = YTSong.objects
         q = q.filter(servers=server)
-        q = func(q)
+        q = func(q, server)
         if n:
             q = q[:n]
 
