@@ -298,18 +298,23 @@ class YTSong(models.Model):
         """Play the song"""
         server.add_song(self)
         if not client.is_playing():
-            server.playing = True
-            server.channel = client.channel
             await self._play(client, user=user, server=server)
 
     async def _play(self, client: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
         """Play the song"""
         source = await self.get_source()
-        await PlayEvent.objects.acreate(user=user, song=self, server=server)
-        client.play(
-            source,
-            after = lambda e=None, c=client, u=user, s=server: self.after_play(e, c, u, s)
-        )
+        try:
+            client.play(
+                source,
+                after = lambda e=None, c=client, u=user, s=server: self.after_play(e, c, u, s)
+            )
+        except Exception as e:
+            print(e)
+            return
+        else:
+            await PlayEvent.objects.acreate(user=user, song=self, server=server)
+            server.playing = True
+            server.channel = client.channel
 
     @staticmethod
     def after_play(error, connection: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
