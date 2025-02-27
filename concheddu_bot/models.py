@@ -151,27 +151,6 @@ class YTSong(models.Model):
 
     local_path = models.CharField(max_length=512, null=True)
 
-    # added_by = models.ManyToManyField(DiscordUser, through=AddedSongEvent, related_name='added_songs')
-    sort_map = {
-        'title': lambda x, server: x.order_by('title'),
-        'duration': lambda x, server: x.order_by('-duration'),
-        'last_played': lambda x, server: x.annotate(last_played=models.Max(
-            models.Case(
-                models.When(playevent__server=server, then='playevent__date'),
-                output_field=models.DateTimeField()
-            ))
-        ).order_by('-last_played'),
-        'times_played': lambda x, server: x.annotate(
-            times_played=models.Count(
-                models.Case(
-                    models.When(playevent__server=server, then=1),
-                    output_field=models.IntegerField()
-                )
-            )
-        ).order_by('-times_played'),
-        'times_favorited': lambda x, server: x.annotate(times_favorited=models.Count('favoritesongthrough')).order_by('-times_favorited'),
-        'random': lambda x, server: x.order_by('?'),
-    }
     sort_desc = {
         'title': 'Sort by title',
         'duration': 'Sort by duration',
@@ -382,19 +361,86 @@ class YTSong(models.Model):
         return [a async for a in q]
 
     @staticmethod
+    async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:
+        """Return a queryset of all songs ordered by last played on a server"""
+        q = PlayEvent.objects
+        q = q.filter(server=server)
+        q = q.values('song')
+        # q = q.select_related('song')
+        q = q.annotate(last_played=models.Max('date'))
+        q = q.order_by('-last_played')
+        return q
+
+    @staticmethod
+    async def get_all_songs_tp(server: DiscordServer) -> models.QuerySet:
+        """Return a queryset of all songs ordered by times played on a server"""
+        q = PlayEvent.objects
+        q = q.filter(server=server)
+        q = q.values('song')
+        # q = q.select_related('song')
+        q = q.annotate(times_played=models.Count('song'))
+        q = q.order_by('-times_played')
+        return q
+
+    @staticmethod
+    async def get_all_songs_pl(server: DiscordServer) -> models.QuerySet:
+        """Return a queryset of all songs ordered by times added to playlists on a server"""
+        q = PlaylistThrough.objects
+        q = q.filter(playlist__server=server)
+        q = q.values('song')
+        # q = q.select_related('song')
+        q = q.annotate(time_added=models.Count('song'))
+        q = q.order_by('-time_added')
+        return q
+
+    @staticmethod
+    async def get_all_songs_title(server: DiscordServer) -> models.QuerySet:
+        """Return a queryset of all songs ordered by title on a server"""
+        q = YTSong.objects
+        q = q.filter(servers=server)
+        q = q.order_by('title')
+        return q
+
+    @staticmethod
+    async def get_all_songs_duration(server: DiscordServer) -> models.QuerySet:
+        """Return a queryset of all songs ordered by duration on a server"""
+        q = YTSong.objects
+        q = q.filter(servers=server)
+        q = q.order_by('-duration')
+        return q
+
+    @staticmethod
+    async def get_all_songs_random(server: DiscordServer) -> models.QuerySet:
+        """Return a queryset of all songs ordered randomly on a server"""
+        q = YTSong.objects
+        q = q.filter(servers=server)
+        q = q.order_by('?')
+        return q
+
+
+    @staticmethod
     @with_discord_server_async
     async def get_all_songs(*, n: int = None, server: DiscordServer, sorting: str = 'title') -> list['YTSong']:
         """Return n random songs"""
-        func = YTSong.sort_map.get(sorting)
-        if func is None:
-            raise ValueError(f'Invalid sorting scheme `{sorting}`')
-        q = YTSong.objects
-        q = q.filter(servers=server)
-        q = func(q, server)
+        q = await YTSong.sort_map[sorting](server)
         if n:
             q = q[:n]
 
-        return [a async for a in q]
+        res = [a async for a in q]
+
+        if res and isinstance(res[0], dict):
+            res = [await YTSong.objects.aget(id=a['song']) for a in res]
+
+        return res
+
+    sort_map = {
+        'title': get_all_songs_title,
+        'duration': get_all_songs_duration,
+        'last_played': get_all_songs_lp,
+        'times_played': get_all_songs_tp,
+        'times_favorited': get_all_songs_pl,
+        'random': get_all_songs_random,
+    }
 
 
 
