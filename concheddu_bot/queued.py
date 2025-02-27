@@ -19,6 +19,8 @@ class Queue(list):
         if self.loop_one:
             return self[self.idx]
         self.idx += 1
+        if self.idx < 0:
+            self.idx = 0
         if self.idx >= len(self):
             if self.loop_all:
                 self.idx = 0
@@ -39,8 +41,6 @@ class Queue(list):
         self.idx += value - 1
         if self.idx >= len(self):
             self.idx = len(self) - 1
-        if self.idx < 0:
-            self.idx = 0
 
     def clear(self):
         super().clear()

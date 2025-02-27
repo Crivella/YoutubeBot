@@ -86,18 +86,15 @@ class Music(commands.Cog):
     async def jump(self, itc: discord.Interaction, pos: int = 1):
         """Skip the current song"""
         vc = await get_vc_from_interaction(itc)
-        if not vc.is_playing():
-            await itc.response.send_message("the bot isn't playing anything")
-            return
 
-        guild = itc.guild
-        server = await m.DiscordServer.from_discord_guild(guild)
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        user = await m.DiscordUser.from_discord_user(itc.user)
         server.jump_relative(pos)
         if vc.is_playing():
             vc.stop()
         else:
-            song = await server.queue.get_next_song()
-            await song._play(vc, user=itc.user, server=guild)
+            song = server.get_next_song()
+            await song._play(vc, user=user, server=server)
         await itc.response.send_message(f'skipped `{pos}` songs')
 
     @app_commands.command()
