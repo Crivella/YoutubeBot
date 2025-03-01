@@ -80,8 +80,9 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return res
 
     @staticmethod
-    async def normalize(local_path) -> bool:
+    async def normalize(local_path, *, loop = None) -> bool:
         """Normalize the audio"""
+        loop = loop or asyncio.get_event_loop()
         try:
             name, ext = os.path.splitext(local_path)
             fname = os.path.basename(name)
@@ -90,7 +91,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 return outfile
             norm = FFmpegNormalize(**ffmpeg_normalize_options)
             norm.add_media_file(local_path, outfile)
-            norm.run_normalization()
+            await loop.run_in_executor(None, norm.run_normalization)
+            # norm.run_normalization()
         except Exception as e:
             print(f'Error normalizing {local_path}: {e}')
             return
