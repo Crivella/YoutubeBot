@@ -6,6 +6,19 @@ import discord
 from .. import models as m
 
 
+async def get_vc_from_user(user: discord.Member) -> discord.VoiceClient:
+    """Get the voice channel from the user"""
+    guild = user.guild
+    if (vc := guild.voice_client):
+        return vc
+    if not user.voice:
+        return
+    try:
+        vc = await user.voice.channel.connect()
+    except discord.errors.ClientException:
+        return
+    return vc
+
 async def get_vc_from_interaction(itc: discord.Interaction) -> discord.VoiceClient:
     """Get the voice channel from the interaction"""
     user = itc.user

@@ -8,6 +8,7 @@ from typing import Union
 import discord
 from django.db import models
 
+from .bot.utils import get_vc_from_user
 from .queued import QueuedServer
 from .youtube import YTDLSource
 
@@ -28,6 +29,7 @@ def with_discord_user_async(func):
     async def wrapper(*args, user, **kwargs):
         if isinstance(user, (discord.User, discord.Member)):
             user_obj = await DiscordUser.from_discord_user(user)
+            user_obj.dc = user
         elif isinstance(user, DiscordUser):
             user_obj = user
         else:
@@ -41,6 +43,7 @@ def with_discord_server_async(func):
     async def wrapper(*args, server, **kwargs):
         if isinstance(server, discord.Guild):
             server_obj = await DiscordServer.from_discord_guild(server)
+            server_obj.dc = server
         elif isinstance(server, DiscordServer):
             server_obj = server
         else:
@@ -57,6 +60,8 @@ class DiscordServer(QueuedServer, models.Model):
 
     users = models.ManyToManyField('DiscordUser', related_name='servers')
     songs = models.ManyToManyField('YTSong', through='AddedSongEvent', related_name='servers')
+
+    dc: discord.Guild = None
 
     @classmethod
     async def from_discord_guild(cls, guild: discord.Guild):
@@ -89,6 +94,8 @@ class DiscordUser(models.Model):
     """User model"""
     username = models.CharField(max_length=255)
     discord_id = models.BigIntegerField()
+
+    dc: discord.User | discord.Member = None
 
     @classmethod
     async def from_discord_user(cls, user: discord.User):
@@ -273,15 +280,21 @@ class YTSong(models.Model):
 
     @with_discord_user_async
     @with_discord_server_async
-    async def play(self, client: discord.VoiceClient, *, user: DiscordUser, server: DiscordServer):
-        """Play the song"""
+    async def play(self, *, user: DiscordUser, server: DiscordServer):
+        """Play or queue the song"""
         server.add_song(self)
-        if not client.is_playing():
-            await self._play(client, user=user, server=server)
+        client = user.dc.guild.voice_client
+        if client and client.is_playing():
+            # print(f'Only queueing {self.title} as is already playing')
+            # await self._play(client, user=user, server=server)
+            return
+        await self._play(user=user, server=server)
 
-    async def _play(self, client: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
+
+    async def _play(self, user: DiscordUser, server: DiscordServer):
         """Play the song"""
         source = await self.get_source()
+        client = await get_vc_from_user(user.dc)
         try:
             client.play(
                 source,
@@ -305,7 +318,7 @@ class YTSong(models.Model):
             asyncio.run_coroutine_threadsafe(safe_disconnect(connection), connection.loop)
         else:
             asyncio.run_coroutine_threadsafe(
-                next_song._play(connection, user=user, server=server), connection.loop
+                next_song._play(user=user, server=server), connection.loop
             )
 
     @with_discord_user_async

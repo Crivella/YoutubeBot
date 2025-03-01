@@ -27,9 +27,8 @@ class Music(commands.Cog):
         if song.need_download:
             await itc.edit_original_response(content=f'Downloading `{song.title}`')
             await song.download()
-        vc = await get_vc_from_interaction(itc)
         await itc.edit_original_response(content=f'Playing [{song.duration} s] {song.title}')
-        await song.play(vc, user=user, server=guild)
+        await song.play(user=user, server=guild)
 
     @app_commands.command()
     @sense_check
@@ -45,12 +44,14 @@ class Music(commands.Cog):
         user = itc.user
         guild = itc.guild
         song = await m.YTSong.get_all_songs(server=guild, n=num, sorting='random')
-        vc = await get_vc_from_interaction(itc)
         res = []
+        awaitables = []
         for s in song:
-            await s.play(vc, user=user, server=guild)
+            awaitables.append(s.play(user=user, server=guild))
             res.append(f'[{s.duration} s] {s.title}')
         await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=60)
+        for a in awaitables:
+            await a
 
     @app_commands.command()
     async def queue(self, itc: discord.Interaction):
@@ -85,16 +86,16 @@ class Music(commands.Cog):
     @sense_check
     async def jump(self, itc: discord.Interaction, pos: int = 1):
         """Skip the current song"""
-        vc = await get_vc_from_interaction(itc)
 
         server = await m.DiscordServer.from_discord_guild(itc.guild)
-        user = await m.DiscordUser.from_discord_user(itc.user)
         server.jump_relative(pos)
-        if vc.is_playing():
+        vc = itc.guild.voice_client
+        if vc and vc.is_playing():
             vc.stop()
         else:
+            user = await m.DiscordUser.from_discord_user(itc.user)
             song = server.get_next_song()
-            await song._play(vc, user=user, server=server)
+            await song._play(user=user, server=server)
         await itc.response.send_message(f'skipped `{pos}` songs')
 
     @app_commands.command()
@@ -104,9 +105,8 @@ class Music(commands.Cog):
         user = itc.user
         guild = itc.guild
         song = await m.YTSong.get_last_played(server=guild)
-        vc = await get_vc_from_interaction(itc)
         await itc.response.send_message(f'Playing [{song.duration} s] {song.title}', ephemeral=True)
-        await song.play(vc, user=user, server=guild)
+        await song.play(user=user, server=guild)
 
     @app_commands.command()
     @sense_check
