@@ -5,12 +5,16 @@ import urllib
 
 import discord
 import yt_dlp
+from ffmpeg_normalize import FFmpegNormalize
 
 FORMAT = os.getenv('BOT_YTDL_FORMAT', 'worstaudio')
 AUDIO_DIR = os.getenv('BOT_AUDIO_DIR', './dl')
 # FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
 MAX_DURATION = int(os.getenv('BOT_MAX_DURATION', 7*60))
 FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
+NORMALIZE = os.getenv('BOT_NORMALIZE', 'False').lower() in ['true', '1', 't', 'y', 'yes']
+NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
+NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
 
 ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,
@@ -40,6 +44,12 @@ ffmpeg_options = {
     'options': FFMPEG_OPTIONS,
 }
 
+
+ffmpeg_normalize_options = {
+    # 'audio_codec': 'libopus',
+    'audio_codec': NORMALIZE_CODEC,
+}
+
 # audio_class = discord.FFmpegOpusAudio
 audio_class = discord.FFmpegPCMAudio
 
@@ -48,14 +58,14 @@ class YTDLSource(discord.PCMVolumeTransformer):
         super().__init__(source, volume)
 
         self.data = data
-        # self.local_path = None
 
     @classmethod
-    def from_path(cls, filename, metadata):
+    async def from_path(cls, filename, metadata):
         if filename is None or not os.path.exists(filename):
             return None
+        if NORMALIZE:
+            filename = await cls.normalize(filename)
         res = cls(audio_class(filename, **ffmpeg_options), data=metadata)
-        # res.local_path = filename
         return res
 
     @classmethod
@@ -64,9 +74,29 @@ class YTDLSource(discord.PCMVolumeTransformer):
         await loop.run_in_executor(None, lambda: ytdl.download(url))
 
         filename = ytdl.prepare_filename(data)
+        if NORMALIZE:
+            filename = await cls.normalize(filename)
         res = cls(audio_class(filename, **ffmpeg_options), data=data)
-        # res.local_path = os.path.join(AUDIO_DIR, f'{data["id"]}.{data["ext"]}')
         return res
+
+    @staticmethod
+    async def normalize(local_path) -> bool:
+        """Normalize the audio"""
+        try:
+            name, ext = os.path.splitext(local_path)
+            fname = os.path.basename(name)
+            outfile = os.path.join(AUDIO_DIR, f'{fname}.norm.{NORMALIZE_EXT}')
+            if os.path.exists(outfile):
+                return outfile
+            norm = FFmpegNormalize(**ffmpeg_normalize_options)
+            norm.add_media_file(local_path, outfile)
+            norm.run_normalization()
+        except Exception as e:
+            print(f'Error normalizing {local_path}: {e}')
+            return
+        else:
+            print(f'Normalized {local_path}')
+        return outfile
 
     @staticmethod
     async def get_info(url: str):

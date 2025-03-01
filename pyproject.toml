@@ -22,6 +22,7 @@ dependencies = [
     "pynacl",
     "yt_dlp",
     "Django",
+    "ffmpeg-normalize",
 ]
 
 [project.urls]

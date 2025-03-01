@@ -264,7 +264,7 @@ class YTSong(models.Model):
         if hasattr(self, 'source') and self.source:
             return self.source
         return (
-            YTDLSource.from_path(self.local_path, self.metadata) or
+            await YTDLSource.from_path(self.local_path, self.metadata) or
             await YTDLSource.from_url(self.url, self.metadata)
         )
     async def download(self):
