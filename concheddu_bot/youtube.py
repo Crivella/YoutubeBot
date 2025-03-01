@@ -12,7 +12,7 @@ AUDIO_DIR = os.getenv('BOT_AUDIO_DIR', './dl')
 # FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
 MAX_DURATION = int(os.getenv('BOT_MAX_DURATION', 7*60))
 FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
-NORMALIZE = os.getenv('BOT_NORMALIZE', 'False').lower() in ['true', '1', 't', 'y', 'yes']
+NORMALIZE = os.getenv('BOT_NORMALIZE', 'True').lower() in ['true', '1', 't', 'y', 'yes']
 NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
 NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
 
