@@ -7,6 +7,8 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
+from ..utils import sense_check
+
 
 logger = logging.getLogger('bot')
 
