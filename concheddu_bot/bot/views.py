@@ -146,8 +146,6 @@ class ListPlay(discord.ui.Select, Paged):
         song_id = self.values[0]
         song = self.songs_map.get(song_id)
 
-        # vc = await get_vc_from_interaction(itc)
-        await song.play(user=itc.user, server=itc.guild)
         try:
             await itc.response.send_message(
                 f'Playing [{song.duration} s] {song.title}',
@@ -156,6 +154,7 @@ class ListPlay(discord.ui.Select, Paged):
             )
         except discord.errors.NotFound:
             pass
+        await song.play(user=itc.user, server=itc.guild)
 
 class ListMultiSelect(discord.ui.Select, Paged):
     def __init__(self, songs: list[m.YTSong], *args, **kwargs):
