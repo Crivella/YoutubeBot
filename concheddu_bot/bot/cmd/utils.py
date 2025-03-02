@@ -1,4 +1,5 @@
 """Music commands for the bot"""
+import logging
 import os
 
 import discord
@@ -8,6 +9,7 @@ from discord.ext import commands
 from ... import models as m
 from ...youtube import AUDIO_DIR
 
+logger = logging.getLogger('bot')
 
 class ServerUtils(commands.Cog):
     """Play command"""
@@ -18,13 +20,18 @@ class ServerUtils(commands.Cog):
     @app_commands.command()
     async def sync(self, itc: discord.Interaction):
         """Sync the bot commands"""
+        logging.info(f'Command `sync` called by `{itc.user.name}` [{itc.guild.name}]')
         fmt = await self.bot.tree.sync(guild=itc.guild)
-        print(f'Synced {fmt} commands')
+
+        for cmd in fmt:
+            logging.debug(f'Synced {cmd} commands')
+
         await itc.response.send_message(f'Synced {fmt} commands')
 
     @app_commands.command()
     async def sync_files(self, itc: discord.Interaction):
         """Sync the bot commands"""
+        logging.info(f'Command `sync_files` called by `{itc.user.name}` [{itc.guild.name}]')
         files = os.listdir(AUDIO_DIR)
 
         await itc.response.send_message(f'Syncing {len(files)} songs', ephemeral=True)

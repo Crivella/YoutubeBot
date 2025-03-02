@@ -1,5 +1,6 @@
 """Models for the bot"""
 import asyncio
+import logging
 import os
 import urllib
 from functools import wraps
@@ -12,10 +13,12 @@ from .bot.utils import get_vc_from_user
 from .queued import QueuedServer
 from .youtube import YTDLSource
 
+logger = logging.getLogger('bot')
 
 async def safe_disconnect(connection: discord.VoiceClient):
     """Disconnect the bot from the voice channel"""
     if connection.is_playing():
+        logger.debug('Cannot disconnect while playing')
         return
     guild = connection.guild
     server = await DiscordServer.from_discord_guild(guild)
@@ -66,6 +69,7 @@ class DiscordServer(QueuedServer, models.Model):
     @classmethod
     async def from_discord_guild(cls, guild: discord.Guild):
         """Return the discord server"""
+        logger.debug(f'Getting server from {guild.name}')
         if guild.id in memo_server:
             return memo_server[guild.id]
 
@@ -100,6 +104,7 @@ class DiscordUser(models.Model):
     @classmethod
     async def from_discord_user(cls, user: discord.User):
         """Return the discord user"""
+        logger.debug(f'Getting user from {user.name}')
         user_obj, _ = await cls.objects.aget_or_create(discord_id=user.id)
         if hasattr(user, 'name') and user_obj.username != user.name:
             user_obj.username = user.name
@@ -109,6 +114,7 @@ class DiscordUser(models.Model):
     @with_discord_server_async
     async def get_played_songs(self, *, server: DiscordServer) -> list['YTSong']:
         """Return the played songs"""
+        logger.debug(f'Getting played songs for {self.username} on {server.name}')
         q = PlayEvent.objects
         q = q.filter(user=self, server=server)
         q = q.select_related('song')
@@ -120,6 +126,7 @@ class DiscordUser(models.Model):
     @with_discord_server_async
     async def get_favorite_songs(self, *, server: DiscordServer) -> list['YTSong']:
         """Return the favorite songs"""
+        logger.debug(f'Getting favorite songs for {self.username} on {server.name}')
         q = FavoriteSongThrough.objects
         q = q.filter(user=self, server=server)
         q = q.select_related('song')
@@ -171,6 +178,7 @@ class YTSong(models.Model):
     @with_discord_server_async
     async def get_last_played(*, server: DiscordServer) -> 'YTSong':
         """Return the last played song"""
+        logger.debug(f'Getting last played song on {server.name}')
         q = PlayEvent.objects
         q = q.filter(server=server)
         q = q.order_by('date')
@@ -183,6 +191,7 @@ class YTSong(models.Model):
     @with_discord_server_async
     async def from_youtube_id(cls, ytid: str, *, user: DiscordUser, server: DiscordServer):
         """Return the song from search string"""
+        logger.debug(f'Getting song from youtube id {ytid}')
         song = None
         q = cls.objects
         q = q.filter(youtube_id=ytid)
@@ -200,6 +209,7 @@ class YTSong(models.Model):
             await song.asave()
 
         if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
+            logger.debug(f'Adding song {song.title} to {server.name}')
             await AddedSongEvent.objects.acreate(user=user, song=song, server=server)
 
         return song
@@ -209,6 +219,7 @@ class YTSong(models.Model):
     @with_discord_server_async
     async def from_search_string(cls, search: str, *, user: DiscordUser, server: DiscordServer):
         """Return the song from search string"""
+        logger.debug(f'Getting song from search string {search}')
         song = None
         if urllib.parse.urlparse(search).scheme:
             ytid = YTDLSource.get_id_from_url(search)
@@ -228,6 +239,7 @@ class YTSong(models.Model):
             song.local_path = data['local_path']
 
         if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
+            logger.debug(f'Adding song {song.title} to {server.name}')
             await AddedSongEvent.objects.acreate(user=user, song=song, server=server)
         await song.asave()
         return song
@@ -255,6 +267,7 @@ class YTSong(models.Model):
     @with_discord_server_async
     async def get_times_played(self, *, server: DiscordServer):
         """Return the number of times played"""
+        logger.debug(f'Getting times played for {self.title} on {server.name}')
         q = PlayEvent.objects
         q = q.filter(song=self, server=server)
         return await q.acount()
@@ -262,6 +275,7 @@ class YTSong(models.Model):
     @with_discord_server_async
     async def get_times_favorited(self, *, server: DiscordServer):
         """Return the number of times favorited"""
+        logger.debug(f'Getting times favorited for {self.title} on {server.name}')
         q = FavoriteSongThrough.objects
         q = q.filter(song=self, server=server)
         return await q.acount()
@@ -276,12 +290,14 @@ class YTSong(models.Model):
         )
     async def download(self):
         """Download the song"""
+        logger.debug(f'Downloading {self.title}')
         self.source = await YTDLSource.from_url(self.url, self.metadata)
 
     @with_discord_user_async
     @with_discord_server_async
     async def play(self, *, user: DiscordUser, server: DiscordServer):
         """Play or queue the song"""
+        logger.info(f'Queuing {self.title} by `{user.username}` [{server.name}]')
         server.add_song(self)
         client = user.dc.guild.voice_client
         if client and client.is_playing():
@@ -293,6 +309,7 @@ class YTSong(models.Model):
 
     async def _play(self, user: DiscordUser, server: DiscordServer):
         """Play the song"""
+        logger.info(f'Playing {self.title} on {server.name}')
         source = await self.get_source()
         client = await get_vc_from_user(user.dc)
         try:
@@ -301,7 +318,7 @@ class YTSong(models.Model):
                 after = lambda e=None, c=client, u=user, s=server: self.after_play(e, c, u, s)
             )
         except Exception as e:
-            print(e)
+            logger.error(f'Error playing {self.title}')
             return
         else:
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
@@ -312,7 +329,7 @@ class YTSong(models.Model):
     def after_play(error, connection: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
         """After play callback"""
         if error:
-            print(error)
+            logger.warning(f'Error in after_play: {error}')
         next_song = server.get_next_song()
         if next_song is None:
             asyncio.run_coroutine_threadsafe(safe_disconnect(connection), connection.loop)
@@ -348,30 +365,6 @@ class YTSong(models.Model):
         q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
         if await q.aexists():
             await q.adelete()
-
-    @staticmethod
-    @with_discord_server_async
-    async def get_top_played(n: int = None, *, server: DiscordServer) -> list['YTSong']:
-        """Return the top n songs"""
-        q = YTSong.objects
-        q = q.filter(playevent__server=server)
-        q = q.annotate(times_played=models.Count('playevent'))
-        q = q.order_by('-times_played')
-        if n:
-            q = q[:n]
-        return [a async for a in q]
-
-    @staticmethod
-    @with_discord_server_async
-    async def get_top_favorited(n: int = None, *, server: DiscordServer) -> list['YTSong']:
-        """Return the top n favorited songs"""
-        q = YTSong.objects
-        q = q.filter(favoritesongthrough__server=server)
-        q = q.annotate(times_favorited=models.Count('favoritesongthrough'))
-        q = q.order_by('-times_favorited')
-        if n:
-            q = q[:n]
-        return [a async for a in q]
 
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:
@@ -435,6 +428,7 @@ class YTSong(models.Model):
     @with_discord_server_async
     async def get_all_songs(*, n: int = None, server: DiscordServer, sorting: str = 'title') -> list['YTSong']:
         """Return n random songs"""
+        logger.debug(f'Getting all songs on [{server.name}] sorted by `{sorting}`')
         q = await YTSong.sort_map[sorting](server)
         if n:
             q = q[:n]

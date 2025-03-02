@@ -1,3 +1,4 @@
+import logging
 import sys
 
 import discord
@@ -5,6 +6,7 @@ from discord.ext import commands
 
 from .. import models as m
 
+logger = logging.getLogger('bot')
 
 class MyBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -14,14 +16,15 @@ class MyBot(commands.Bot):
 
     async def on_ready(self):
         """Make sure the bot is ready before doing anything"""
-        print(f'Logged in as {self.user.name} ID<{self.user.id}>')
+        logger.info(f'Logged in as {self.user.name} ID<{self.user.id}>')
         fmt = await self.tree.sync()
-        print(f'Synced {fmt} commands')
+        for cmd in fmt:
+            logging.debug(f'Synced {cmd} commands')
 
     async def on_error(self, event, *args, **kwargs):
-        print(f'Error in {event}')
+        logger.error(f'Error in {event}')
         tpl = sys.exc_info()
-        print(tpl)
+        logger.error(tpl)
 
     async def on_voice_state_update(
         self, member: discord.User, before: discord.VoiceState, after: discord.VoiceState
@@ -32,7 +35,7 @@ class MyBot(commands.Bot):
             return
         if before.channel is not None and after.channel is None:  # disconnected from vc
             # clean up
-            print(f'Leaving {before.channel.name} on {before.channel.guild.name}')
+            logger.info(f'Leaving {before.channel.name} on {before.channel.guild.name}')
             server = await m.DiscordServer.from_discord_guild(before.channel.guild)
             server.playing = False
             server.channel = None

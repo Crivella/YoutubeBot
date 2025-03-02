@@ -1,4 +1,6 @@
 """Music commands for the bot"""
+import logging
+
 import discord
 
 from discord import app_commands
@@ -7,12 +9,15 @@ from discord.ext import commands
 from ...import models as m
 from ..utils import get_vc_from_interaction, sense_check
 
+logger = logging.getLogger('bot')
+
 class Music(commands.Cog):
     """Play command"""
     @app_commands.command()
     @sense_check
     async def play(self, itc: discord.Interaction, search: str):
         """Search and Play a song"""
+        logger.info(f'Command `play` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
         user = itc.user
         response = itc.response
         guild = user.voice.channel.guild
@@ -38,6 +43,7 @@ class Music(commands.Cog):
         Args:
             num (int, optional): The number of random songs to play. Defaults to 1.
         """
+        logger.info(f'Command `play_random` called with num={num} by `{itc.user.name}` [{itc.guild.name}]')
         if num < 1 or num > 10:
             await itc.response.send_message('Number of songs must be between 1 and 10', ephemeral=True, delete_after=10)
             return
@@ -46,16 +52,19 @@ class Music(commands.Cog):
         song = await m.YTSong.get_all_songs(server=guild, n=num, sorting='random')
         res = []
         awaitables = []
+        duration = 0
         for s in song:
             awaitables.append(s.play(user=user, server=guild))
+            duration += s.duration
             res.append(f'[{s.duration} s] {s.title}')
-        await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=60)
+        await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=duration)
         for a in awaitables:
             await a
 
     @app_commands.command()
     async def queue(self, itc: discord.Interaction):
         """Sync the bot commands"""
+        logger.info(f'Command `queue` called by `{itc.user.name}` [{itc.guild.name}]')
         pre = 4
         post = 7
         guild = itc.guild
@@ -86,7 +95,7 @@ class Music(commands.Cog):
     @sense_check
     async def jump(self, itc: discord.Interaction, pos: int = 1):
         """Skip the current song"""
-
+        logger.info(f'Command `jump` called with pos={pos} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.jump_relative(pos)
         vc = itc.guild.voice_client
@@ -102,6 +111,7 @@ class Music(commands.Cog):
     @sense_check
     async def play_last(self, itc: discord.Interaction):
         """Play the last song"""
+        logger.info(f'Command `play_last` called by `{itc.user.name}` [{itc.guild.name}]')
         user = itc.user
         guild = itc.guild
         song = await m.YTSong.get_last_played(server=guild)
@@ -112,6 +122,7 @@ class Music(commands.Cog):
     @sense_check
     async def loop_one(self, itc: discord.Interaction):
         """Loop the last song"""
+        logger.info(f'Command `loop_one` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.queue.loop_all = False
         server.queue.loop_one = True
@@ -121,6 +132,7 @@ class Music(commands.Cog):
     @sense_check
     async def loop_all(self, itc: discord.Interaction):
         """Loop all songs"""
+        logger.info(f'Command `loop_all` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.queue.loop_all = True
         server.queue.loop_one = False
@@ -130,6 +142,7 @@ class Music(commands.Cog):
     @sense_check
     async def loop_stop(self, itc: discord.Interaction):
         """Stop looping"""
+        logger.info(f'Command `loop_stop` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.queue.loop_all = False
         server.queue.loop_one = False
@@ -138,6 +151,7 @@ class Music(commands.Cog):
     @app_commands.command()
     async def stop(self, itc: discord.Interaction):
         """Stop the bot"""
+        logger.info(f'Command `stop` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.stop()
         vc = await get_vc_from_interaction(itc)

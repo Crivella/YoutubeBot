@@ -1,5 +1,6 @@
 # pylint: skip-file
 import asyncio
+import logging
 import os
 import urllib
 
@@ -15,6 +16,8 @@ FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
 NORMALIZE = os.getenv('BOT_NORMALIZE', 'True').lower() in ['true', '1', 't', 'y', 'yes']
 NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
 NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
+
+logger = logging.getLogger('bot')
 
 ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,
@@ -61,6 +64,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     @classmethod
     async def from_path(cls, filename, metadata):
+        logger.debug(f'YTDLSource.from_path: {filename}')
         if filename is None or not os.path.exists(filename):
             return None
         if NORMALIZE:
@@ -70,6 +74,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     @classmethod
     async def from_url(cls, url, data, *, loop=None):
+        logger.debug(f'YTDLSource.from_url: {url}')
         loop = loop or asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: ytdl.download(url))
 
@@ -80,8 +85,9 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return res
 
     @staticmethod
-    async def normalize(local_path, *, loop = None) -> bool:
+    async def normalize(local_path: str, *, loop = None) -> str:
         """Normalize the audio"""
+        logger.info(f'Normalizing {local_path}')
         loop = loop or asyncio.get_event_loop()
         try:
             name, ext = os.path.splitext(local_path)
@@ -94,15 +100,16 @@ class YTDLSource(discord.PCMVolumeTransformer):
             await loop.run_in_executor(None, norm.run_normalization)
             # norm.run_normalization()
         except Exception as e:
-            print(f'Error normalizing {local_path}: {e}')
-            return
+            logger.error(f'Error normalizing {local_path}: {e}')
+            return local_path
         else:
-            print(f'Normalized {local_path}')
+            logger.info(f'Normalized {local_path}')
         return outfile
 
     @staticmethod
     async def get_info(url: str):
         """Get the Youtube info from a URL"""
+        logger.debug(f'YTDLSource.get_info: {url}')
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
         if 'entries' in data:
@@ -132,6 +139,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         Raises:
             InvalidURLError: If URL is a valid URL but not a YouTube URL
         """
+        logger.debug(f'YTDLSource.get_id_from_url: {url}')
         if not urllib.parse.urlparse(url).scheme:
             return url
         if 'youtube.com' not in url:
