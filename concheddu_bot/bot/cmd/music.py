@@ -7,7 +7,6 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
-from ..utils import get_vc_from_interaction, sense_check
 
 logger = logging.getLogger('bot')
 
@@ -103,6 +102,7 @@ class Music(commands.Cog):
             vc.stop()
         else:
             user = await m.DiscordUser.from_discord_user(itc.user)
+            user.dc = itc.user
             song = server.get_next_song()
             await song._play(user=user, server=server)
         await itc.response.send_message(f'skipped `{pos}` songs')
@@ -154,9 +154,10 @@ class Music(commands.Cog):
         logger.info(f'Command `stop` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.stop()
-        vc = await get_vc_from_interaction(itc)
+        vc = itc.guild.voice_client
         await itc.response.send_message('Stopped the bot', ephemeral=True)
-        await vc.disconnect(force=True)
+        if vc:
+            await vc.disconnect(force=True)
 
     # @app_commands.command()
     # @sense_check

@@ -21,17 +21,6 @@ async def get_vc_from_user(user: discord.Member) -> discord.VoiceClient:
         return
     return vc
 
-async def get_vc_from_interaction(itc: discord.Interaction) -> discord.VoiceClient:
-    """Get the voice channel from the interaction"""
-    user = itc.user
-    guild = itc.guild
-
-    try:
-        vc = await user.voice.channel.connect()
-    except discord.errors.ClientException:
-        vc = guild.voice_client
-    return vc
-
 def sense_check(func):
     """Check if the user can use the command"""
     @wraps(func)

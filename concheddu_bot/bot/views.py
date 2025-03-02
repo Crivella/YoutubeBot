@@ -3,7 +3,7 @@ import os
 import discord
 
 from .. import models as m
-from .utils import get_vc_from_interaction, safe_defer, sense_check
+from .utils import safe_defer, sense_check
 
 try:
     MAX_LIST_OPT = int(os.getenv('BOT_MAX_LIST_OPT', 10))

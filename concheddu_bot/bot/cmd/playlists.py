@@ -7,7 +7,6 @@ from discord.ext import commands
 
 from ...import models as m
 from .. import views as v
-from ..utils import get_vc_from_interaction
 
 logger = logging.getLogger('bot')
 
@@ -102,14 +101,15 @@ class Playlists(commands.Cog):
             return
         songs = await playlist.get_songs()
         # print(songs)
+        duration = await playlist.get_duration()
         await itc.response.send_message(
-            f'Loaded playlist `{name}`',
-            ephemeral=True
+            f'Loaded playlist `{name}` with {len(songs)} songs duration={duration} s',
+            ephemeral=True,
+            delete_after=duration
         )
 
-        vc = await get_vc_from_interaction(itc)
         for song in songs:
-            await song.play(vc, user=itc.user, server=server)
+            await song.play(user=itc.user, server=server)
 
     @load_playlist.autocomplete('name')
     async def _load_playlist_name(self, itc: discord.Interaction, current: str):
