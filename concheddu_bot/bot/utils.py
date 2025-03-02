@@ -8,6 +8,8 @@ from .. import models as m
 
 async def get_vc_from_user(user: discord.Member) -> discord.VoiceClient:
     """Get the voice channel from the user"""
+    if not user:
+        return
     guild = user.guild
     if (vc := guild.voice_client):
         return vc
