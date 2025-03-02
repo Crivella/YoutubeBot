@@ -329,7 +329,10 @@ class YTSong(models.Model):
     def after_play(error, connection: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
         """After play callback"""
         if error:
+            import traceback
+            traceback.print_exception(type(error), error, error.__traceback__)
             logger.warning(f'Error in after_play: {error}')
+            return
         next_song = server.get_next_song()
         if next_song is None:
             asyncio.run_coroutine_threadsafe(safe_disconnect(connection), connection.loop)
