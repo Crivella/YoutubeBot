@@ -309,7 +309,7 @@ class YTSong(models.Model):
 
     async def _play(self, user: DiscordUser, server: DiscordServer):
         """Play the song"""
-        logger.info(f'Playing {self.title} on {server.name}')
+        logger.info(f'Playing {self.title} on {server.name} by `{user.username}`')
         source = await self.get_source()
         client = await get_vc_from_user(user.dc)
         try:

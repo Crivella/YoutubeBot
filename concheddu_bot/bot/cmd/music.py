@@ -83,7 +83,7 @@ class Music(commands.Cog):
             if idx > pre:
                 res.append('`...`')
             for i in range(max(0, idx-pre), min(len(queue), idx+post)):
-                pre = '`` ‣‣‣`' if idx == i else f'`{i-idx:>4d}`'
+                pre = '` ‣‣‣`' if idx == i else f'`{i-idx:>4d}`'
                 res.append(f'{pre} {queue[i].title}')
             if idx + post < len(queue):
                 res.append('`...`')
