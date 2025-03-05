@@ -123,30 +123,10 @@ class DiscordUser(models.Model):
             res.add(a.song)
         return list(res)
 
-    @with_discord_server_async
-    async def get_favorite_songs(self, *, server: DiscordServer) -> list['YTSong']:
-        """Return the favorite songs"""
-        logger.debug(f'Getting favorite songs for {self.username} on {server.name}')
-        q = FavoriteSongThrough.objects
-        q = q.filter(user=self, server=server)
-        q = q.select_related('song')
-        res = set()
-        async for a in q:
-            res.add(a.song)
-        return list(res)
-
 class DiscordChannel(models.Model):
     """Channel model"""
     name = models.CharField(max_length=255)
     server = models.ForeignKey(DiscordServer, on_delete=models.CASCADE)
-
-class FavoriteSongThrough(models.Model):
-    """Favorite song through model"""
-    user = models.ForeignKey(DiscordUser, on_delete=models.CASCADE)
-    song = models.ForeignKey('YTSong', on_delete=models.CASCADE)
-    server = models.ForeignKey(DiscordServer, on_delete=models.CASCADE)
-
-    date = models.DateTimeField(auto_now_add=True)
 
 class AddedSongEvent(models.Model):
     """Added song event model"""
@@ -274,14 +254,6 @@ class YTSong(models.Model):
         q = q.filter(song=self, server=server)
         return await q.acount()
 
-    @with_discord_server_async
-    async def get_times_favorited(self, *, server: DiscordServer):
-        """Return the number of times favorited"""
-        logger.debug(f'Getting times favorited for {self.title} on {server.name}')
-        q = FavoriteSongThrough.objects
-        q = q.filter(song=self, server=server)
-        return await q.acount()
-
     async def get_source(self, itc: discord.Interaction = None):
         """Return the source"""
         if hasattr(self, 'source') and self.source:
@@ -306,7 +278,7 @@ class YTSong(models.Model):
                 msg = f'Normalizing {self.title}'
                 await itc.edit_original_response(content=msg)
             await normalize
-            
+
         return src.get_source()
 
     async def download(self):
@@ -359,36 +331,9 @@ class YTSong(models.Model):
             asyncio.run_coroutine_threadsafe(safe_disconnect(connection), connection.loop)
         else:
             asyncio.run_coroutine_threadsafe(
-                next_song._play(user=user, server=server), connection.loop
+                next_song._play(user=user, server=server),
+                connection.loop
             )
-
-    @with_discord_user_async
-    @with_discord_server_async
-    async def favorite_toggle(self, *, user: DiscordUser, server: DiscordServer) -> bool:
-        """Toggle the favorite status"""
-        q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
-        if await q.aexists():
-            await q.adelete()
-            return False
-        else:
-            await FavoriteSongThrough.objects.acreate(user=user, song=self, server=server)
-            return True
-
-    @with_discord_user_async
-    @with_discord_server_async
-    async def favorite(self, *, user: DiscordUser, server: DiscordServer):
-        """Favorite the song"""
-        q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
-        if not await q.aexists():
-            await FavoriteSongThrough.objects.acreate(user=user, song=self, server=server)
-
-    @with_discord_server_async
-    @with_discord_user_async
-    async def unfavorite(self, *, user: DiscordUser, server: DiscordServer):
-        """Unfavorite the song"""
-        q = FavoriteSongThrough.objects.filter(user=user, song=self, server=server)
-        if await q.aexists():
-            await q.adelete()
 
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:
@@ -569,11 +514,6 @@ class Playlist(models.Model):
         for i, song in enumerate(songs):
             await self.add_song(song, cnt + i)
 
-    # @property
-    # def songs_count(self):
-    #     """Return the number of songs in the playlist"""
-    #     return self.songs.count()
-
     async def get_song_count(self):
         """Return the number of songs in the playlist"""
         return await self.songs.acount()
@@ -582,11 +522,3 @@ class Playlist(models.Model):
         """Return the duration of the playlist"""
         songs = await self.get_songs()
         return sum(song.duration for song in songs)
-
-    # @property
-    # def duration(self):
-    #     """Return the duration of the playlist"""
-    #     q = PlaylistThrough.objects
-    #     q = q.filter(playlist=self)
-    #     q = q.select_related('song')
-    #     return sum(a.song.duration async for a in q.all())
