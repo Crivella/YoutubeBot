@@ -154,7 +154,7 @@ class ListPlay(discord.ui.Select, Paged):
             )
         except discord.errors.NotFound:
             pass
-        await song.play(user=itc.user, server=itc.guild)
+        await song.play(itc=itc)
 
 class ListMultiSelect(discord.ui.Select, Paged):
     def __init__(self, songs: list[m.YTSong], *args, **kwargs):

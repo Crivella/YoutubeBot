@@ -109,7 +109,7 @@ class Playlists(commands.Cog):
         )
 
         for song in songs:
-            await song.play(user=itc.user, server=server)
+            await song.play(itc=itc)
 
     @load_playlist.autocomplete('name')
     async def _load_playlist_name(self, itc: discord.Interaction, current: str):

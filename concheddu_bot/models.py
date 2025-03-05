@@ -9,7 +9,7 @@ from typing import Union
 import discord
 from django.db import models
 
-from .bot.utils import get_vc_from_user
+from .bot.utils import get_vc_from_user, safe_response
 from .queued import QueuedServer
 from .youtube import YTDLSource
 
@@ -25,6 +25,17 @@ async def safe_disconnect(connection: discord.VoiceClient):
     server.playing = False
     server.channel = None
     await connection.disconnect()
+
+def extract_server_user_from_itc_async(func):
+    """Decorator to extract server and user from interaction"""
+    @wraps(func)
+    async def wrapper(self, *args, itc: discord.Interaction, **kwargs):
+        server = await DiscordServer.from_discord_guild(itc.guild)
+        user = await DiscordUser.from_discord_user(itc.user)
+        user.dc = itc.user
+        return await func(self, itc=itc, server=server, user=user, *args, **kwargs)
+
+    return wrapper
 
 def with_discord_user_async(func):
     """Decorator to add discord user to kwargs"""
@@ -259,24 +270,21 @@ class YTSong(models.Model):
         if hasattr(self, 'source') and self.source:
             return self.source
 
-        src = await YTDLSource.from_path(self.local_path, self.metadata)
-        src = src or await YTDLSource.from_url(self.url, self.metadata)
+        src = YTDLSource.from_path(self.local_path, self.metadata)
+        src = src or YTDLSource.from_url(self.url, self.metadata)
+
+        await src.get_info()
 
         download = src.download()
         if download:
-            if itc:
-                msg = f'Downloading {self.title}'
-                if itc.response.is_done():
-                    await itc.edit_original_response(content=msg)
-                else:
-                    await itc.response.send_message(msg, ephemeral=True)
+            msg = f'Downloading {self.title}'
+            await safe_response(itc, msg, ephemeral=True, append=True)
             await download
 
         normalize = src.normalize()
         if normalize:
-            if itc:
-                msg = f'Normalizing {self.title}'
-                await itc.edit_original_response(content=msg)
+            msg = f'Normalizing {self.title}'
+            await safe_response(itc, msg, ephemeral=True, append=True)
             await normalize
 
         return src.get_source()
@@ -286,34 +294,36 @@ class YTSong(models.Model):
         logger.debug(f'Downloading {self.title}')
         self.source = await YTDLSource.from_url(self.url, self.metadata)
 
-    @with_discord_user_async
-    @with_discord_server_async
-    async def play(self, *, user: DiscordUser, server: DiscordServer):
+    @extract_server_user_from_itc_async
+    async def play(self, *, itc: discord.Interaction, user: DiscordUser, server: DiscordServer):
         """Play or queue the song"""
-        logger.info(f'Queuing {self.title} by `{user.username}` [{server.name}]')
-        server.add_song(self)
-        client = user.dc.guild.voice_client
-        if client and client.is_playing():
-            # print(f'Only queueing {self.title} as is already playing')
-            # await self._play(client, user=user, server=server)
-            return
-        await self._play(user=user, server=server)
+        await self._play(itc=itc, user=user, server=server)
 
 
-    async def _play(self, user: DiscordUser, server: DiscordServer):
+    async def _play(
+        self, *,
+        itc: discord.Interaction = None, user: DiscordUser, server: DiscordServer,
+        from_queue: bool = False
+        ):
         """Play the song"""
         logger.info(f'Playing {self.title} on {server.name} by `{user.username}`')
-        source = await self.get_source()
+        source = await self.get_source(itc)
         client = await get_vc_from_user(user.dc)
         try:
             client.play(
                 source,
                 after = lambda e=None, c=client, u=user, s=server: self.after_play(e, c, u, s)
             )
-        except Exception as e:
-            logger.error(f'Error playing {self.title}')
+        except discord.ClientException as e:
+            server.add_song(self)
+            await safe_response(itc, f'Queued {self.title}', ephemeral=True, append=True)
             return
+        except:
+            logger.error(f'Error playing {self.title}', exc_info=True)
         else:
+            if not from_queue:
+                server.add_song(self)
+            await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
             server.playing = True
             server.channel = client.channel
@@ -322,18 +332,16 @@ class YTSong(models.Model):
     def after_play(error, connection: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
         """After play callback"""
         if error:
-            import traceback
-            traceback.print_exception(type(error), error, error.__traceback__)
-            logger.warning(f'Error in after_play: {error}')
+            logger.error(f'Error in after_play: {error}', exc_info=True)
             return
         next_song = server.get_next_song()
         if next_song is None:
             asyncio.run_coroutine_threadsafe(safe_disconnect(connection), connection.loop)
         else:
             asyncio.run_coroutine_threadsafe(
-                next_song._play(user=user, server=server),
-                connection.loop
+                next_song._play(user=user, server=server, from_queue=True), connection.loop
             )
+
 
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:

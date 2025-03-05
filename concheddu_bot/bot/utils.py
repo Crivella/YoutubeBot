@@ -1,9 +1,12 @@
 """Utility functions for the bot"""
+import logging
 from functools import wraps
 
 import discord
 
 from .. import models as m
+
+logger = logging.getLogger('bot')
 
 
 async def get_vc_from_user(user: discord.Member) -> discord.VoiceClient:
@@ -48,3 +51,21 @@ async def safe_defer(itc: discord.Interaction):
         await itc.response.defer()
     except discord.errors.NotFound:
         pass
+
+async def safe_response(itc: discord.Interaction, content: str, append: bool = False, *args, **kwargs):
+    if itc is None:
+        return
+    msg = []
+    if itc.response.is_done():
+        rfunc = itc.edit_original_response
+        kwargs.pop('ephemeral', None)
+        if append:
+            resp = await itc.original_response()
+            msg.append(resp.content)
+    else:
+        rfunc = itc.response.send_message
+    msg.append(content)
+    try:
+        await rfunc(content='\n'.join(msg), *args, **kwargs)
+    except Exception as e:
+        logger.error(f'Error sending message: {e}', exc_info=True)

@@ -7,7 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
-from ..utils import sense_check
+from ..utils import sense_check, safe_response
 
 
 logger = logging.getLogger('bot')
@@ -23,16 +23,17 @@ class Music(commands.Cog):
         response = itc.response
         guild = user.voice.channel.guild
 
-        await response.send_message(f'Searching for {search}', ephemeral=True)
+        # await response.send_message(f'Searching for {search}', ephemeral=True)
+        await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
         try:
             song = await m.YTSong.from_search_string(search, user=user, server=guild)
         except Exception as e:
-            await itc.edit_original_response(content=f'Error: {e}')
+            await safe_response(itc, f'Error: {e}', ephemeral=True, append=True)
             return
 
-        await song.get_source(itc)
-        await itc.edit_original_response(content=f'Playing [{song.duration} s] {song.title}')
-        await song.play(user=user, server=guild)
+        # await song.get_source(itc)
+        # await itc.edit_original_response(content=f'Playing [{song.duration} s] {song.title}')
+        await song.play(itc=itc)
 
     @app_commands.command()
     @sense_check
@@ -46,17 +47,18 @@ class Music(commands.Cog):
         if num < 1 or num > 10:
             await itc.response.send_message('Number of songs must be between 1 and 10', ephemeral=True, delete_after=10)
             return
-        user = itc.user
         guild = itc.guild
         song = await m.YTSong.get_all_songs(server=guild, n=num, sorting='random')
         res = []
         awaitables = []
         duration = 0
         for s in song:
-            awaitables.append(s.play(user=user, server=guild))
+            awaitables.append(s.play(itc=itc))
             duration += s.duration
             res.append(f'[{s.duration} s] {s.title}')
-        await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=duration)
+        res += ['-'*30]
+        await safe_response(itc, '\n'.join(res), ephemeral=True, delete_after=3*duration)
+        # await itc.response.send_message('\n'.join(res), ephemeral=True, delete_after=duration)
         for a in awaitables:
             await a
 
@@ -104,19 +106,17 @@ class Music(commands.Cog):
             user = await m.DiscordUser.from_discord_user(itc.user)
             user.dc = itc.user
             song = server.get_next_song()
-            await song._play(user=user, server=server)
-        await itc.response.send_message(f'skipped `{pos}` songs')
+            await song._play(itc=itc, user=user, server=server)
+        await safe_response(itc, f'skipped `{pos}` songs', ephemeral=True, delete_after=10)
 
     @app_commands.command()
     @sense_check
     async def play_last(self, itc: discord.Interaction):
         """Play the last song"""
         logger.info(f'Command `play_last` called by `{itc.user.name}` [{itc.guild.name}]')
-        user = itc.user
         guild = itc.guild
         song = await m.YTSong.get_last_played(server=guild)
-        await itc.response.send_message(f'Playing [{song.duration} s] {song.title}', ephemeral=True)
-        await song.play(user=user, server=guild)
+        await song.play(itc=itc)
 
     @app_commands.command()
     @sense_check
@@ -126,7 +126,7 @@ class Music(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.queue.loop_all = False
         server.queue.loop_one = True
-        await itc.response.send_message('Looping the last song')
+        await safe_response(itc, 'Looping the last song')
 
     @app_commands.command()
     @sense_check
@@ -136,7 +136,7 @@ class Music(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.queue.loop_all = True
         server.queue.loop_one = False
-        await itc.response.send_message('Looping all songs')
+        await safe_response(itc, 'Looping all songs')
 
     @app_commands.command()
     @sense_check
@@ -146,7 +146,7 @@ class Music(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.queue.loop_all = False
         server.queue.loop_one = False
-        await itc.response.send_message('Stopped looping')
+        await safe_response(itc, 'Stopped looping')
 
     @app_commands.command()
     async def stop(self, itc: discord.Interaction):
@@ -155,7 +155,7 @@ class Music(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.stop()
         vc = itc.guild.voice_client
-        await itc.response.send_message('Stopped the bot', ephemeral=True)
+        await safe_response(itc, 'Stopped the bot')
         if vc:
             await vc.disconnect(force=True)
 

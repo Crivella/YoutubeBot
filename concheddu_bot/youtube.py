@@ -16,8 +16,12 @@ FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
 NORMALIZE = os.getenv('BOT_NORMALIZE', 'True').lower() in ['true', '1', 't', 'y', 'yes']
 NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
 NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
+CONCURRENT_DOWNLOADS = int(os.getenv('BOT_CONCURRENT_DOWNLOADS', 3))
+CONCURRENT_NORMALIZE = int(os.getenv('BOT_CONCURRENT_NORMALIZE', 1))
 
 logger = logging.getLogger('bot')
+sem_download = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
+sem_normalize = asyncio.Semaphore(CONCURRENT_NORMALIZE)
 
 ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,
@@ -69,11 +73,10 @@ class YTDLSource():
     def from_url(cls, url, data=None, *, loop=None):
         """Create a YTDLSource from a URL"""
         logger.debug(f'YTDLSource.from_url: {url}')
-
         return cls(url=url, data=data)
 
     @classmethod
-    async def from_path(cls, filename, metadata):
+    def from_path(cls, filename, metadata):
         """Create a YTDLSource from a path"""
         logger.debug(f'YTDLSource.from_path: {filename}')
         if filename is None or not os.path.exists(filename):
@@ -88,9 +91,14 @@ class YTDLSource():
             raise ValueError('No path')
         if os.path.exists(self.path):
             return
-        loop = asyncio.get_event_loop()
-        return loop.run_in_executor(None, lambda: ytdl.download(self.url))
+        return self._download()
 
+    async def _download(self, loop=None):
+        """Download the audio async"""
+        async with sem_download:
+            logger.info(f'Downloading {self.url}')
+            loop = loop or asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: ytdl.download(self.url))
 
     def normalize(self, *, loop = None):
         """Normalize the audio"""
@@ -106,28 +114,29 @@ class YTDLSource():
             self.path_norm = outfile
             return
 
-        return self._normalize(self.path, outfile)
+        return self._normalize(self.path, outfile, loop=loop)
 
-    async def _normalize(self, src, dst):
-        logger.info(f'Normalizing {src} -> {dst}')
-        try:
-            norm = FFmpegNormalize(**ffmpeg_normalize_options)
-            norm.add_media_file(src, dst)
-            loop = loop or asyncio.get_event_loop()
-            await loop.run_in_executor(None, norm.run_normalization)
-        except Exception as e:
-            logger.error(f'Error normalizing {src}: {e}')
-        else:
-            logger.info(f'Normalized {src} -> {dst}')
-            self.path_norm = dst
+    async def _normalize(self, src, dst, *, loop=None):
+        """Normalize the audio async"""
+        async with sem_normalize:
+            logger.info(f'Normalizing {src} -> {dst}')
+            try:
+                norm = FFmpegNormalize(**ffmpeg_normalize_options)
+                norm.add_media_file(src, dst)
+                loop = loop or asyncio.get_event_loop()
+                await loop.run_in_executor(None, norm.run_normalization)
+            except Exception as e:
+                logger.error(f'Error normalizing {src}: {e}')
+            else:
+                logger.info(f'Normalized {src} -> {dst}')
+                self.path_norm = dst
 
     async def get_info(self) -> dict:
         """Get the Youtube info from a URL"""
-        if self.url is None:
-            logger.error(f'YTDLSource.get_info: url is None')
-            return
         logger.debug(f'YTDLSource.get_info: {self.url}')
         if not self.data:
+            if self.url is None:
+                raise ValueError('No URL')
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(self.url, download=False))
             if 'entries' in data:
@@ -135,7 +144,7 @@ class YTDLSource():
                 data = data['entries'][0]
             self.data = data
 
-        self.path = self.data['local_path'] = ytdl.prepare_filename(data)
+        self.path = self.data['local_path'] = ytdl.prepare_filename(self.data)
         return self.data
 
     def get_source(self) -> discord.AudioSource:
@@ -184,4 +193,3 @@ class YTDLSource():
 
     class InvalidURLError(Exception):
         pass
-
