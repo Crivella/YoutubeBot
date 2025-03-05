@@ -199,7 +199,8 @@ class YTSong(models.Model):
             song = await q.aget()
         if song is None:
             url = f'https://www.youtube.com/watch?v={ytid}'
-            data = await YTDLSource.get_info(url)
+            src = YTDLSource.from_url(url)
+            data = await src.get_info()
             song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
 
             song.title = data['title'].strip()
@@ -228,7 +229,8 @@ class YTSong(models.Model):
             if await q.aexists():
                 song = await q.aget()
         if song is None:
-            data = await YTDLSource.get_info(search)
+            src = YTDLSource.from_url(search)
+            data = await src.get_info()
             # source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
 
             # data = source.data
@@ -280,14 +282,33 @@ class YTSong(models.Model):
         q = q.filter(song=self, server=server)
         return await q.acount()
 
-    async def get_source(self):
+    async def get_source(self, itc: discord.Interaction = None):
         """Return the source"""
         if hasattr(self, 'source') and self.source:
             return self.source
-        return (
-            await YTDLSource.from_path(self.local_path, self.metadata) or
-            await YTDLSource.from_url(self.url, self.metadata)
-        )
+
+        src = await YTDLSource.from_path(self.local_path, self.metadata)
+        src = src or await YTDLSource.from_url(self.url, self.metadata)
+
+        download = src.download()
+        if download:
+            if itc:
+                msg = f'Downloading {self.title}'
+                if itc.response.is_done():
+                    await itc.edit_original_response(content=msg)
+                else:
+                    await itc.response.send_message(msg, ephemeral=True)
+            await download
+
+        normalize = src.normalize()
+        if normalize:
+            if itc:
+                msg = f'Normalizing {self.title}'
+                await itc.edit_original_response(content=msg)
+            await normalize
+            
+        return src.get_source()
+
     async def download(self):
         """Download the song"""
         logger.debug(f'Downloading {self.title}')

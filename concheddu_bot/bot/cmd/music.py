@@ -30,9 +30,7 @@ class Music(commands.Cog):
             await itc.edit_original_response(content=f'Error: {e}')
             return
 
-        if song.need_download:
-            await itc.edit_original_response(content=f'Downloading `{song.title}`')
-            await song.download()
+        await song.get_source(itc)
         await itc.edit_original_response(content=f'Playing [{song.duration} s] {song.title}')
         await song.play(user=user, server=guild)
 

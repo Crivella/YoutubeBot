@@ -56,67 +56,94 @@ ffmpeg_normalize_options = {
 # audio_class = discord.FFmpegOpusAudio
 audio_class = discord.FFmpegPCMAudio
 
-class YTDLSource(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, volume=0.5):
-        super().__init__(source, volume)
 
+class YTDLSource():
+    def __init__(self, url = None, data = None, path = None, *, volume=0.5):
+        self.url = url
         self.data = data
+        self.path = path
+        self.path_norm = None
+        self.source = None
+
+    @classmethod
+    def from_url(cls, url, data=None, *, loop=None):
+        """Create a YTDLSource from a URL"""
+        logger.debug(f'YTDLSource.from_url: {url}')
+
+        return cls(url=url, data=data)
 
     @classmethod
     async def from_path(cls, filename, metadata):
+        """Create a YTDLSource from a path"""
         logger.debug(f'YTDLSource.from_path: {filename}')
         if filename is None or not os.path.exists(filename):
+            logger.error(f'File {filename} does not exist')
             return None
-        if NORMALIZE:
-            filename = await cls.normalize(filename)
-        res = cls(audio_class(filename, **ffmpeg_options), data=metadata)
+        res = cls(path=filename, data=metadata)
         return res
 
-    @classmethod
-    async def from_url(cls, url, data, *, loop=None):
-        logger.debug(f'YTDLSource.from_url: {url}')
-        loop = loop or asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: ytdl.download(url))
-
-        filename = ytdl.prepare_filename(data)
-        if NORMALIZE:
-            filename = await cls.normalize(filename)
-        res = cls(audio_class(filename, **ffmpeg_options), data=data)
-        return res
-
-    @staticmethod
-    async def normalize(local_path: str, *, loop = None) -> str:
-        """Normalize the audio"""
-        logger.info(f'Normalizing {local_path}')
-        loop = loop or asyncio.get_event_loop()
-        try:
-            name, ext = os.path.splitext(local_path)
-            fname = os.path.basename(name)
-            outfile = os.path.join(AUDIO_DIR, f'{fname}.norm.{NORMALIZE_EXT}')
-            if os.path.exists(outfile):
-                return outfile
-            norm = FFmpegNormalize(**ffmpeg_normalize_options)
-            norm.add_media_file(local_path, outfile)
-            await loop.run_in_executor(None, norm.run_normalization)
-            # norm.run_normalization()
-        except Exception as e:
-            logger.error(f'Error normalizing {local_path}: {e}')
-            return local_path
-        else:
-            logger.info(f'Normalized {local_path}')
-        return outfile
-
-    @staticmethod
-    async def get_info(url: str):
-        """Get the Youtube info from a URL"""
-        logger.debug(f'YTDLSource.get_info: {url}')
+    def download(self):
+        """Download the audio"""
+        if self.path is None:
+            raise ValueError('No path')
+        if os.path.exists(self.path):
+            return
         loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
-        if 'entries' in data:
-            # take first item from a playlist
-            data = data['entries'][0]
-        data['local_path'] = ytdl.prepare_filename(data)
-        return data
+        return loop.run_in_executor(None, lambda: ytdl.download(self.url))
+
+
+    def normalize(self, *, loop = None):
+        """Normalize the audio"""
+        if not NORMALIZE:
+            logger.debug(f'Normalization disabled {self.path}')
+            return
+
+        name, ext = os.path.splitext(self.path)
+        fname = os.path.basename(name)
+        outfile = os.path.join(AUDIO_DIR, f'{fname}.norm.{NORMALIZE_EXT}')
+        if os.path.exists(outfile):
+            logger.debug(f'Normalized file already exists {outfile}')
+            self.path_norm = outfile
+            return
+
+        return self._normalize(self.path, outfile)
+
+    async def _normalize(self, src, dst):
+        logger.info(f'Normalizing {src} -> {dst}')
+        try:
+            norm = FFmpegNormalize(**ffmpeg_normalize_options)
+            norm.add_media_file(src, dst)
+            loop = loop or asyncio.get_event_loop()
+            await loop.run_in_executor(None, norm.run_normalization)
+        except Exception as e:
+            logger.error(f'Error normalizing {src}: {e}')
+        else:
+            logger.info(f'Normalized {src} -> {dst}')
+            self.path_norm = dst
+
+    async def get_info(self) -> dict:
+        """Get the Youtube info from a URL"""
+        if self.url is None:
+            logger.error(f'YTDLSource.get_info: url is None')
+            return
+        logger.debug(f'YTDLSource.get_info: {self.url}')
+        if not self.data:
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(self.url, download=False))
+            if 'entries' in data:
+                # take first item from a playlist
+                data = data['entries'][0]
+            self.data = data
+
+        self.path = self.data['local_path'] = ytdl.prepare_filename(data)
+        return self.data
+
+    def get_source(self) -> discord.AudioSource:
+        if self.source is None:
+            if self.path is None:
+                raise ValueError('No path')
+            self.source = audio_class(self.path_norm or self.path, **ffmpeg_options)
+        return self.source
 
     @property
     def title(self):
@@ -157,3 +184,4 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     class InvalidURLError(Exception):
         pass
+
