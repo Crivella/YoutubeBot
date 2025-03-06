@@ -198,22 +198,9 @@ class QueuedServer:
         """Return the voice channel"""
         return self.player.channel
 
-    # def get_next_song(self):
-    #     """Return the next song"""
-    #     self.player.queue.go_next()
-    #     return self.player.queue.get_current()
-
     async def add_source(self, *args, **kwargs):
         """Add a song to the queue"""
         await self.player.add_source(*args, **kwargs)
-
-    # def jump_relative(self, pos: int):
-    #     """Jump to a position in the queue"""
-    #     self.player.queue.jump_relative(pos)
-
-    # async def play(self):
-    #     """Play the queue"""
-    #     await self.player.play()
 
     async def jump(self, pos: int, channel: discord.VoiceChannel):
         """Jump to a position in the queue"""
@@ -222,13 +209,10 @@ class QueuedServer:
     async def stop(self):
         """Clean the queue"""
         await self.player.stop()
-        # self.player.idx = 0
-        # self.playing = False
-        # self.channel = None
 
     async def resume(self, channel: discord.VoiceChannel):
         """Resume the queue"""
-        await self.player.resume(channel)
+        await self.player.resume(channel=channel)
 
     async def clear(self):
         """Clear the queue"""
