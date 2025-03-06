@@ -150,7 +150,7 @@ class ListPlay(discord.ui.Select, Paged):
             await itc.response.send_message(
                 f'Playing [{song.duration} s] {song.title}',
                 ephemeral=True,
-                delete_after=15
+                delete_after=max(20, song.duration)
             )
         except discord.errors.NotFound:
             pass

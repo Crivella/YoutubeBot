@@ -14,22 +14,7 @@ async def safe_disconnect(connection: discord.VoiceClient):
         return
     if connection.is_playing():
         connection.stop()
-    await connection.disconnect()
-
-async def get_vc_from_user(user: discord.Member) -> discord.VoiceClient:
-    """Get the voice channel from the user"""
-    if not user:
-        return
-    guild = user.guild
-    if (vc := guild.voice_client):
-        return vc
-    if not user.voice:
-        return
-    try:
-        vc = await user.voice.channel.connect()
-    except discord.errors.ClientException:
-        return
-    return vc
+    await connection.disconnect(force=True)
 
 def sense_check(func):
     """Check if the user can use the command"""
@@ -59,7 +44,7 @@ async def safe_defer(itc: discord.Interaction):
     except discord.errors.NotFound:
         pass
 
-async def safe_response(itc: discord.Interaction, content: str, append: bool = False, *args, **kwargs):
+async def safe_response(itc: discord.Interaction, content: str = '', append: bool = False, *args, **kwargs):
     if itc is None:
         return
     msg = []
@@ -72,7 +57,22 @@ async def safe_response(itc: discord.Interaction, content: str, append: bool = F
     else:
         rfunc = itc.response.send_message
     msg.append(content)
+
     try:
         await rfunc(content='\n'.join(msg), *args, **kwargs)
     except Exception as e:
         logger.error(f'Error sending message: {e}', exc_info=True)
+
+def ensure_response(func):
+    """Decorator to catch errors and make sure an interaction is always responded to"""
+    @wraps(func)
+    async def wrapper(self, itc: discord.Interaction, *args, **kwargs):
+        try:
+            await func(self, itc, *args, **kwargs)
+        except Exception as e:
+            logger.error(f'Error in {func.__name__}: {e}', exc_info=True)
+            await safe_response(itc, f'Error: {e}', ephemeral=True)
+        else:
+            if not itc.response.is_done():
+                await safe_response(itc, '', ephemeral=True, delete_after=10)
+    return wrapper

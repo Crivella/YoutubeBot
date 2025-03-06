@@ -29,13 +29,13 @@ class MyBot(commands.Bot):
     async def on_voice_state_update(
         self, member: discord.User, before: discord.VoiceState, after: discord.VoiceState
     ):
+        print(member, before, after, self.user)
         if member != self.user:
             return
         if before.channel is None and after.channel is not None:  # joined vc
             return
         if before.channel is not None and after.channel is None:  # disconnected from vc
             # clean up
-            logger.info(f'Leaving {before.channel.name} on {before.channel.guild.name}')
+            logger.info(f'Leaving {before.channel.name} on [{before.channel.guild.name}]')
             server = await m.DiscordServer.from_discord_guild(before.channel.guild)
-            server.playing = False
-            server.channel = None
+            await server.stop()

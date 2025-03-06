@@ -9,7 +9,7 @@ from typing import Union
 import discord
 from django.db import models
 
-from .bot.utils import get_vc_from_user, safe_disconnect, safe_response
+from .bot.utils import safe_response
 from .queued import QueuedServer
 from .youtube import YTDLSource
 
@@ -272,66 +272,19 @@ class YTSong(models.Model):
             await safe_response(itc, msg, ephemeral=True, append=True)
             await normalize
 
-        return src.get_source()
+        await safe_response(itc, f'Loaded {self.title}', ephemeral=True, append=True)
 
-    async def download(self):
-        """Download the song"""
-        logger.debug(f'Downloading {self.title}')
-        self.source = await YTDLSource.from_url(self.url, self.metadata)
+        return src.get_source()
 
     @extract_server_user_from_itc_async
     async def play(self, *, itc: discord.Interaction, user: DiscordUser, server: DiscordServer):
         """Play or queue the song"""
-        await self._play(itc=itc, user=user, server=server)
-
-
-    async def _play(
-        self, *,
-        itc: discord.Interaction = None, user: DiscordUser, server: DiscordServer,
-        from_queue: bool = False
-        ):
-        """Play the song"""
-        logger.info(f'Playing {self.title} on {server.name} by `{user.username}`')
-        source = await self.get_source(itc)
-
-        client = await get_vc_from_user(user.dc)
-        if client.is_playing():
-            if from_queue:
-                logger.error(f'_play invoked fromm queue while client is still playing.')
-                return
-            server.add_song(self)
-            await safe_response(itc, f'Queued {self.title}', ephemeral=True, append=True)
-            return
-        else:
-            if not from_queue:
-                server.add_song(self)
-        try:
-            client.play(
-                source,
-                after = lambda e=None, c=client, u=user, s=server: self.after_play(e, c, u, s)
-            )
-        except:
-            logger.error(f'Error playing {self.title}', exc_info=True)
-        else:
+        async def on_play():
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
-            server.playing = True
-            server.channel = client.channel
 
-    @staticmethod
-    def after_play(error, connection: discord.VoiceClient, user: DiscordUser, server: DiscordServer):
-        """After play callback"""
-        if error:
-            logger.error(f'Error in after_play: {error}', exc_info=True)
-            return
-        next_song = server.get_next_song()
-        if next_song is None:
-            asyncio.run_coroutine_threadsafe(safe_disconnect(connection), connection.loop)
-        else:
-            asyncio.run_coroutine_threadsafe(
-                next_song._play(user=user, server=server, from_queue=True), connection.loop
-            )
-
+        await self.get_source(itc)
+        await server.add_source(self, user.dc, on_play, channel=user.dc.voice.channel)
 
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:

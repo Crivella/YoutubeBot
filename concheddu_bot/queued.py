@@ -2,6 +2,8 @@
 import asyncio
 import logging
 from collections import defaultdict
+from functools import wraps
+from typing import Callable
 
 import discord
 
@@ -9,30 +11,81 @@ from .bot.utils import safe_disconnect
 
 logger = logging.getLogger('bot')
 
+def with_monitor(func):
+    """Decorator to add a monitor to the function"""
+    @wraps(func)
+    async def wrapper(cls, *args, channel: discord.VoiceChannel, **kwargs):
+        if cls.monitoring_task is None or cls.monitoring_task.done():
+            cls.monitoring_task = asyncio.create_task(cls.monitor())
+        cls.active = True
+        cls.channel = channel
+        return await func(cls, *args, **kwargs)
+    return wrapper
+
 class Player:
     def __init__(self):
         self.queue = Queue()
-        self.playing: bool = False
         # self.server: discord.Guild = None
         self.channel: discord.VoiceChannel = None
         self.client: discord.VoiceClient = None
 
-    async def add_song(self, source: discord.AudioSource, user: discord.Member):
-        """Add a song to the queue"""
-        self.queue.append((source, user))
-        # if not self.playing:
-        #     self.play()
+        self.active: bool = True
+        self.first: bool = True
+        self.monitoring_task: asyncio.Task = None
 
-    def notify(self, error = None):
-        """Notify the player"""
-        if error:
-            logger.error(f'Error in notify: {error}')
-            return
-        if not self.client:
-            logger.debug('Notifying without a client')
-            return
-        self.queue.go_next()
-        asyncio.run_coroutine_threadsafe(self.play(), asyncio.get_event_loop())
+    @property
+    def playing(self) -> bool:
+        """Return the playing status"""
+        return self.client and self.client.is_playing()
+
+    # Rewrite monitor to be used directly without a thread
+    async def monitor(self):
+        """Monitor the player"""
+        while True:
+            await asyncio.sleep(1.0)
+            if not self.active:
+                continue
+            if self.playing:
+                continue
+            if not self.queue:
+                if self.channel:
+                    await self.stop()
+                continue
+            if not self.first:
+                self.queue.go_next()
+            self.first = False
+            try:
+                await self.play()
+            except Exception as e:
+                logger.error(e, exc_info=True)
+
+    @with_monitor
+    async def add_source(self, song, user: discord.Member, on_play: Callable = None):
+        """Add a song to the queue"""
+        self.queue.append((song, user, on_play))
+
+    @with_monitor
+    async def jump(self, pos: int):
+        """Jump to a position in the queue"""
+        self.first = True
+        self.queue.go_next(pos)
+        await asyncio.sleep(.1)
+
+        if self.playing:
+            self.client.stop()
+
+    async def stop(self):
+        """Stop the player"""
+        client = self.client
+        self.first = True
+        self.active = False
+        self.client = None
+        self.channel = None
+        await asyncio.sleep(.1)
+        try:
+            await safe_disconnect(client)
+        except Exception as e:
+            logger.error(e, exc_info=True)
 
     async def clear(self):
         """Clear the queue"""
@@ -40,47 +93,68 @@ class Player:
         await self.stop()
         # self.channel = None
 
-    async def stop(self):
-        """Stop the player"""
-        try:
-            await safe_disconnect(self.client)
-        except Exception as e:
-            logger.error(e, exc_info=True)
-        else:
-            self.playing = False
-            self.client = None
-            self.channel = None
-
-    async def play(self):
+    async def play(self, force: bool = False):
         """Play the player"""
-        song, user = self.queue.get_current()
+        if self.playing:
+            if not force:
+                return
+            self.client.stop()
+
+        song, user, on_play = self.queue.get_current()
+        logger.debug(f'Playing {song} from `{user}`')
+        if not song:
+            await self.stop()
+            return
+        # logger.debug(f'Playing {song.title} from `{user.name}`')
         if not self.client:
-            self.channel = user.voice.channel
             if not self.channel:
                 logger.warning('No channel to connect to')
                 return
             self.client = await self.channel.connect()
 
-        if song:
-            self.client.play(song, after=self.notify)
-            self.playing = True
-        else:
+        try:
+            source = await song.get_source()
+            self.client.play(source)
+        except Exception as e:
+            logger.error(e, exc_info=True)
             await self.stop()
+        else:
+            await on_play()
 
-    def resume(self):
+    @with_monitor
+    async def resume(self):
         """Resume the player"""
-        # self.playing = True
-        self.play()
-
+        if self.playing:
+            return
 class Queue(list):
     def __init__(self):
         self.idx: int = 0
         self.loop_all: bool = False
         self.loop_one: bool = False
 
+    def __str__(self):
+        if len(self) == 0:
+            return 'Empty queue'
+        pre = 4
+        post = 7
+        res = []
+        idx = self.idx
+        if idx > pre:
+            res.append('`...`')
+        for i in range(max(0, idx-pre), min(len(self), idx+post)):
+            pre = '` ‣‣‣`' if idx == i else f'`{i-idx:>4d}`'
+            song, user, _ = self[i]
+            res.append(f'{pre} [{song.duration:>4d} s] ({user.name:>10s}) - {song.title:>40s}')
+        if idx + post < len(self):
+            res.append('`...`')
+        return '\n'.join(res)
+
+    def __bool__(self):
+        return len(self) > 0 and self.idx < len(self)
+
     def get_current(self):
         if self.idx >= len(self):
-            return None
+            return (None, None, None)
         return self[self.idx]
 
     def go_next(self, val = 1):
@@ -118,44 +192,44 @@ class QueuedServer:
     def playing(self) -> bool:
         """Return the playing status"""
         return self.player.playing
-    @playing.setter
-    def playing(self, value: bool):
-        """Set the playing status"""
-        self.player.playing = value
 
     @property
     def channel(self) -> discord.VoiceChannel:
         """Return the voice channel"""
         return self.player.channel
-    @channel.setter
-    def channel(self, value: discord.VoiceChannel):
-        """Set the voice channel"""
-        self.player.channel = value
 
     # def get_next_song(self):
     #     """Return the next song"""
     #     self.player.queue.go_next()
     #     return self.player.queue.get_current()
 
-    def add_song(self, song):
+    async def add_source(self, *args, **kwargs):
         """Add a song to the queue"""
-        self.player.add_song(song)
+        await self.player.add_source(*args, **kwargs)
 
     # def jump_relative(self, pos: int):
     #     """Jump to a position in the queue"""
     #     self.player.queue.jump_relative(pos)
 
-    def stop(self):
+    # async def play(self):
+    #     """Play the queue"""
+    #     await self.player.play()
+
+    async def jump(self, pos: int, channel: discord.VoiceChannel):
+        """Jump to a position in the queue"""
+        await self.player.jump(pos, channel=channel)
+
+    async def stop(self):
         """Clean the queue"""
-        self.player.stop()
+        await self.player.stop()
         # self.player.idx = 0
         # self.playing = False
         # self.channel = None
 
-    def resume(self):
+    async def resume(self, channel: discord.VoiceChannel):
         """Resume the queue"""
-        self.player.resume()
+        await self.player.resume(channel)
 
-    def clear(self):
+    async def clear(self):
         """Clear the queue"""
-        self.player.clear()
+        await self.player.clear()
