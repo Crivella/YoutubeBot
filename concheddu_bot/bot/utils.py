@@ -8,6 +8,13 @@ from .. import models as m
 
 logger = logging.getLogger('bot')
 
+async def safe_disconnect(connection: discord.VoiceClient):
+    """Disconnect the bot from the voice channel"""
+    if connection is None:
+        return
+    if connection.is_playing():
+        connection.stop()
+    await connection.disconnect()
 
 async def get_vc_from_user(user: discord.Member) -> discord.VoiceClient:
     """Get the voice channel from the user"""

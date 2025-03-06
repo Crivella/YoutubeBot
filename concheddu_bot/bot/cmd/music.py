@@ -70,7 +70,7 @@ class Music(commands.Cog):
         post = 7
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
-        queue = server.queue
+        queue = server.player
         if not queue:
             await itc.response.send_message(
                 "the bot isn't playing anything",
@@ -79,7 +79,7 @@ class Music(commands.Cog):
             )
         else:
             res = []
-            idx = server.queue.idx
+            idx = server.player.idx
             if idx > pre:
                 res.append('`...`')
             for i in range(max(0, idx-pre), min(len(queue), idx+post)):
@@ -124,8 +124,8 @@ class Music(commands.Cog):
         """Loop the last song"""
         logger.info(f'Command `loop_one` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
-        server.queue.loop_all = False
-        server.queue.loop_one = True
+        server.player.loop_all = False
+        server.player.loop_one = True
         await safe_response(itc, 'Looping the last song')
 
     @app_commands.command()
@@ -134,8 +134,8 @@ class Music(commands.Cog):
         """Loop all songs"""
         logger.info(f'Command `loop_all` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
-        server.queue.loop_all = True
-        server.queue.loop_one = False
+        server.player.loop_all = True
+        server.player.loop_one = False
         await safe_response(itc, 'Looping all songs')
 
     @app_commands.command()
@@ -144,8 +144,8 @@ class Music(commands.Cog):
         """Stop looping"""
         logger.info(f'Command `loop_stop` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
-        server.queue.loop_all = False
-        server.queue.loop_one = False
+        server.player.loop_all = False
+        server.player.loop_one = False
         await safe_response(itc, 'Stopped looping')
 
     @app_commands.command()

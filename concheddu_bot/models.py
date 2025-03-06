@@ -9,22 +9,12 @@ from typing import Union
 import discord
 from django.db import models
 
-from .bot.utils import get_vc_from_user, safe_response
+from .bot.utils import get_vc_from_user, safe_disconnect, safe_response
 from .queued import QueuedServer
 from .youtube import YTDLSource
 
 logger = logging.getLogger('bot')
 
-async def safe_disconnect(connection: discord.VoiceClient):
-    """Disconnect the bot from the voice channel"""
-    if connection.is_playing():
-        logger.debug('Cannot disconnect while playing')
-        return
-    guild = connection.guild
-    server = await DiscordServer.from_discord_guild(guild)
-    server.playing = False
-    server.channel = None
-    await connection.disconnect()
 
 def extract_server_user_from_itc_async(func):
     """Decorator to extract server and user from interaction"""
@@ -252,11 +242,6 @@ class YTSong(models.Model):
             'id': self.youtube_id,
         }
 
-    @property
-    def need_download(self):
-        """Return if the song needs to be downloaded"""
-        return self.local_path is None or not os.path.exists(self.local_path)
-
     @with_discord_server_async
     async def get_times_played(self, *, server: DiscordServer):
         """Return the number of times played"""
@@ -308,21 +293,26 @@ class YTSong(models.Model):
         """Play the song"""
         logger.info(f'Playing {self.title} on {server.name} by `{user.username}`')
         source = await self.get_source(itc)
+
         client = await get_vc_from_user(user.dc)
+        if client.is_playing():
+            if from_queue:
+                logger.error(f'_play invoked fromm queue while client is still playing.')
+                return
+            server.add_song(self)
+            await safe_response(itc, f'Queued {self.title}', ephemeral=True, append=True)
+            return
+        else:
+            if not from_queue:
+                server.add_song(self)
         try:
             client.play(
                 source,
                 after = lambda e=None, c=client, u=user, s=server: self.after_play(e, c, u, s)
             )
-        except discord.ClientException as e:
-            server.add_song(self)
-            await safe_response(itc, f'Queued {self.title}', ephemeral=True, append=True)
-            return
         except:
             logger.error(f'Error playing {self.title}', exc_info=True)
         else:
-            if not from_queue:
-                server.add_song(self)
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
             server.playing = True
