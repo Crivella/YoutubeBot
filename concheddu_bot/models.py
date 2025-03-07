@@ -393,6 +393,9 @@ class YTSong(models.Model):
         if res and isinstance(res[0], dict):
             res = [await YTSong.objects.aget(id=a['song']) for a in res]
 
+        for song in res:
+            song.times_played_ = await song.get_times_played(server=server)
+
         return res
 
     sort_map = {

@@ -30,14 +30,14 @@ class Playlists(commands.Cog):
             )
             return
         songs = await m.YTSong.get_all_songs(server=server, n=num, sorting=sorting)
-        for song in songs:
-            song.times_played_ = await song.get_times_played(server=server)
         view = v.SongList(itc, songs)
         await itc.response.send_message(
             'Select a song to play',
             view=view,
             ephemeral=True
         )
+        await view.list.go_to_page(0)
+
     @list_songs.autocomplete('sorting')
     async def _list_songs_sorting(self, itc: discord.Interaction, current: str):
         """Autocomplete the sorting option"""
@@ -52,7 +52,7 @@ class Playlists(commands.Cog):
         logger.info(f'Command `create_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         user = await m.DiscordUser.from_discord_user(itc.user)
-        songs = await server.get_all_songs()
+        songs = await m.YTSong.get_all_songs(server=server,sorting='times_played')
         if await m.Playlist.objects.filter(server=server, name=name, owner=user).aexists():
             await itc.response.send_message(
                 'Playlist already exists',
@@ -66,6 +66,7 @@ class Playlists(commands.Cog):
             view=view,
             ephemeral=True
         )
+        await view.list.go_to_page(0)
 
     @app_commands.command()
     async def list_playlists(self, itc: discord.Interaction):
