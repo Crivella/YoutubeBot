@@ -108,7 +108,6 @@ class Paged:
         self.fwd_btn.disabled = page >= self.num_pages
         self.pge_btn.label = f'{page+1} / {self.num_pages+1}'
         await safe_response(self.view.itc, view=self.view)
-        # await self.view.itc.edit_original_response(view=self.view)
 
 class ListPlay(Paged, discord.ui.Select):
     def __init__(
@@ -157,14 +156,8 @@ class ListMultiSelect(Paged, discord.ui.Select):
     @ensure_response(before=False, defer=True)
     async def callback(self, itc: discord.Interaction):
         values = set(self.values)
-        # selected = []
         for opt in self.options_[self.page * MAX_LIST_OPT:(self.page + 1) * MAX_LIST_OPT]:
             opt.default = opt.value in values
-            # if opt.value in values:
-            #     selected.append(self.songs_map[opt.value])
-            #     opt.default = True
-            # else:
-            #     opt.default = False
 
 class SongList(discord.ui.View):
     def __init__(self, itc: discord.Interaction, songs: list[m.YTSong]):
@@ -194,29 +187,6 @@ class SongList(discord.ui.View):
     async def on_timeout(self):
         await self.itc.delete_original_response()
 
-class CreatePlaylistSubmit(discord.ui.Button):
-    def __init__(self, list, name, *args, **kwargs):
-        super().__init__(
-            label='Submit',
-            style=discord.ButtonStyle.primary,
-            *args, **kwargs
-        )
-        self.list = list
-        self.name = name
-
-    async def callback(self, itc: discord.Interaction):
-        playlist = await m.Playlist.create_playlist(self.name, server=itc.guild, user=itc.user)
-        logger.info(f'Creating playlist `{self.name}`:')
-        for opt in self.list.options_:
-            if opt.default:
-                logger.info(f'  - {opt.song.title}')
-                # print(f'Adding {opt.song.title} to playlist')
-                await playlist.add_song(opt.song)
-        await itc.response.send_message(
-            f'Playlist `{self.name}` created',
-            ephemeral=True
-        )
-
 class CreatePlaylist(discord.ui.View):
     def __init__(self, itc: discord.Interaction, songs: list[m.YTSong], name):
         super().__init__()
@@ -242,7 +212,26 @@ class CreatePlaylist(discord.ui.View):
             songs, row=1, min_values=0, max_values=mv,
             bwd_btn=bwd_btn, pge_btn=pge_btn, fwd_btn=fwd_btn
             )
-        self.submit = CreatePlaylistSubmit(self.list, name, row=3,)
+
+        async def submit_callback(itc: discord.Interaction):
+            playlist = await m.Playlist.create_playlist(self.name_, server=itc.guild, user=itc.user)
+            logger.info(f'Creating playlist `{self.name_}`:')
+            for opt in self.list.options_:
+                if opt.default:
+                    logger.info(f'  - {opt.song.title}')
+                    # print(f'Adding {opt.song.title} to playlist')
+                    await playlist.add_song(opt.song)
+            await itc.response.send_message(
+                f'Playlist `{self.name_}` created',
+                ephemeral=True
+            )
+
+        self.submit = CallbackButton(
+            label='Submit',
+            style=discord.ButtonStyle.primary,
+            row=3
+        )
+        self.submit.add_callback(submit_callback)
 
         self.add_item(self.list)
         self.add_item(bwd_btn)
