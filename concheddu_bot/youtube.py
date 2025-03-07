@@ -17,11 +17,11 @@ NORMALIZE = os.getenv('BOT_NORMALIZE', 'True').lower() in ['true', '1', 't', 'y'
 NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
 NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
 CONCURRENT_DOWNLOADS = int(os.getenv('BOT_CONCURRENT_DOWNLOADS', 3))
-CONCURRENT_NORMALIZE = int(os.getenv('BOT_CONCURRENT_NORMALIZE', 1))
+CONCURRENT_FFMPEG = int(os.getenv('BOT_CONCURRENT_FFMPEG', 1))
 
 logger = logging.getLogger('bot')
-sem_download = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
-sem_normalize = asyncio.Semaphore(CONCURRENT_NORMALIZE)
+SEMAPHORE_DOWNLOAD = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
+SEMAPHORE_FFMPEG = asyncio.Semaphore(CONCURRENT_FFMPEG)
 
 ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,
@@ -95,7 +95,7 @@ class YTDLSource():
 
     async def _download(self, loop=None):
         """Download the audio async"""
-        async with sem_download:
+        async with SEMAPHORE_DOWNLOAD:
             logger.info(f'Downloading {self.url}')
             loop = loop or asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: ytdl.download(self.url))
@@ -118,7 +118,7 @@ class YTDLSource():
 
     async def _normalize(self, src, dst, *, loop=None):
         """Normalize the audio async"""
-        async with sem_normalize:
+        async with SEMAPHORE_FFMPEG:
             logger.info(f'Normalizing {src} -> {dst}')
             try:
                 norm = FFmpegNormalize(**ffmpeg_normalize_options)

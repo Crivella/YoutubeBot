@@ -8,6 +8,7 @@ from typing import Callable
 import discord
 
 from .bot.utils import safe_disconnect
+from .youtube import SEMAPHORE_FFMPEG
 
 logger = logging.getLogger('bot')
 
@@ -55,7 +56,8 @@ class Player:
                 self.queue.go_next()
             self.first = False
             try:
-                await self.play()
+                async with SEMAPHORE_FFMPEG:
+                    await self.play()
             except Exception as e:
                 logger.error(e, exc_info=True)
 
