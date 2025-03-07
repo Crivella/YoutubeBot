@@ -449,11 +449,18 @@ class Playlist(models.Model):
         return await cls.objects.acreate(name=name, server=server, owner=user)
 
     @classmethod
-    @with_discord_server_async
-    @with_discord_user_async
-    async def get_playlists(cls, *, server: DiscordServer, user: DiscordUser):
+    @extract_server_user_from_itc_async
+    async def get_playlists(cls, *, itc: discord.Interaction, server: DiscordServer, user: DiscordUser):
         """Return the playlists"""
-        return cls.objects.filter(server=server, owner=user).all()
+        res = []
+        async for a in cls.objects.filter(server=server, owner=user):
+            res.append(a)
+        
+        for playlist in res:
+            playlist.song_count = await playlist.get_song_count()
+            playlist.duration = await playlist.get_duration()
+
+        return res
 
     async def get_songs(self, limit: int = None):
         """Return the songs in the playlist"""
