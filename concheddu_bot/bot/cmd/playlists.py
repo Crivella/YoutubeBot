@@ -134,9 +134,7 @@ class Playlists(commands.Cog):
                 delete_after=10
             )
             return
-        duration = 0
-        for song in songs:
-            duration += await song.get_duration()
+        duration = sum(song.duration for song in songs)
         await itc.response.send_message(
             f'Loaded playlist `{name}` with {len(songs)} songs duration={duration} s',
             ephemeral=True,
