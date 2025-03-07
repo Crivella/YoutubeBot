@@ -1,14 +1,15 @@
 """Models for the bot"""
 import logging
 import urllib
+from collections import defaultdict
 from functools import wraps
 from typing import Union
 
 import discord
 from django.db import models
 
+from .bot.player import Player
 from .bot.utils import safe_response
-from .queued import QueuedServer
 from .youtube import YTDLSource
 
 logger = logging.getLogger('bot')
@@ -54,8 +55,9 @@ def with_discord_server_async(func):
     return wrapper
 
 memo_server: dict[int, 'DiscordServer'] = {}
+memo_plater: dict[int, 'Player'] = defaultdict(Player)
 
-class DiscordServer(QueuedServer, models.Model):
+class DiscordServer(models.Model):
     """Server model"""
     name = models.CharField(max_length=255)
     discord_id = models.BigIntegerField()
@@ -79,6 +81,41 @@ class DiscordServer(QueuedServer, models.Model):
 
         memo_server[guild.id] = server_obj
         return server_obj
+
+    @property
+    def player(self) -> Player:
+        """Return the queue"""
+        return memo_plater[self.discord_id]
+
+    @property
+    def playing(self) -> bool:
+        """Return the playing status"""
+        return self.player.playing
+
+    @property
+    def channel(self) -> discord.VoiceChannel:
+        """Return the voice channel"""
+        return self.player.channel
+
+    async def add_source(self, *args, **kwargs):
+        """Add a song to the queue"""
+        await self.player.add_source(*args, **kwargs)
+
+    async def jump(self, pos: int, channel: discord.VoiceChannel):
+        """Jump to a position in the queue"""
+        await self.player.jump(pos, channel=channel)
+
+    async def stop(self):
+        """Clean the queue"""
+        await self.player.stop()
+
+    async def resume(self, channel: discord.VoiceChannel):
+        """Resume the queue"""
+        await self.player.resume(channel=channel)
+
+    async def clear(self):
+        """Clear the queue"""
+        await self.player.clear()
 
     async def get_all_songs(self):
         """Return all the songs in the server"""

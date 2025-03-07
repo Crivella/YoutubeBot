@@ -8,6 +8,8 @@ import discord
 import yt_dlp
 from ffmpeg_normalize import FFmpegNormalize
 
+from .semaphores import SEMAPHORE_DOWNLOAD, SEMAPHORE_FFMPEG
+
 FORMAT = os.getenv('BOT_YTDL_FORMAT', 'worstaudio')
 AUDIO_DIR = os.getenv('BOT_AUDIO_DIR', './dl')
 # FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
@@ -16,12 +18,8 @@ FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
 NORMALIZE = os.getenv('BOT_NORMALIZE', 'True').lower() in ['true', '1', 't', 'y', 'yes']
 NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
 NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
-CONCURRENT_DOWNLOADS = int(os.getenv('BOT_CONCURRENT_DOWNLOADS', 3))
-CONCURRENT_FFMPEG = int(os.getenv('BOT_CONCURRENT_FFMPEG', 1))
 
 logger = logging.getLogger('bot')
-SEMAPHORE_DOWNLOAD = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
-SEMAPHORE_FFMPEG = asyncio.Semaphore(CONCURRENT_FFMPEG)
 
 ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,

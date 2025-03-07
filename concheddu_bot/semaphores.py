@@ -1,0 +1,13 @@
+import asyncio
+import os
+
+CONCURRENT_DOWNLOADS = int(os.getenv('BOT_CONCURRENT_DOWNLOADS', 3))
+CONCURRENT_FFMPEG = int(os.getenv('BOT_CONCURRENT_FFMPEG', 1))
+
+SEMAPHORE_DOWNLOAD = asyncio.Semaphore(CONCURRENT_DOWNLOADS)
+SEMAPHORE_FFMPEG = asyncio.Semaphore(CONCURRENT_FFMPEG)
+
+__all__ = [
+    'SEMAPHORE_DOWNLOAD',
+    'SEMAPHORE_FFMPEG',
+]
