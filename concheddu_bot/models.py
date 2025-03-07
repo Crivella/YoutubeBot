@@ -1,7 +1,5 @@
 """Models for the bot"""
-import asyncio
 import logging
-import os
 import urllib
 from functools import wraps
 from typing import Union

@@ -58,6 +58,10 @@ class Player:
             try:
                 async with SEMAPHORE_FFMPEG:
                     await self.play()
+                    await asyncio.sleep(.1)
+                    # Also wait here to keep the semaphore locked while playing
+                    while self.playing:
+                        await asyncio.sleep(1.0)
             except Exception as e:
                 logger.error(e, exc_info=True)
 
