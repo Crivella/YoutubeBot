@@ -29,7 +29,6 @@ class MyBot(commands.Bot):
     async def on_voice_state_update(
         self, member: discord.User, before: discord.VoiceState, after: discord.VoiceState
     ):
-        print(member, before, after, self.user)
         if member != self.user:
             return
         if before.channel is None and after.channel is not None:  # joined vc
