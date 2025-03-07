@@ -250,3 +250,102 @@ class CreatePlaylist(discord.ui.View):
 
     async def on_timeout(self):
         await self.itc.delete_original_response()
+
+
+class UserList(discord.ui.Select):
+    def __init__(self, users: list[discord.Member], *args, **kwargs):
+        super().__init__(
+            placeholder='Select a user',
+            options=[
+                discord.SelectOption(
+                    label=elide(user.name),
+                    value=user.id,
+                    emoji='👤'
+                ) for user in users
+            ],
+            *args, **kwargs
+        )
+        self.map = {str(user.id): user for user in users}
+
+    @ensure_response(before=False, defer=True)
+    async def callback(self, itc: discord.Interaction):
+        pass
+
+    def get_users(self):
+        return [self.map[user_id] for user_id in self.values]
+    
+
+class PlaylistList(discord.ui.Select):
+    def __init__(self, playlists: list[m.Playlist], *args, **kwargs):
+        super().__init__(
+            placeholder='Select a playlist',
+            options=[
+                discord.SelectOption(
+                    label=elide(playlist.name),
+                    value=playlist.id,
+                    description=f'{playlist.song_count} songs, {playlist.duration} s',
+                    emoji='📁'
+                ) for playlist in playlists
+            ],
+            *args, **kwargs
+        )
+
+    @ensure_response(before=False, defer=True)
+    async def callback(self, itc: discord.Interaction):
+        pass
+
+class QuizStarter(discord.ui.View):
+    def __init__(self, itc: discord.Interaction, playlists: list[m.Playlist]):
+        super().__init__()
+        self.itc = itc
+        # self.quiz = quiz
+
+        users = self.itc.user.voice.channel.members
+
+        self.select_users = UserList(users, min_values=1, max_values=len(users))
+        self.select_playlists = PlaylistList(playlists, min_values=0, max_values=1)
+        self.start = CallbackButton(
+            label='Start Quiz',
+            style=discord.ButtonStyle.primary
+        )
+
+        self.start.add_callback(self.start_quiz)
+
+        self.add_item(self.select_playlists)
+        self.add_item(self.select_users)
+        self.add_item(self.start)
+
+    @ensure_response(before=False, defer=True)
+    async def start_quiz(self, itc: discord.Interaction, num_songs: int = 20):
+        """Start a quiz: select atleast one user and a playlist to choose songs from.
+        if no playlist is selected, the songs will be picked from all the songs in the server.
+
+        Args:
+            itc (discord.Interaction): Interaction
+            num_songs (int, optional): The number of songs to pick from the playlist. Defaults to 20.
+        """
+        users = self.select_users.get_users()
+        playlist = self.select_playlists.values
+        if playlist:
+            playlist = playlist[0]
+        playlist = await m.Playlist.objects.aget(playlist) if playlist else None
+
+
+        if not users:
+            await safe_response(itc, 'Select at least one user', ephemeral=True, delete_after=10)
+            return
+
+        if playlist is None:
+            songs = await m.YTSong.get_all_songs(server=itc.guild, n=num_songs, sorting='random')
+        else:
+            songs = await playlist.get_songs_order_random(n=num_songs)
+        # playlist_id = self.playlist.values[0] if self.playlist.values else None
+
+        logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
+        for user in users:
+            logger.info(f'Quiz user: {user}')
+        for song in songs:
+            logger.info(f'Quiz song: {song.title}')
+
+    async def on_timeout(self):
+        await self.itc.delete_original_response()

@@ -49,6 +49,7 @@ def main():
     bot = get_bot()
     asyncio.run(bot.add_cog(cmd.Music()))
     asyncio.run(bot.add_cog(cmd.Playlists()))
+    asyncio.run(bot.add_cog(cmd.Quiz()))
     asyncio.run(bot.add_cog(cmd.ServerUtils(bot=bot)))
     bot.run(token)
 
