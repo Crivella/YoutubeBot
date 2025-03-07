@@ -305,7 +305,13 @@ class YTSong(models.Model):
         return src.get_source()
 
     @extract_server_user_from_itc_async
-    async def play(self, update_msg: bool = True, *, itc: discord.Interaction, user: DiscordUser, server: DiscordServer):
+    async def play(
+            self,
+            update_msg: bool = True,
+            *,
+            itc: discord.Interaction, user: DiscordUser, server: DiscordServer,
+            **kwargs
+        ):
         """Play or queue the song"""
         # Ensure the channel is extracted ASAP in case the users leaves the channel before add_source
         channel = user.dc.voice.channel
@@ -383,10 +389,18 @@ class YTSong(models.Model):
 
     @staticmethod
     @with_discord_server_async
-    async def get_all_songs(*, n: int = None, server: DiscordServer, sorting: str = 'title') -> list['YTSong']:
+    async def get_all_songs(
+            *,
+            server: DiscordServer,
+            n: int = None,
+            sorting: str = 'title',
+            filter_title: str = None
+        ) -> list['YTSong']:
         """Return n random songs"""
         logger.debug(f'Getting all songs on [{server.name}] sorted by `{sorting}`')
         q = await YTSong.sort_map[sorting](server)
+        if filter_title:
+            q = q.filter(title__icontains=filter_title)
         if n:
             q = q[:n]
 

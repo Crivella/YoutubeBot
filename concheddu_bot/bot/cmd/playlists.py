@@ -15,12 +15,16 @@ class Playlists(commands.Cog):
     """Play command"""
     @app_commands.command()
     @ensure_response()
-    async def list_songs(self, itc: discord.Interaction, num: int = 20, sorting: str = 'times_played'):
+    async def list_songs(
+            self, itc: discord.Interaction,
+            num: int = 20, sorting: str = 'times_played',  filter_title: str = None
+        ):
         """Generate a list of songs already known to the bot
 
         Args:
             num (int, optional): Number of songs to list. Defaults to 20.
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
+            filter_title (str, optional): Filter the songs by title. Defaults to None.
         """
         logger.info(f'Command `list_songs` called with num={num}, sorting={sorting} by `{itc.user.name}` [{itc.guild.name}]')
         guild = itc.guild
@@ -31,7 +35,7 @@ class Playlists(commands.Cog):
                 ephemeral=True
             )
             return
-        songs = await m.YTSong.get_all_songs(server=server, n=num, sorting=sorting)
+        songs = await m.YTSong.get_all_songs(server=server, n=num, sorting=sorting, filter_title=filter_title)
         view = v.SongList(itc, songs)
         await itc.response.send_message(
             'Select a song to play',
