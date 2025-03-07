@@ -7,12 +7,14 @@ from discord.ext import commands
 
 from ...import models as m
 from .. import views as v
+from ..utils import ensure_response
 
 logger = logging.getLogger('bot')
 
 class Playlists(commands.Cog):
     """Play command"""
     @app_commands.command()
+    @ensure_response()
     async def list_songs(self, itc: discord.Interaction, num: int = 20, sorting: str = 'times_played'):
         """Generate a list of songs already known to the bot
 
@@ -47,6 +49,7 @@ class Playlists(commands.Cog):
         ]
 
     @app_commands.command()
+    @ensure_response()
     async def create_playlist(self, itc: discord.Interaction, name: str):
         """Create a playlist"""
         logger.info(f'Command `create_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
@@ -69,6 +72,7 @@ class Playlists(commands.Cog):
         await view.list.go_to_page(0)
 
     @app_commands.command()
+    @ensure_response()
     async def list_playlists(self, itc: discord.Interaction):
         """List the playlists"""
         logger.info(f'Command `list_playlists` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -87,8 +91,15 @@ class Playlists(commands.Cog):
         await itc.response.send_message(embed=embedVar, ephemeral=True)
 
     @app_commands.command()
-    async def load_playlist(self, itc: discord.Interaction, name: str):
-        """Load a playlist"""
+    @ensure_response()
+    async def load_playlist(self, itc: discord.Interaction, name: str, num: int = 0, shuffle: bool = False):
+        """Load a playlist
+
+        Args:
+            name (str): The name of the playlist
+            num (int, optional): The number of songs to load. Defaults to 0 (all).
+            shuffle (bool, optional): Shuffle the songs (before selecting `num`). Defaults to False (order by times_played).
+        """
         logger.info(f'Command `load_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         try:
@@ -100,7 +111,24 @@ class Playlists(commands.Cog):
                 delete_after=10
             )
             return
-        songs = await playlist.get_songs()
+        if num < 0:
+            await itc.response.send_message(
+                'Number of songs must be positive',
+                ephemeral=True,
+                delete_after=10
+            )
+            return
+        if shuffle:
+            songs = await playlist.get_songs_order_random(limit=num)
+        else:
+            songs = await playlist.get_songs_order_times_played(limit=num)
+        if not songs:
+            await itc.response.send_message(
+                'No songs in the playlist',
+                ephemeral=True,
+                delete_after=10
+            )
+            return
         # print(songs)
         duration = await playlist.get_duration()
         await itc.response.send_message(
