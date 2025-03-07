@@ -41,6 +41,7 @@ class ServerUtils(commands.Cog):
                 continue
             name, ext = os.path.splitext(file)
 
-            await m.YTSong.from_youtube_id(name, server=itc.guild, user=itc.user)
+            song = await m.YTSong.from_youtube_id(name, server=itc.guild, user=itc.user)
+            await song.get_source()
 
         await itc.edit_original_response(content=f'Synced {len(files)} songs ... DONE')
