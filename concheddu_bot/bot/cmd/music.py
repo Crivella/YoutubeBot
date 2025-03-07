@@ -135,7 +135,6 @@ class Music(commands.Cog):
         await safe_response(itc, 'Resumed the bot')
 
     @app_commands.command()
-    @sense_check
     @ensure_response()
     async def clear(self, itc: discord.Interaction):
         """Resume the bot"""

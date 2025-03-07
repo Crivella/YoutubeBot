@@ -471,13 +471,13 @@ class Playlist(models.Model):
             q = q[:limit]
         return [a async for a in q]
 
-    def get_songs_order_random(self, limit: int = None):
+    async def get_songs_order_random(self, limit: int = None):
         """Return the songs in the playlist ordered randomly"""
         q = self.songs
         q = q.order_by('?')
         if limit:
             q = q[:limit]
-        return q.all()
+        return [a async for a in q.all()]
 
     async def add_song(self, song: Union[YTSong, 'str'], order: int = None):
         """Add a song to the playlist"""
