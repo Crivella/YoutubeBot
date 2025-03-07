@@ -307,6 +307,12 @@ class YTSong(models.Model):
     @extract_server_user_from_itc_async
     async def play(self, update_msg: bool = True, *, itc: discord.Interaction, user: DiscordUser, server: DiscordServer):
         """Play or queue the song"""
+        # Ensure the channel is extracted ASAP in case the users leaves the channel before add_source
+        channel = user.dc.voice.channel
+        if not channel:
+            logger.error(f'User `{user.username}` is not in a voice channel even if play is called')
+            return
+
         async def on_play():
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
@@ -315,7 +321,7 @@ class YTSong(models.Model):
             itc = None
 
         await self.get_source(itc)
-        await server.add_source(self, user.dc, on_play, channel=user.dc.voice.channel)
+        await server.add_source(self, user.dc, on_play, channel=channel)
 
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:
