@@ -117,19 +117,6 @@ class DiscordServer(models.Model):
         """Clear the queue"""
         await self.player.clear()
 
-    async def get_all_songs(self):
-        """Return all the songs in the server"""
-        q = AddedSongEvent.objects
-        q = q.filter(server=self)
-        q = q.select_related('song')
-        res = []
-        # https://docs.djangoproject.com/en/5.1/topics/async/#queries-the-orm
-        # Weirdly there is no asynchronous all `aall` method this was the only way
-        # I got this to work
-        async for a in q:
-            res.append(a.song)
-        return res
-
 class DiscordUser(models.Model):
     """User model"""
     username = models.CharField(max_length=255)
@@ -465,31 +452,24 @@ class Playlist(models.Model):
 
         return res
 
-    async def get_songs(self, limit: int = None):
-        """Return the songs in the playlist"""
-        q = PlaylistThrough.objects
-        q = q.filter(playlist=self)
-        q = q.select_related('song')
-        if limit:
-            q = q[:limit]
-        return [a.song async for a in q]
-
-    def get_songs_order_dates(self, limit: int = None):
-        """Return the songs in the playlist ordered by date"""
-        q = self.songs
-        q = q.order_by('playlistthrough__added_date')
-        if limit:
-            q = q[:limit]
-        return q.all()
-
-    def get_songs_order_times_played(self, limit: int = None):
+    async def get_songs_order_times_played(self, limit: int = None):
         """Return the songs in the playlist ordered by times played"""
+        # Get server foreign key for async
+        server = await DiscordServer.objects.aget(id=self.server_id)
+
         q = self.songs
-        q = q.annotate(times_played=models.Count('play_events'))
-        q = q.order_by('times_played')
+        q = q.annotate(times_played=models.Count(models.Case(
+                models.When(
+                    models.Q(playevent__server=server) &
+                    models.Q(playevent__song=models.F('id')),
+                    then=1
+                ),
+                output_field=models.IntegerField(),
+            )))
+        q = q.order_by('-times_played')
         if limit:
             q = q[:limit]
-        return q.all()
+        return [a async for a in q]
 
     def get_songs_order_random(self, limit: int = None):
         """Return the songs in the playlist ordered randomly"""
@@ -519,5 +499,5 @@ class Playlist(models.Model):
 
     async def get_duration(self):
         """Return the duration of the playlist"""
-        songs = await self.get_songs()
+        songs = [a async for a in self.songs.all()]
         return sum(song.duration for song in songs)

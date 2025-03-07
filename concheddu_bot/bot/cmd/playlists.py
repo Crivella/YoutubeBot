@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from ...import models as m
 from .. import views as v
-from ..utils import ensure_response
+from ..utils import ensure_response, sense_check
 
 logger = logging.getLogger('bot')
 
@@ -91,6 +91,7 @@ class Playlists(commands.Cog):
         await itc.response.send_message(embed=embedVar, ephemeral=True)
 
     @app_commands.command()
+    @sense_check
     @ensure_response()
     async def load_playlist(self, itc: discord.Interaction, name: str, num: int = 0, shuffle: bool = False):
         """Load a playlist
@@ -129,7 +130,6 @@ class Playlists(commands.Cog):
                 delete_after=10
             )
             return
-        # print(songs)
         duration = await playlist.get_duration()
         await itc.response.send_message(
             f'Loaded playlist `{name}` with {len(songs)} songs duration={duration} s',
