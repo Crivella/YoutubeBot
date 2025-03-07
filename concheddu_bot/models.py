@@ -332,34 +332,49 @@ class YTSong(models.Model):
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:
         """Return a queryset of all songs ordered by last played on a server"""
-        q = PlayEvent.objects
-        q = q.filter(server=server)
-        q = q.values('song')
-        # q = q.select_related('song')
-        q = q.annotate(last_played=models.Max('date'))
+        q = YTSong.objects
+        q = q.filter(servers=server)
+        q = q.annotate(last_played=models.Max(models.Case(
+                models.When(
+                    models.Q(playevent__server=server) &
+                    models.Q(playevent__song=models.F('id')),
+                    then=models.F('playevent__date')
+                ),
+                output_field=models.DateTimeField(),
+            )))
         q = q.order_by('-last_played')
         return q
 
     @staticmethod
     async def get_all_songs_tp(server: DiscordServer) -> models.QuerySet:
         """Return a queryset of all songs ordered by times played on a server"""
-        q = PlayEvent.objects
-        q = q.filter(server=server)
-        q = q.values('song')
-        # q = q.select_related('song')
-        q = q.annotate(times_played=models.Count('song'))
+        q = YTSong.objects
+        q = q.filter(servers=server)
+        q = q.annotate(times_played=models.Count(models.Case(
+                models.When(
+                    models.Q(playevent__server=server) &
+                    models.Q(playevent__song=models.F('id')),
+                    then=1
+                ),
+                output_field=models.IntegerField(),
+            )))
         q = q.order_by('-times_played')
         return q
 
     @staticmethod
     async def get_all_songs_pl(server: DiscordServer) -> models.QuerySet:
         """Return a queryset of all songs ordered by times added to playlists on a server"""
-        q = PlaylistThrough.objects
-        q = q.filter(playlist__server=server)
-        q = q.values('song')
-        # q = q.select_related('song')
-        q = q.annotate(time_added=models.Count('song'))
-        q = q.order_by('-time_added')
+        q = YTSong.objects
+        q = q.filter(servers=server)
+        q = q.annotate(times_played=models.Count(models.Case(
+                models.When(
+                    models.Q(playlistthrough__playlist__server=server) &
+                    models.Q(playlistthrough__song=models.F('id')),
+                    then=1
+                ),
+                output_field=models.IntegerField(),
+            )))
+        q = q.order_by('-times_played')
         return q
 
     @staticmethod
