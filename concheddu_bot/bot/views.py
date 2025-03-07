@@ -1,7 +1,7 @@
-import asyncio
 import logging
 import os
 import random
+from collections import defaultdict
 
 import discord
 
@@ -367,10 +367,11 @@ class QuizStarter(discord.ui.View):
         self.idx = 0
         self.users: list[discord.Member] = []
         self.user_map: dict[int, discord.Member] = {}
-        self.user_colors: dict[int, discord.Color] = {}
+        self.user_colors: dict[int, discord.Color] = defaultdict(discord.Color.random)
         self.songs: list[m.YTSong] = []
         self.score: dict[int, int] = {}
         self.answers: list[bool] = []
+        self.user_answers: dict[int, list[bool]] = defaultdict(list)
 
         self.scoreboard: discord.Message = None
 
@@ -398,11 +399,11 @@ class QuizStarter(discord.ui.View):
 
         self.play_stop = CallbackButton(
             label='⏹️',
-            style=discord.ButtonStyle.primary
+            style=discord.ButtonStyle.danger
         )
         self.play_start = CallbackButton(
             label='▶️',
-            style=discord.ButtonStyle.primary
+            style=discord.ButtonStyle.success
         )
         self.answer_btn = CallbackButton(
             label='SUBMIT',
@@ -430,40 +431,45 @@ class QuizStarter(discord.ui.View):
                     ephemeral=True, delete_after=10
                     )
             await server.clear()
+
         @ensure_response(before=False, defer=True)
         async def answer_callback(itc: discord.Interaction):
             nonlocal message, answered
-
             if answered:
                 return
+            values = self.answer_list.values
             if itc.user.id != user.id:
                 await safe_response(
                     itc, 'You cannot answer for someone else',
                     ephemeral=True, delete_after=10
                     )
+            if not values:
+                await safe_response(
+                    itc, 'Select an answer',
+                    ephemeral=True, delete_after=10
+                    )
+                return
+
             answered = True
+            answer = values[0]
             await server.clear()
-            # await self.answer_song(itc)
+
+            result = answer == song.youtube_id
+
             msg = []
-            answer = self.answer_list.values[0]
-            msg.append(f'USER: {user.name}')
-            msg.append('')
-            msg.append(f'Correct answer: {song.title}')
-            msg.append(f'Your answer:    {self.answer_list.songs_map[answer].title}')
-            msg.append('')
-            if answer == song.youtube_id:
-                msg.append('Correct ❤️❤️')
-                self.answers.append(True)
-                self.score[user.id] += 1
-            else:
-                self.answers.append(False)
-                msg.append('Incorrect 🙁           🙁')
-            msg = '\n'.join(msg)
+            msg.append('Correct ❤️❤️' if result else 'Incorrect 🙁🙁')
+            msg.append(f'Real answer: {song.title}')
+            msg.append(f'Your answer: {self.answer_list.songs_map[answer].title}')
             embed = discord.Embed(
-                title='Answer',
-                description=msg,
+                title=user.name,
+                description='\n'.join(msg),
                 color=self.user_colors[user.id]
             )
+
+            self.answers.append(result)
+            self.user_answers[user.id].append(result)
+            self.score[user.id] += result
+
             view.clear_items()
             await message.edit(embed=embed, view=None)
             await self.display_score()
@@ -500,10 +506,13 @@ class QuizStarter(discord.ui.View):
             for user in winners:
                 msg.append(f'  - {user.name}')
 
-        msg.append('')
-        msg.append(f'{sum(self.answers)} / {len(self.answers)} correct answers')
-        msg = '\n'.join(msg)
-        await self.channel.send(msg)
+        embed = discord.Embed(
+            title='Quiz finished',
+            description=f'{sum(self.answers)} / {len(self.answers)} correct answers',
+            color=0x00ff00
+        )
+        self.embed_score(embed, sort=True)
+        await self.channel.send(embed=embed)
         await self.itc.delete_original_response()
 
     @ensure_response(before=False, defer=True)
@@ -546,7 +555,6 @@ class QuizStarter(discord.ui.View):
         logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
         self.users = users
         self.user_map = {user.id: user for user in users}
-        self.user_colors = {user.id: discord.Color.random() for user in users}
         self.score = {user.id: 0 for user in users}
         self.songs = songs
         logger.info('Quiz users:')
@@ -560,38 +568,35 @@ class QuizStarter(discord.ui.View):
         await self.display_score()
         await self.quiz_step()
 
-    async def display_score(self):
-        self.clear_items()
-        itc = self.itc
-        users = self.users
-        score = self.score
 
-        for user in users:
-            self.add_item(discord.ui.Button(
-                label=f'{user.name}: {score[user.id]}',
-                style=discord.ButtonStyle.secondary,
-                disabled=True
-            ))
+    def embed_score(self, embed: discord.Embed, sort: bool = True):
+        if sort:
+            lst = sorted(self.users, key=lambda user: self.score[user.id])[::-1]
+        else:
+            lst = self.users
 
-        embed = discord.Embed(
-            title='Current score',
-        )
-        for user in users:
+        for user in lst:
+            val = ''
+            for ans in self.user_answers[user.id]:
+                val += '✅' if ans else '❌'
             embed.add_field(
-                name=user.name,
-                value=score[user.id],
+                name=f'{user.name}  ({self.score[user.id]})',
+                value=val,
                 inline=True
             )
-        msg = []
-        msg.append('Current score:')
-        for user in users:
-            msg.append(f'`--` {user.name}: {score[user.id]}')
-        msg = '\n'.join(msg)
-        await safe_response(itc, view=self)
+
+    async def display_score(self):
+        self.clear_items()
+        embed = discord.Embed(
+            title='Current score',
+            color=0x0000ff
+        )
+        self.embed_score(embed, sort=False)
+
         if self.scoreboard:
-            await self.scoreboard.edit(content=msg)
+            await self.scoreboard.edit(embed=embed)
         else:
-            self.scoreboard = await self.channel.send(content=msg)
+            self.scoreboard = await self.channel.send(embed=embed)
 
     async def on_timeout(self):
         await self.itc.delete_original_response()
