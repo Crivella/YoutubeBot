@@ -273,7 +273,13 @@ class YTSong(models.Model):
         return await q.acount()
 
     async def get_source(self, itc: discord.Interaction = None):
-        """Return the source"""
+        """Perform the following steps to ensure the source is fetched and ready to play:
+            1. Get the source info if it's not already fetched
+            2. Download the source if it's not already downloaded
+            3. Normalize the source if it's not already
+
+        Show the progress in the interaction if provided
+        """
         if hasattr(self, 'source') and self.source:
             return self.source
 
