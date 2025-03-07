@@ -35,14 +35,18 @@ class Queue(list):
         post = 7
         res = []
         idx = self.idx
-        if idx > pre:
-            res.append('`...`')
-        for i in range(max(0, idx-pre), min(len(self), idx+post)):
-            pre = '` ‣‣‣`' if idx == i else f'`{i-idx:>4d}`'
+
+        start = max(0, idx - pre)
+        end = min(len(self), idx + post)
+        after = len(self) - end
+        if start > 0:
+            res.append(f'... ({start} songs) ...')
+        for i in range(max(0, idx-pre), min(len(self), idx + post)):
+            pre = '` ‣‣‣`' if idx == i else f'`{i - idx:>4d}`'
             song, user, _ = self[i]
             res.append(f'{pre} [{song.duration:>4d} s] ({user.name:>10s}) - {song.title:>40s}')
-        if idx + post < len(self):
-            res.append('`...`')
+        if after > 0:
+            res.append(f'... ({after} songs) ...')
         return '\n'.join(res)
 
     def __bool__(self):
@@ -178,5 +182,3 @@ class Player:
     async def resume(self):
         """Resume the player"""
         pass
-
-
