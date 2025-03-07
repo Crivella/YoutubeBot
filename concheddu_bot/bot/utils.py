@@ -68,14 +68,18 @@ def ensure_response(before=False, defer=False):
     def wrapper(func):
         """Decorator to catch errors and make sure an interaction is always responded to"""
         @wraps(func)
-        async def wrapped(self, itc: discord.Interaction, *args, **kwargs):
+        async def wrapped(*args, **kwargs):
+            if isinstance(args[0], discord.Interaction):
+                itc = args[0]
+            else:
+                itc = args[1]
             if before and not itc.response.is_done():
                 if defer:
                     await safe_defer(itc)
                 else:
                     await safe_response(itc, '', ephemeral=True)
             try:
-                await func(self, itc, *args, **kwargs)
+                await func(*args, **kwargs)
             except Exception as e:
                 logger.error(f'Error in {func.__name__}: {e}', exc_info=True)
                 await safe_response(itc, f'Error: {e}', ephemeral=True)

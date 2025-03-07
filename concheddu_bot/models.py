@@ -312,11 +312,14 @@ class YTSong(models.Model):
         return src.get_source()
 
     @extract_server_user_from_itc_async
-    async def play(self, *, itc: discord.Interaction, user: DiscordUser, server: DiscordServer):
+    async def play(self, update_msg: bool = True, *, itc: discord.Interaction, user: DiscordUser, server: DiscordServer):
         """Play or queue the song"""
         async def on_play():
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
+
+        if not update_msg:
+            itc = None
 
         await self.get_source(itc)
         await server.add_source(self, user.dc, on_play, channel=user.dc.voice.channel)
@@ -455,7 +458,7 @@ class Playlist(models.Model):
         res = []
         async for a in cls.objects.filter(server=server, owner=user):
             res.append(a)
-        
+
         for playlist in res:
             playlist.song_count = await playlist.get_song_count()
             playlist.duration = await playlist.get_duration()
