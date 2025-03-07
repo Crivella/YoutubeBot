@@ -16,7 +16,7 @@ class Music(commands.Cog):
     """Play command"""
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def play(self, itc: discord.Interaction, search: str):
         """Search and Play a song"""
         logger.info(f'Command `play` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
@@ -29,7 +29,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def play_random(self, itc: discord.Interaction, num: int = 1):
         """Play from 1 to 10 random songs
 
@@ -55,7 +55,7 @@ class Music(commands.Cog):
             await a
 
     @app_commands.command()
-    @ensure_response
+    @ensure_response()
     async def queue(self, itc: discord.Interaction):
         """Sync the bot commands"""
         logger.info(f'Command `queue` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -66,7 +66,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def jump(self, itc: discord.Interaction, pos: int = 1):
         """Skip the current song"""
         logger.info(f'Command `jump` called with pos={pos} by `{itc.user.name}` [{itc.guild.name}]')
@@ -76,7 +76,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def play_last(self, itc: discord.Interaction):
         """Play the last song"""
         logger.info(f'Command `play_last` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -85,7 +85,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def loop_one(self, itc: discord.Interaction):
         """Loop the last song"""
         logger.info(f'Command `loop_one` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -96,7 +96,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def loop_all(self, itc: discord.Interaction):
         """Loop all songs"""
         logger.info(f'Command `loop_all` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -107,7 +107,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def loop_stop(self, itc: discord.Interaction):
         """Stop looping"""
         logger.info(f'Command `loop_stop` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -117,7 +117,7 @@ class Music(commands.Cog):
         await safe_response(itc, 'Stopped looping')
 
     @app_commands.command()
-    @ensure_response
+    @ensure_response()
     async def stop(self, itc: discord.Interaction):
         """Stop the bot"""
         logger.info(f'Command `stop` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -127,7 +127,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def resume(self, itc: discord.Interaction):
         """Resume the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
@@ -136,7 +136,7 @@ class Music(commands.Cog):
 
     @app_commands.command()
     @sense_check
-    @ensure_response
+    @ensure_response()
     async def clear(self, itc: discord.Interaction):
         """Resume the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)

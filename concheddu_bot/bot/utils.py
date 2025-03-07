@@ -63,16 +63,26 @@ async def safe_response(itc: discord.Interaction, content: str = '', append: boo
     except Exception as e:
         logger.error(f'Error sending message: {e}', exc_info=True)
 
-def ensure_response(func):
-    """Decorator to catch errors and make sure an interaction is always responded to"""
-    @wraps(func)
-    async def wrapper(self, itc: discord.Interaction, *args, **kwargs):
-        try:
-            await func(self, itc, *args, **kwargs)
-        except Exception as e:
-            logger.error(f'Error in {func.__name__}: {e}', exc_info=True)
-            await safe_response(itc, f'Error: {e}', ephemeral=True)
-        else:
-            if not itc.response.is_done():
-                await safe_response(itc, '', ephemeral=True, delete_after=10)
+def ensure_response(before=False, defer=False):
+    def wrapper(func):
+        """Decorator to catch errors and make sure an interaction is always responded to"""
+        @wraps(func)
+        async def wrapped(self, itc: discord.Interaction, *args, **kwargs):
+            if before and not itc.response.is_done():
+                if defer:
+                    await safe_defer(itc)
+                else:
+                    await safe_response(itc, '', ephemeral=True)
+            try:
+                await func(self, itc, *args, **kwargs)
+            except Exception as e:
+                logger.error(f'Error in {func.__name__}: {e}', exc_info=True)
+                await safe_response(itc, f'Error: {e}', ephemeral=True)
+            else:
+                if not before and not itc.response.is_done():
+                    if defer:
+                        await safe_defer(itc)
+                    else:
+                        await safe_response(itc, '', ephemeral=True, delete_after=10)
+        return wrapped
     return wrapper
