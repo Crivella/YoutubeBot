@@ -279,18 +279,30 @@ class UserList(discord.ui.Select):
 
 class PlaylistList(discord.ui.Select):
     def __init__(self, playlists: list[m.Playlist], *args, **kwargs):
-        super().__init__(
-            placeholder='Select a playlist',
-            options=[
-                discord.SelectOption(
-                    label=elide(playlist.name),
-                    value=playlist.id,
-                    description=f'{playlist.song_count} songs, {playlist.duration} s',
-                    emoji='📁'
-                ) for playlist in playlists
-            ],
-            *args, **kwargs
-        )
+        if not playlists:
+            super().__init__(
+                placeholder='No playlists found',
+                options=[
+                    discord.SelectOption(
+                        label='No playlists found',
+                        value='__NO__NE__',
+                    )
+                ],
+                *args, **kwargs
+            )
+        else:
+            super().__init__(
+                placeholder='Select a playlist',
+                options=[
+                    discord.SelectOption(
+                        label=elide(playlist.name),
+                        value=playlist.id,
+                        description=f'{playlist.song_count} songs, {playlist.duration} s',
+                        emoji='📁'
+                    ) for playlist in playlists
+                ],
+                *args, **kwargs
+            )
 
     @ensure_response(before=False, defer=True)
     async def callback(self, itc: discord.Interaction):
@@ -316,10 +328,7 @@ class ListAnswer(discord.ui.Select):
 
     @ensure_response(before=False, defer=True)
     async def callback(self, itc: discord.Interaction):
-        # self.selected = self.values[0]
         pass
-        # if itc.user.id != self.user.id or True:
-        #     await safe_response(itc, 'You cannot answer for someone else', ephemeral=True, delete_after=10)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user.id == self.user.id
@@ -448,7 +457,7 @@ class QuizStarter(discord.ui.View):
                 self.score[user.id] += 1
             else:
                 self.answers.append(False)
-                msg.append('Incorrect 🙁 🙁')
+                msg.append('Incorrect 🙁           🙁')
             msg = '\n'.join(msg)
             embed = discord.Embed(
                 title='Answer',
@@ -512,7 +521,10 @@ class QuizStarter(discord.ui.View):
         playlist = self.select_playlists.values
         if playlist:
             playlist = playlist[0]
-        playlist = await m.Playlist.objects.aget(playlist) if playlist else None
+        if playlist is None or playlist == '__NO__NE__':
+            playlist = None
+        else:
+            playlist = await m.Playlist.objects.aget(playlist) if playlist else None
 
         if not users:
             await safe_response(itc, 'Select at least one user', ephemeral=True, delete_after=10)
