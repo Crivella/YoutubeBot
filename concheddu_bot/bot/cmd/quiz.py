@@ -28,5 +28,5 @@ class Quiz(commands.Cog):
         """
         logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
         playlists = await m.Playlist.get_playlists(itc=itc)
-        view = v.QuizStarter(itc, playlists=playlists, num_songs=num_songs, num_choices=num_choices)
+        view = v.QuizSongs(itc, playlists=playlists, num_songs=num_songs, num_choices=num_choices)
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
