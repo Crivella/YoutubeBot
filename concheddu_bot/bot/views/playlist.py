@@ -82,12 +82,17 @@ class EditPlaylist(discord.ui.View):
             ))
             return
 
+        lst = defaults.copy()
+        for song in songs:
+            if song not in defaults:
+                lst.append(song)
+
         mv = min(MAX_LIST_OPT, len(songs))
         bwd_btn = CallbackButton(label='<', row=2, style=discord.ButtonStyle.primary)
         pge_btn = CallbackButton(label='1', row=2, disabled=True, style=discord.ButtonStyle.secondary)
         fwd_btn = CallbackButton(label='>', row=2, style=discord.ButtonStyle.primary)
         self.list = ListMultiSelect2(
-            songs,
+            lst,
             defaults,
             row=1, min_values=0, max_values=mv,
             bwd_btn=bwd_btn, pge_btn=pge_btn, fwd_btn=fwd_btn

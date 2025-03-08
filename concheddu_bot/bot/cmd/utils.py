@@ -11,6 +11,20 @@ from ...youtube import AUDIO_DIR
 
 logger = logging.getLogger('bot')
 
+async def autocomplete_songs_sorting(self, itc: discord.Interaction, current: str):
+    """Autocomplete the sorting option"""
+    return [
+        app_commands.Choice(name=m.YTSong.sort_desc[k], value=k) for k in m.YTSong.sort_map.keys()
+        if k.startswith(current)
+    ]
+
+async def autocomplete_playlist_name(self, itc: discord.Interaction, current: str):
+    """Autocomplete the playlist name"""
+    server = await m.DiscordServer.from_discord_guild(itc.guild)
+    user = await m.DiscordUser.from_discord_user(itc.user)
+    playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
+    return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
+
 class ServerUtils(commands.Cog):
     """Play command"""
     def __init__(self, *args, bot, **kwargs):

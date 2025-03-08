@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
+from .utils import autocomplete_playlist_name
 from ..utils import sense_check, safe_response, ensure_response
 
 
@@ -50,10 +51,7 @@ class Music(commands.Cog):
     @play.autocomplete('playlist')
     async def _load_playlist_name(self, itc: discord.Interaction, current: str):
         """Autocomplete the playlist name"""
-        server = await m.DiscordServer.from_discord_guild(itc.guild)
-        user = await m.DiscordUser.from_discord_user(itc.user)
-        playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
-        return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
+        return await autocomplete_playlist_name(self, itc, current)
 
     @app_commands.command()
     @sense_check

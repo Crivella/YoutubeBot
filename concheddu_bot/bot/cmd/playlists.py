@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from ...import models as m
 from .. import views as v
+from .utils import autocomplete_playlist_name, autocomplete_songs_sorting
 from ..utils import ensure_response, sense_check
 
 logger = logging.getLogger('bot')
@@ -36,6 +37,8 @@ class Playlists(commands.Cog):
             )
             return
         songs = await m.YTSong.get_all_songs(server=server, n=num, sorting=sorting, filter_title=filter_title)
+        for song in songs:
+            song.times_played_ = await song.get_times_played(server=server)
         view = v.SongList(itc, songs)
         await itc.response.send_message(
             'Select a song to play',
@@ -43,23 +46,28 @@ class Playlists(commands.Cog):
             ephemeral=True
         )
         await view.list.go_to_page(0)
-
     @list_songs.autocomplete('sorting')
     async def _list_songs_sorting(self, itc: discord.Interaction, current: str):
         """Autocomplete the sorting option"""
-        return [
-            app_commands.Choice(name=m.YTSong.sort_desc[k], value=k) for k in m.YTSong.sort_map.keys()
-            if k.startswith(current)
-        ]
+        return await autocomplete_songs_sorting(self, itc, current)
 
     @app_commands.command()
     @ensure_response()
-    async def create_playlist(self, itc: discord.Interaction, name: str):
-        """Create a playlist"""
+    async def create_playlist(
+        self, itc: discord.Interaction,
+        name: str,
+        sorting: str = 'times_played'
+        ):
+        """Create a playlist
+
+        Args:
+            name (str): The name of the playlist
+            sorting (str, optional): Sorting option. Defaults to 'times_played'.
+        """
         logger.info(f'Command `create_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         user = await m.DiscordUser.from_discord_user(itc.user)
-        songs = await m.YTSong.get_all_songs(server=server,sorting='times_played')
+        songs = await m.YTSong.get_all_songs(server=server, sorting=sorting)
         if await m.Playlist.objects.filter(server=server, name=name, owner=user).aexists():
             await itc.response.send_message(
                 'Playlist already exists',
@@ -74,6 +82,10 @@ class Playlists(commands.Cog):
             ephemeral=True
         )
         await view.list.go_to_page(0)
+    @create_playlist.autocomplete('sorting')
+    async def _create_playlist_sorting(self, itc: discord.Interaction, current: str):
+        """Autocomplete the sorting option"""
+        return await autocomplete_songs_sorting(self, itc, current)
 
     @app_commands.command()
     @ensure_response()
@@ -148,26 +160,24 @@ class Playlists(commands.Cog):
     @load_playlist.autocomplete('name')
     async def _load_playlist_name(self, itc: discord.Interaction, current: str):
         """Autocomplete the playlist name"""
-        server = await m.DiscordServer.from_discord_guild(itc.guild)
-        user = await m.DiscordUser.from_discord_user(itc.user)
-        playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
-        return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
+        return await autocomplete_playlist_name(self, itc, current)
     @load_playlist.autocomplete('sorting')
     async def _load_playlist_sorting(self, itc: discord.Interaction, current: str):
         """Autocomplete the sorting option"""
-        return [
-            app_commands.Choice(name=m.YTSong.sort_desc[k], value=k) for k in m.YTSong.sort_map.keys()
-            if k.startswith(current)
-        ]
+        return await autocomplete_songs_sorting(self, itc, current)
 
     @app_commands.command()
     @ensure_response()
-    async def edit_playlist(self, itc: discord.Interaction, name: str, rename_to: str = None):
+    async def edit_playlist(
+            self, itc: discord.Interaction,
+            name: str, rename_to: str = None, sorting: str = 'times_played'
+        ):
         """Edit a playlist
 
         Args:
             name (str): The name of the playlist to edit
             rename_to (str, optional): If set, rename the playlist to this name. Defaults to None.
+            sorting (str, optional): Sorting option. Defaults to 'times_played'.
         """
         logger.info(f'Command `edit_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
@@ -181,8 +191,10 @@ class Playlists(commands.Cog):
                 delete_after=10
             )
             return
-        all_songs = await m.YTSong.get_all_songs(server=server, sorting='times_played')
+        all_songs = await m.YTSong.get_all_songs(server=server, sorting=sorting)
         pls_songs = [s async for s in playlist.songs.all()]
+        for song in all_songs + pls_songs:
+            song.times_played_ = await song.get_times_played(server=server)
         view = v.EditPlaylist(itc, playlist, all_songs, defaults=pls_songs, new_name=rename_to)
         await itc.response.send_message(
             'Edit the playlist',
@@ -194,7 +206,8 @@ class Playlists(commands.Cog):
     @edit_playlist.autocomplete('name')
     async def _edit_playlist_name(self, itc: discord.Interaction, current: str):
         """Autocomplete the playlist name"""
-        server = await m.DiscordServer.from_discord_guild(itc.guild)
-        user = await m.DiscordUser.from_discord_user(itc.user)
-        playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
-        return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
+        return await autocomplete_playlist_name(self, itc, current)
+    @edit_playlist.autocomplete('sorting')
+    async def _edit_playlist_sorting(self, itc: discord.Interaction, current: str):
+        """Autocomplete the sorting option"""
+        return await autocomplete_songs_sorting(self, itc, current)
