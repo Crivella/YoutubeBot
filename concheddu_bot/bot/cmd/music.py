@@ -17,7 +17,7 @@ class Music(commands.Cog):
     """Play command"""
     @app_commands.command()
     @sense_check
-    @ensure_response()
+    @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
     async def play(self, itc: discord.Interaction, search: str, playlist: str = None):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
 

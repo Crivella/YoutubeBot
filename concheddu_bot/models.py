@@ -177,6 +177,9 @@ class YTSong(models.Model):
         'random': 'Sort randomly',
     }
 
+    class MaxDurationError(Exception):
+        """Max duration error"""
+
     @staticmethod
     @with_discord_server_async
     async def get_last_played(*, server: DiscordServer) -> 'YTSong':
@@ -241,7 +244,9 @@ class YTSong(models.Model):
             extension = data['ext']
             local_path = data['local_path']
             if duration > MAX_DURATION:
-                raise ValueError(f'The song durations {duration} exceeds the maximum duration {MAX_DURATION}')
+                raise YTSong.MaxDurationError(
+                    f'The song durations {duration} exceeds the maximum duration {MAX_DURATION}'
+                )
             # source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
 
             # data = source.data

@@ -1,10 +1,13 @@
 """Utility functions for the bot"""
 import logging
+import os
 from functools import wraps
 
 import discord
 
 from .. import models as m
+
+DEBUG_MESSAGES = os.getenv('BOT_DEBUG_MESSAGES', 'f').lower() in ['true', '1', 't', 'y', 'yes', 'on']
 
 logger = logging.getLogger('bot')
 
@@ -64,15 +67,20 @@ async def safe_response(itc: discord.Interaction, content: str = '', append: boo
     except Exception as e:
         logger.error(f'Error sending message: {e}', exc_info=True)
 
-def ensure_response(before=False, defer=False):
+def ensure_response(before=False, defer=False, allowed_exceptions: list = ()):
+    """Decorator to ensure a response is always sent"""
     def wrapper(func):
         """Decorator to catch errors and make sure an interaction is always responded to"""
         @wraps(func)
         async def wrapped(*args, **kwargs):
+            # Accounts for both wrapping normal functions and class methods
             if isinstance(args[0], discord.Interaction):
                 itc = args[0]
-            else:
+            elif isinstance(args[1], discord.Interaction):
                 itc = args[1]
+            else:
+                raise ValueError('No interaction object found')
+
             if before and not itc.response.is_done():
                 if defer:
                     await safe_defer(itc)
@@ -80,9 +88,16 @@ def ensure_response(before=False, defer=False):
                     await safe_response(itc, '', ephemeral=True)
             try:
                 await func(*args, **kwargs)
+            except allowed_exceptions as e:
+                logger.debug(f'Allowed exception in {func.__name__}: {e}')
+                await safe_response(itc, str(e), ephemeral=True)
             except Exception as e:
                 logger.error(f'Error in {func.__name__}: {e}', exc_info=True)
-                await safe_response(itc, f'Error: {e}', ephemeral=True)
+                if DEBUG_MESSAGES:
+                    msg = f'Error in {func.__name__}: {e}'
+                else:
+                    msg = 'An error occurred'
+                await safe_response(itc, msg, ephemeral=True)
             else:
                 if not before and not itc.response.is_done():
                     if defer:
