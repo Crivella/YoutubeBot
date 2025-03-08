@@ -17,12 +17,12 @@ class Playlists(commands.Cog):
     @ensure_response()
     async def list_songs(
             self, itc: discord.Interaction,
-            num: int = 20, sorting: str = 'times_played',  filter_title: str = None
+            num: int = 100, sorting: str = 'times_played',  filter_title: str = None
         ):
         """Generate a list of songs already known to the bot
 
         Args:
-            num (int, optional): Number of songs to list. Defaults to 20.
+            num (int, optional): Number of songs to list. Defaults to 100.
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
             filter_title (str, optional): Filter the songs by title. Defaults to None.
         """
