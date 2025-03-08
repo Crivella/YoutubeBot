@@ -350,6 +350,10 @@ class YTSong(models.Model):
                     models.Q(playevent__song=models.F('id')),
                     then=models.F('playevent__date')
                 ),
+                # Default to very old date
+                # Problem here is if some somengs have never been played they will have NULL
+                # and will be sorted first
+                default=models.Value('1970-01-01T00:00:00Z'),
                 output_field=models.DateTimeField(),
             )))
         q = q.order_by('-last_played')
@@ -380,7 +384,7 @@ class YTSong(models.Model):
                 models.When(
                     models.Q(playlistthrough__playlist__server=server) &
                     models.Q(playlistthrough__song=models.F('id')),
-                    then=1
+                    then=1,
                 ),
                 output_field=models.IntegerField(),
             )))
@@ -428,6 +432,8 @@ class YTSong(models.Model):
             q = q.filter(title__icontains=filter_title)
         if n:
             q = q[:n]
+
+        print(q.query)
 
         res = [a async for a in q]
 
