@@ -19,7 +19,6 @@ class SongList(discord.ui.View):
                 disabled=True
             ))
             return
-
         bwd_btn = CallbackButton(label='<', row=1, style=discord.ButtonStyle.primary)
         pge_btn = CallbackButton(label='1', row=1, disabled=True, style=discord.ButtonStyle.secondary)
         fwd_btn = CallbackButton(label='>', row=1, style=discord.ButtonStyle.primary)
