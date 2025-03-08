@@ -626,7 +626,7 @@ class QuizStarter(discord.ui.View):
         if playlist is None:
             songs = await m.YTSong.get_all_songs(server=itc.guild, n=self.num_songs, sorting='random')
         else:
-            songs = await playlist.get_songs_order_random(n=self.num_songs)
+            songs = await playlist.get_songs_order_random(limit=self.num_songs)
         # playlist_id = self.playlist.values[0] if self.playlist.values else None
 
         found_songs = len(songs)
