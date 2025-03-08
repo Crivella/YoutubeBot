@@ -446,6 +446,7 @@ class YTSong(models.Model):
         logger.debug(f'Getting all songs on [{server.name}] sorted by `{sorting}`')
         q = await YTSong.sort_map[sorting](server)
         if filter_title:
+            q = q.annotate(title=models.F('manual_title') or models.F('original_title'))
             q = q.filter(title__icontains=filter_title)
         if n:
             q = q[:n]
