@@ -617,7 +617,7 @@ class QuizStarter(discord.ui.View):
         if playlist is None or playlist == '__NO__NE__':
             playlist = None
         else:
-            playlist = await m.Playlist.objects.aget(playlist) if playlist else None
+            playlist = await m.Playlist.objects.aget(id=playlist) if playlist else None
 
         if not users:
             await safe_response(itc, 'Select at least one user', ephemeral=True, delete_after=10)

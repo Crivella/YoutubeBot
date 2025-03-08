@@ -192,7 +192,7 @@ class YTSong(models.Model):
     @classmethod
     @with_discord_user_async
     @with_discord_server_async
-    async def from_youtube_id(cls, ytid: str, *, user: DiscordUser, server: DiscordServer):
+    async def from_youtube_id(cls, ytid: str, *, user: DiscordUser, server: DiscordServer) -> 'YTSong':
         """Return the song from search string"""
         logger.debug(f'Getting song from youtube id {ytid}')
         song = None
@@ -221,7 +221,7 @@ class YTSong(models.Model):
     @classmethod
     @with_discord_user_async
     @with_discord_server_async
-    async def from_search_string(cls, search: str, *, user: DiscordUser, server: DiscordServer):
+    async def from_search_string(cls, search: str, *, user: DiscordUser, server: DiscordServer) -> 'YTSong':
         """Return the song from search string"""
         logger.debug(f'Getting song from search string {search}')
         song = None
@@ -232,20 +232,25 @@ class YTSong(models.Model):
             if await q.aexists():
                 song = await q.aget()
         if song is None:
+            # print('search', search)
             src = YTDLSource.from_url(search)
             data = await src.get_info()
+            # print(data)
 
+            title = data['title'].strip()
             duration = data['duration']
+            extension = data['ext']
+            local_path = data['local_path']
             if duration > MAX_DURATION:
                 raise ValueError(f'The song durations {duration} exceeds the maximum duration {MAX_DURATION}')
             # source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
 
             # data = source.data
             song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
-            song.title = data['title'].strip()
-            song.duration = data['duration']
-            song.extension = data['ext']
-            song.local_path = data['local_path']
+            song.title = title
+            song.duration = duration
+            song.extension = extension
+            song.local_path = local_path
 
         if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
             logger.debug(f'Adding song {song.title} to {server.name}')
