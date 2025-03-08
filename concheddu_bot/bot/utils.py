@@ -44,6 +44,8 @@ def sense_check(func):
 async def safe_defer(itc: discord.Interaction):
     try:
         await itc.response.defer()
+    except discord.errors.InteractionResponded:
+        pass
     except discord.errors.NotFound:
         pass
 
@@ -67,19 +69,22 @@ async def safe_response(itc: discord.Interaction, content: str = '', append: boo
     except Exception as e:
         logger.error(f'Error sending message: {e}', exc_info=True)
 
+def itc_from_args(args):
+    """Get the interaction object from the args.
+    Accounts for both wrapping normal functions and class methods"""
+    if isinstance(args[0], discord.Interaction):
+        return args[0]
+    elif isinstance(args[1], discord.Interaction):
+        return args[1]
+    raise ValueError('No interaction object found')
+
 def ensure_response(before=False, defer=False, allowed_exceptions: list = ()):
     """Decorator to ensure a response is always sent"""
     def wrapper(func):
         """Decorator to catch errors and make sure an interaction is always responded to"""
         @wraps(func)
         async def wrapped(*args, **kwargs):
-            # Accounts for both wrapping normal functions and class methods
-            if isinstance(args[0], discord.Interaction):
-                itc = args[0]
-            elif isinstance(args[1], discord.Interaction):
-                itc = args[1]
-            else:
-                raise ValueError('No interaction object found')
+            itc = itc_from_args(args)
 
             if before and not itc.response.is_done():
                 if defer:
@@ -104,5 +109,24 @@ def ensure_response(before=False, defer=False, allowed_exceptions: list = ()):
                         await safe_defer(itc)
                     else:
                         await safe_response(itc, '', ephemeral=True, delete_after=10)
+        return wrapped
+    return wrapper
+
+def ensure_user(users: list[discord.Member], defer=False):
+    """Decorator to ensure that the user is in the list of users"""
+    def wrapper(func):
+        @wraps(func)
+        async def wrapped(*args, **kwargs):
+            itc = itc_from_args(args)
+            if itc.user not in users:
+                if defer:
+                    await safe_defer(itc)
+                else:
+                    await safe_response(
+                        itc, 'You cannot interact with this element',
+                        ephemeral=True, delete_after=10
+                    )
+                return
+            return await func(*args, **kwargs)
         return wrapped
     return wrapper

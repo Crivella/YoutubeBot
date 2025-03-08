@@ -4,7 +4,7 @@ from collections import defaultdict
 import discord
 
 from ... import models as m
-from ..utils import ensure_response, safe_response
+from ..utils import ensure_response, ensure_user, safe_response
 from .buttons import CallbackButton
 from .utils import elide, logger
 
@@ -85,6 +85,7 @@ class ListAnswer(discord.ui.Select):
     async def callback(self, itc: discord.Interaction):
         pass
 
+    # @ensure_response(defer=True)
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return interaction.user.id == self.user.id
 
@@ -94,7 +95,7 @@ class QuizSongs(discord.ui.View):
             self,
             itc: discord.Interaction,
             playlists: list[m.Playlist],
-            num_songs: int = 20,
+            num_songs: int = 5,
             num_choices: int = 5
         ):
         super().__init__()
@@ -145,19 +146,18 @@ class QuizSongs(discord.ui.View):
         answered = False
 
         # Instead of using the current list of song pick X random songs + the current song
-        choices = [song]
-        while song in choices:
-            choices = await m.YTSong.get_all_songs(server=self.itc.guild, n=self.nmc-1, sorting='random')
-        choices.append(song)
+        choices = random.sample(self.all_song, self.nmc)
+        if song not in choices:
+            choices[-1] = song
         random.shuffle(choices)
         self.answer_list = ListAnswer(choices, user)
 
         self.play_stop = CallbackButton(
-            label='⏹️',
+            label='STOP',
             style=discord.ButtonStyle.danger
         )
         self.play_start = CallbackButton(
-            label='▶️',
+            label='PLAY',
             style=discord.ButtonStyle.success
         )
         self.answer_btn = CallbackButton(
@@ -168,15 +168,11 @@ class QuizSongs(discord.ui.View):
         enqueueing = False
 
         @ensure_response(before=False, defer=True)
+        @ensure_user(users=[user], defer=True)
         async def play_callback(itc: discord.Interaction):
             nonlocal enqueueing
             if answered:
                 return
-            if itc.user.id != user.id:
-                await safe_response(
-                    itc, 'You cannot play for someone else',
-                    ephemeral=True, delete_after=10
-                    )
             if enqueueing:
                 return
             enqueueing = True
@@ -184,34 +180,23 @@ class QuizSongs(discord.ui.View):
             enqueueing = False
 
         @ensure_response(before=False, defer=True)
+        @ensure_user(users=[user], defer=True)
         async def stop_callback(itc: discord.Interaction):
             nonlocal enqueueing
             if answered:
                 return
-            if itc.user.id != user.id:
-                await safe_response(
-                    itc, 'You cannot stop for someone else',
-                    ephemeral=True, delete_after=10
-                    )
             enqueueing = False
             await server.clear()
 
         @ensure_response(before=False, defer=True)
+        @ensure_user(users=[user], defer=True)
         async def answer_callback(itc: discord.Interaction):
             nonlocal message, answered, enqueueing
             if answered:
                 return
             values = self.answer_list.values
-            if itc.user.id != user.id:
-                await safe_response(
-                    itc, 'You cannot answer for someone else',
-                    ephemeral=True, delete_after=10
-                    )
             if not values:
-                await safe_response(
-                    itc, 'Select an answer',
-                    ephemeral=True, delete_after=10
-                    )
+                await safe_response(itc, 'Select an answer', ephemeral=True, delete_after=10)
                 return
 
             answered = True
@@ -222,11 +207,11 @@ class QuizSongs(discord.ui.View):
             result = answer == song.youtube_id
 
             msg = []
-            msg.append('Correct ❤️❤️' if result else 'Incorrect 🙁🙁')
+            title = f'{user.nick}: Correct ❤️❤️' if result else 'Incorrect 🙁🙁'
             msg.append(f'Real answer: {song.title}')
             msg.append(f'Your answer: {self.answer_list.songs_map[answer].title}')
             embed = discord.Embed(
-                title=user.name,
+                title=title,
                 description='\n'.join(msg),
                 color=self.user_colors[user.id]
             )
@@ -245,19 +230,12 @@ class QuizSongs(discord.ui.View):
         self.play_stop.add_callback(stop_callback)
         self.answer_btn.add_callback(answer_callback)
 
-        # self.add_item(self.prev_song)
         view.add_item(self.answer_list)
         view.add_item(self.play_stop)
         view.add_item(self.play_start)
         view.add_item(self.answer_btn)
-        # self.add_item(self.next_song)
-
-        embed = discord.Embed(
-            title=f'{user.name}\'s turn',
-            color=self.user_colors[user.id]
-        )
-        message = await self.channel.send(embed=embed, view=view)
-        # await safe_response(itc, view=self)
+        msg = f'<@{user.id}> \'s turn'
+        message = await self.channel.send(content=msg, view=view)
 
     async def quiz_finish(self):
         max_score = max(self.score.values())
@@ -290,8 +268,8 @@ class QuizSongs(discord.ui.View):
             num_songs (int, optional): The number of songs to pick from the playlist. Defaults to 20.
         """
         users = self.select_users.get_users()
-        #random order for the users
-        random.shuffle(users)
+        random.shuffle(users)  #random order for the users
+
         playlist = self.select_playlists.values
         if playlist:
             playlist = playlist[0]
@@ -305,19 +283,24 @@ class QuizSongs(discord.ui.View):
             return
 
         if playlist is None:
-            songs = await m.YTSong.get_all_songs(server=itc.guild, n=self.num_songs, sorting='random')
+            songs = await m.YTSong.get_all_songs(server=itc.guild, sorting='random')
         else:
-            songs = await playlist.get_songs_order_random(limit=self.num_songs)
+            songs = await playlist.get_songs_order_random()
         # playlist_id = self.playlist.values[0] if self.playlist.values else None
 
+        needed_songs = len(users) * self.num_songs
         found_songs = len(songs)
-        if found_songs < len(users):
-            await safe_response(itc, 'Not enough songs found, need atleast 1 per user', ephemeral=True, delete_after=10)
+        if found_songs < needed_songs:
+            await safe_response(
+                itc, f'Not enough songs found in global/playlist ({found_songs}/{needed_songs})',
+                ephemeral=True, delete_after=10
+            )
             return
-        found_songs -= found_songs % len(users)
-        songs = songs[:found_songs]
+        logger.info(f'Found {found_songs} songs')
 
-        logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
+        self.all_song = songs
+        songs = songs[:needed_songs]
+
         self.users = users
         self.user_map = {user.id: user for user in users}
         self.score = {user.id: 0 for user in users}
@@ -333,7 +316,6 @@ class QuizSongs(discord.ui.View):
         await self.display_score()
         await self.quiz_step()
 
-
     def embed_score(self, embed: discord.Embed, sort: bool = True):
         if sort:
             lst = sorted(self.users, key=lambda user: self.score[user.id])[::-1]
@@ -347,7 +329,7 @@ class QuizSongs(discord.ui.View):
             embed.add_field(
                 name=f'{user.name}  ({self.score[user.id]})',
                 value=val,
-                inline=True
+                inline=False
             )
 
     async def display_score(self):
