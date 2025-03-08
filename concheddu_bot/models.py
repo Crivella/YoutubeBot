@@ -604,19 +604,21 @@ class Playlist(models.Model):
     #         q = q[:limit]
     #     return [a async for a in q.all()]
 
-    async def add_song(self, song: YTSong, order: int = None):
+    async def add_song(self, song: YTSong, order: int = None) -> bool:
         """Add a song to the playlist"""
         if order is None:
             order = await self.songs.acount()
         if await PlaylistThrough.objects.filter(playlist=self, song=song).aexists():
-            return
+            return False
         await PlaylistThrough.objects.acreate(playlist=self, song=song, order=order)
+        return True
 
-    async def remove_song(self, song: YTSong):
+    async def remove_song(self, song: YTSong) -> bool:
         """Remove a song from the playlist"""
         if not await PlaylistThrough.objects.filter(playlist=self, song=song).aexists():
-            return
+            return False
         await PlaylistThrough.objects.filter(playlist=self, song=song).adelete()
+        return True
 
     async def add_song_multiple(self, songs: list[Union[YTSong, 'str']]):
         """Add multiple songs to the playlist"""

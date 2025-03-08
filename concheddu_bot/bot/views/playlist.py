@@ -100,16 +100,17 @@ class EditPlaylist(discord.ui.View):
 
         async def submit_callback(itc: discord.Interaction):
             logger.info(f'Editing playlist `{playlist.name}`:')
+            added = 0
+            removed = 0
             for opt in self.list.options_:
                 if opt.default:
-                    logger.info(f'  PRESENT - {opt.song.title}')
-                    # print(f'Adding {opt.song.title} to playlist')
-                    await playlist.add_song(opt.song)
+                    logger.debug(f'  PRESENT - {opt.song.title}')
+                    added += await playlist.add_song(opt.song)
                 else:
-                    logger.info(f'  ABSENT - {opt.song.title}')
-                    # print(f'Removing {opt.song.title} from playlist')
-                    await playlist.remove_song(opt.song)
-            msg = [f'Playlist `{playlist.name}` edited']
+                    logger.debug(f'  ABSENT - {opt.song.title}')
+                    removed += await playlist.remove_song(opt.song)
+            total = await playlist.songs.acount()
+            msg = [f'Playlist `{playlist.name}` edited ADDED: {added} - REMOVED: {removed} - TOTAL: {total}']
             if new_name:
                 await playlist.rename(new_name)
                 msg.append(f'Playlist renamed to `{new_name}`')
