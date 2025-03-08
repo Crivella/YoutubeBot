@@ -29,7 +29,7 @@ ENV \
     BOT_PREFIX=. \
     BOT_FFMPEG_OPTIONS="" \
     BOT_AUDIO_DIR=/bot/dl \
-    BOT_MAX_DURATION=720 \
+    BOT_MAX_DURATION=420 \
     BOT_COLOR=ff0000 \
     BOT_YTDL_FORMAT=worstaudio
 

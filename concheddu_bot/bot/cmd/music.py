@@ -30,11 +30,9 @@ class Music(commands.Cog):
         guild = user.voice.channel.guild
 
         await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
-        try:
-            song = await m.YTSong.from_search_string(search, user=user, server=guild)
-        except ValueError as e:
-            await safe_response(itc, str(e), ephemeral=True, delete_after=10)
-            return
+
+        song = await m.YTSong.from_search_string(search, user=user, server=guild)
+
         if playlist is not None:
             server = await m.DiscordServer.from_discord_guild(guild)
             try:

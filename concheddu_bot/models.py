@@ -235,10 +235,9 @@ class YTSong(models.Model):
             # print('search', search)
             src = YTDLSource.from_url(search)
             data = await src.get_info()
-            # print(data)
 
             title = data['title'].strip()
-            duration = data['duration']
+            duration = int(data['duration'])
             extension = data['ext']
             local_path = data['local_path']
             if duration > MAX_DURATION:
