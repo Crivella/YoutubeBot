@@ -390,7 +390,7 @@ class ListAnswer(discord.ui.Select):
                 discord.SelectOption(
                     label=elide(song.title),
                     value=song.youtube_id,
-                    description=f'[{song.duration} s] [{song.times_played_} plays]',
+                    # description=f'[{song.duration} s] [{song.times_played_} plays]',
                     emoji='🎵'
                 ) for song in songs
             ],

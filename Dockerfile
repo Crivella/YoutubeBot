@@ -9,6 +9,10 @@ RUN mkdir -p /src
 
 RUN pip install --upgrade pip
 
+COPY req.txt /src
+
+RUN pip install -r /src/req.txt
+
 COPY concheddu_bot /src/concheddu_bot
 COPY README.md /src
 COPY LICENSE.txt /src
