@@ -207,7 +207,7 @@ class QuizSongs(discord.ui.View):
             result = answer == song.youtube_id
 
             msg = []
-            title = f'{user.nick}: Correct ❤️❤️' if result else 'Incorrect 🙁🙁'
+            title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'
             msg.append(f'Real answer: {song.title}')
             msg.append(f'Your answer: {self.answer_list.songs_map[answer].title}')
             embed = discord.Embed(
