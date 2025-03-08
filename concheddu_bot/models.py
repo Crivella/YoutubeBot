@@ -445,13 +445,14 @@ class YTSong(models.Model):
         """Return n random songs"""
         logger.debug(f'Getting all songs on [{server.name}] sorted by `{sorting}`')
         q = await YTSong.sort_map[sorting](server)
-        if filter_title:
-            q = q.annotate(title=models.F('manual_title') or models.F('original_title'))
-            q = q.filter(title__icontains=filter_title)
         if n:
             q = q[:n]
 
         res = [a async for a in q]
+
+        if filter_title:
+            filter_title = filter_title.lower()
+            res = list(filter(lambda a: filter_title in a.title.lower(), res))
 
         if res and isinstance(res[0], dict):
             res = [await YTSong.objects.aget(id=a['song']) for a in res]
