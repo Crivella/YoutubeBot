@@ -432,8 +432,6 @@ class YTSong(models.Model):
         if n:
             q = q[:n]
 
-        print(q.query)
-
         res = [a async for a in q]
 
         if res and isinstance(res[0], dict):
