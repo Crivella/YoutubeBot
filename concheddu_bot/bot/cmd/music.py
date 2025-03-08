@@ -1,4 +1,5 @@
 """Music commands for the bot"""
+import asyncio
 import logging
 
 import discord
@@ -17,15 +18,44 @@ class Music(commands.Cog):
     @app_commands.command()
     @sense_check
     @ensure_response()
-    async def play(self, itc: discord.Interaction, search: str):
-        """Search and Play a song"""
+    async def play(self, itc: discord.Interaction, search: str, playlist: str = None):
+        """Play a song from a search string, if a playlist is provided, it will be added to the playlist
+
+        Args:
+            search (str): The search string or youtube url
+            playlist (str, optional): Playlist name (must exist). Defaults to None.
+        """
         logger.info(f'Command `play` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
         user = itc.user
         guild = user.voice.channel.guild
 
         await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
-        song = await m.YTSong.from_search_string(search, user=user, server=guild)
+        try:
+            song = await m.YTSong.from_search_string(search, user=user, server=guild)
+        except ValueError as e:
+            await safe_response(itc, str(e), ephemeral=True, delete_after=10)
+            return
+        if playlist is not None:
+            server = await m.DiscordServer.from_discord_guild(guild)
+            try:
+                playlist = await m.Playlist.objects.aget(server=server, name=playlist)
+            except m.Playlist.DoesNotExist:
+                await itc.response.send_message(
+                    f'Playlist `{playlist}` not found',
+                    ephemeral=True,
+                    delete_after=10
+                )
+                return
+            await playlist.add_song(song)
+            await asyncio.sleep(1.0)
         await song.play(itc=itc)
+    @play.autocomplete('playlist')
+    async def _load_playlist_name(self, itc: discord.Interaction, current: str):
+        """Autocomplete the playlist name"""
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
+        return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
 
     @app_commands.command()
     @sense_check

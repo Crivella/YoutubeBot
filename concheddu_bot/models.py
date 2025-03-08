@@ -10,7 +10,7 @@ from django.db import models
 
 from .bot.player import Player
 from .bot.utils import safe_response
-from .youtube import YTDLSource
+from .youtube import MAX_DURATION, YTDLSource
 
 logger = logging.getLogger('bot')
 
@@ -234,6 +234,10 @@ class YTSong(models.Model):
         if song is None:
             src = YTDLSource.from_url(search)
             data = await src.get_info()
+
+            duration = data['duration']
+            if duration > MAX_DURATION:
+                raise ValueError(f'The song durations {duration} exceeds the maximum duration {MAX_DURATION}')
             # source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
 
             # data = source.data
@@ -334,6 +338,7 @@ class YTSong(models.Model):
         """Return a queryset of all songs ordered by last played on a server"""
         q = YTSong.objects
         q = q.filter(servers=server)
+
         q = q.annotate(last_played=models.Max(models.Case(
                 models.When(
                     models.Q(playevent__server=server) &
@@ -493,6 +498,11 @@ class Playlist(models.Model):
 
         return res
 
+    async def rename(self, name: str):
+        """Rename the playlist"""
+        self.name = name
+        await self.asave()
+
     async def get_songs_order_times_played(self, limit: int = None):
         """Return the songs in the playlist ordered by times played"""
         # Get server foreign key for async
@@ -520,13 +530,19 @@ class Playlist(models.Model):
             q = q[:limit]
         return [a async for a in q.all()]
 
-    async def add_song(self, song: Union[YTSong, 'str'], order: int = None):
+    async def add_song(self, song: YTSong, order: int = None):
         """Add a song to the playlist"""
         if order is None:
             order = await self.songs.acount()
-        if isinstance(song, str):
-            raise NotImplementedError
+        if await PlaylistThrough.objects.filter(playlist=self, song=song).aexists():
+            return
         await PlaylistThrough.objects.acreate(playlist=self, song=song, order=order)
+
+    async def remove_song(self, song: YTSong):
+        """Remove a song from the playlist"""
+        if not await PlaylistThrough.objects.filter(playlist=self, song=song).aexists():
+            return
+        await PlaylistThrough.objects.filter(playlist=self, song=song).adelete()
 
     async def add_song_multiple(self, songs: list[Union[YTSong, 'str']]):
         """Add multiple songs to the playlist"""

@@ -151,3 +151,42 @@ class Playlists(commands.Cog):
         user = await m.DiscordUser.from_discord_user(itc.user)
         playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
+
+    @app_commands.command()
+    @ensure_response()
+    async def edit_playlist(self, itc: discord.Interaction, name: str, rename_to: str = None):
+        """Edit a playlist
+
+        Args:
+            name (str): The name of the playlist to edit
+            rename_to (str, optional): If set, rename the playlist to this name. Defaults to None.
+        """
+        logger.info(f'Command `edit_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        try:
+            playlist = await m.Playlist.objects.aget(server=server, name=name, owner=user)
+        except m.Playlist.DoesNotExist:
+            await itc.response.send_message(
+                f'Playlist `{name}` not found',
+                ephemeral=True,
+                delete_after=10
+            )
+            return
+        all_songs = await m.YTSong.get_all_songs(server=server, sorting='times_played')
+        pls_songs = [s async for s in playlist.songs.all()]
+        view = v.EditPlaylist(itc, playlist, all_songs, defaults=pls_songs, new_name=rename_to)
+        await itc.response.send_message(
+            'Edit the playlist',
+            view=view,
+            ephemeral=True
+        )
+        await view.list.go_to_page(0)
+
+    @edit_playlist.autocomplete('name')
+    async def _edit_playlist_name(self, itc: discord.Interaction, current: str):
+        """Autocomplete the playlist name"""
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
+        return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
