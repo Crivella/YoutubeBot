@@ -97,13 +97,17 @@ class Playlists(commands.Cog):
     @app_commands.command()
     @sense_check
     @ensure_response()
-    async def load_playlist(self, itc: discord.Interaction, name: str, num: int = 0, shuffle: bool = False):
+    async def load_playlist(
+            self, itc: discord.Interaction,
+            name: str, num: int = 0,
+            sorting: str = 'times_played'
+            ):
         """Load a playlist
 
         Args:
             name (str): The name of the playlist
             num (int, optional): The number of songs to load. Defaults to 0 (all).
-            shuffle (bool, optional): Shuffle the songs (before selecting `num`). Defaults to False (order by times_played).
+            sorting (str, optional): Sorting option. Defaults to 'times_played'.
         """
         logger.info(f'Command `load_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
@@ -123,10 +127,7 @@ class Playlists(commands.Cog):
                 delete_after=10
             )
             return
-        if shuffle:
-            songs = await playlist.get_songs_order_random(limit=num)
-        else:
-            songs = await playlist.get_songs_order_times_played(limit=num)
+        songs = await playlist.get_all_songs(n=num, sorting=sorting)
         if not songs:
             await itc.response.send_message(
                 'No songs in the playlist',
@@ -151,6 +152,13 @@ class Playlists(commands.Cog):
         user = await m.DiscordUser.from_discord_user(itc.user)
         playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
+    @load_playlist.autocomplete('sorting')
+    async def _load_playlist_sorting(self, itc: discord.Interaction, current: str):
+        """Autocomplete the sorting option"""
+        return [
+            app_commands.Choice(name=m.YTSong.sort_desc[k], value=k) for k in m.YTSong.sort_map.keys()
+            if k.startswith(current)
+        ]
 
     @app_commands.command()
     @ensure_response()

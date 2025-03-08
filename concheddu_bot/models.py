@@ -161,7 +161,9 @@ class AddedSongEvent(models.Model):
 
 class YTSong(models.Model):
     """Youtube song model"""
-    title = models.CharField(max_length=255, null=True)
+    original_title = models.CharField(max_length=255, null=True)
+    manual_title = models.CharField(max_length=255, null=True)
+
     youtube_id = models.CharField(max_length=128)
     extension = models.CharField(max_length=16, null=True)
     duration = models.IntegerField(null=True)
@@ -176,6 +178,16 @@ class YTSong(models.Model):
         'times_favorited': 'Sort by times added to playlists',
         'random': 'Sort randomly',
     }
+
+    @property
+    def title(self):
+        """Return the title"""
+        if not hasattr(self, '_title') or self._title is None:
+            self._title = self.manual_title or self.original_title
+        return self._title
+    @title.setter
+    def title(self, value):
+        self._title = value
 
     class MaxDurationError(Exception):
         """Max duration error"""
@@ -209,7 +221,7 @@ class YTSong(models.Model):
             data = await src.get_info()
             song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
 
-            song.title = data['title'].strip()
+            song.original_title = data['title'].strip()
             song.duration = data['duration']
             song.extension = data['ext']
             song.local_path = data['local_path']
@@ -400,6 +412,7 @@ class YTSong(models.Model):
         """Return a queryset of all songs ordered by title on a server"""
         q = YTSong.objects
         q = q.filter(servers=server)
+        q = q.annotate(title=models.F('manual_title') or models.F('original_title'))
         q = q.order_by('title')
         return q
 
@@ -516,32 +529,78 @@ class Playlist(models.Model):
         self.name = name
         await self.asave()
 
-    async def get_songs_order_times_played(self, limit: int = None):
-        """Return the songs in the playlist ordered by times played"""
-        # Get server foreign key for async
-        server = await DiscordServer.objects.aget(id=self.server_id)
-
+    async def get_all_songs(
+            self,
+            *,
+            n: int = None,
+            sorting: str = 'title',
+            filter_title: str = None
+        ) -> list['YTSong']:
+        """Return N songs from the playlist with custom sorting"""
         q = self.songs
-        q = q.annotate(times_played=models.Count(models.Case(
-                models.When(
-                    models.Q(playevent__server=server) &
-                    models.Q(playevent__song=models.F('id')),
-                    then=1
-                ),
-                output_field=models.IntegerField(),
-            )))
-        q = q.order_by('-times_played')
-        if limit:
-            q = q[:limit]
-        return [a async for a in q]
+        q = q.annotate(title=models.F('manual_title') or models.F('original_title'))
+        if filter_title:
+            q = q.filter(title__icontains=filter_title)
+        if sorting == 'title':
+            q = q.order_by('title')
+        elif sorting == 'times_played':
+            server = await DiscordServer.objects.aget(id=self.server_id)
+            q = q.annotate(times_played=models.Count(models.Case(
+                    models.When(
+                        models.Q(playevent__server=server) &
+                        models.Q(playevent__song=models.F('id')),
+                        then=1
+                    ),
+                    output_field=models.IntegerField(),
+                )))
+            q = q.order_by('-times_played')
+        elif sorting == 'last_played':
+            server = await DiscordServer.objects.aget(id=self.server_id)
+            q = q.annotate(last_played=models.Max(models.Case(
+                    models.When(
+                        models.Q(playevent__server=server) &
+                        models.Q(playevent__song=models.F('id')),
+                        then=models.F('playevent__date')
+                    ),
+                    default=models.Value('1970-01-01T00:00:00Z'),
+                    output_field=models.DateTimeField(),
+                )))
+            q = q.order_by('-last_played')
+        elif sorting == 'random':
+            q = q.order_by('?')
 
-    async def get_songs_order_random(self, limit: int = None):
-        """Return the songs in the playlist ordered randomly"""
-        q = self.songs
-        q = q.order_by('?')
-        if limit:
-            q = q[:limit]
-        return [a async for a in q.all()]
+        if n:
+            q = q[:n]
+
+        res = [a async for a in q.all()]
+        return res
+
+    # async def get_songs_order_times_played(self, limit: int = None):
+    #     """Return the songs in the playlist ordered by times played"""
+    #     # Get server foreign key for async
+    #     server = await DiscordServer.objects.aget(id=self.server_id)
+
+    #     q = self.songs
+    #     q = q.annotate(times_played=models.Count(models.Case(
+    #             models.When(
+    #                 models.Q(playevent__server=server) &
+    #                 models.Q(playevent__song=models.F('id')),
+    #                 then=1
+    #             ),
+    #             output_field=models.IntegerField(),
+    #         )))
+    #     q = q.order_by('-times_played')
+    #     if limit:
+    #         q = q[:limit]
+    #     return [a async for a in q]
+
+    # async def get_songs_order_random(self, limit: int = None):
+    #     """Return the songs in the playlist ordered randomly"""
+    #     q = self.songs
+    #     q = q.order_by('?')
+    #     if limit:
+    #         q = q[:limit]
+    #     return [a async for a in q.all()]
 
     async def add_song(self, song: YTSong, order: int = None):
         """Add a song to the playlist"""
