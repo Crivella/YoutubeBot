@@ -187,7 +187,8 @@ class Playlists(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         user = await m.DiscordUser.from_discord_user(itc.user)
         try:
-            playlist = await m.Playlist.objects.aget(server=server, name=name, owner=user)
+            # playlist = await m.Playlist.objects.aget(server=server, name=name, owner=user)
+            playlist = await m.Playlist.objects.aget(server=server, name=name)
         except m.Playlist.DoesNotExist:
             await itc.response.send_message(
                 f'Playlist `{name}` not found',
