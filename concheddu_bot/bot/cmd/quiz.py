@@ -27,14 +27,15 @@ class Quiz(commands.Cog):
     @ensure_response()
     async def start_quiz(
             self, itc: discord.Interaction,
-            num_songs: int = 5, num_choices: int = 5,
-            segment_length: int = 20, segment_mode: str = 'start'
+            num_songs: int = 5,
+            num_choices: int = 5,
+            segment_length: int = 20,
+            segment_mode: str = 'start'
         ):
         f"""Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
 
         Args:
-            itc (discord.Interaction): _description_
             num_songs (int, optional): Number of questions per user. Defaults to 5.
             num_choices (int, optional): Number of choices. Defaults to 5.
             segment_length (int, optional): Length of the segment of the song to play. Defaults to 20.
