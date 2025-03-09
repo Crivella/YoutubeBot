@@ -58,7 +58,6 @@ class ServerUtils(commands.Cog):
             files (bool, optional): Ensure song files are also present in the database. Defaults to True.
         """
         logging.info(f'Command `sync_files` called by `{itc.user.name}` [{itc.guild.name}]')
-        files = os.listdir(AUDIO_DIR)
 
         if songs:
             await safe_response(itc, f'Ensuring all songs are downloaded/normailzed', ephemeral=True)
@@ -66,6 +65,7 @@ class ServerUtils(commands.Cog):
                 await song.get_source()
 
         if files:
+            files = os.listdir(AUDIO_DIR)
             await safe_response(itc, f'Ensuring all files correspond to a song', ephemeral=True)
 
             for file in files:
