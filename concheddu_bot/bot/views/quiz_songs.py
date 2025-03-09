@@ -264,7 +264,8 @@ class QuizSongs(discord.ui.View):
         )
         self.embed_score(embed, sort=True)
         await self.channel.send(embed=embed)
-        await self.itc.delete_original_response()
+        await safe_response(self.itc, 'Quiz finished!!!')
+        # await self.itc.delete_original_response()
 
     @ensure_response(before=False, defer=True)
     async def submit_quiz(self, itc: discord.Interaction):
@@ -321,6 +322,13 @@ class QuizSongs(discord.ui.View):
             logger.info(f' - {song.title}')
 
         self.clear_items()
+        msg = []
+        msg.append(f'Quiz started with {len(users)} users and {len(songs)} songs')
+        msg.append(f'- Each user will have to guess {self.num_songs} songs')
+        msg.append(f'- Each song will have {self.nmc} choices')
+        msg.append(f'- Segment length: {self.segment_length} s')
+        msg.append(f'- Segment mode: {self.segment_mode}')
+        await safe_response(self.itc, '\n'.join(msg), ephemeral=True, view=None)
         await self.display_score()
         await self.quiz_step()
 

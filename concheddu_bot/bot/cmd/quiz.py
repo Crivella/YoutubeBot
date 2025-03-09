@@ -41,6 +41,18 @@ class Quiz(commands.Cog):
             segment_mode (str, optional): {'/'.join(ALLOWED_SEGMENT_MODES)}. Defaults to 'start'.
         """
         logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
+        if num_songs < 1:
+            await safe_response(itc, 'Number of songs must be greater than 0', ephemeral=True)
+            return
+        if num_choices < 2:
+            await safe_response(itc, 'Number of choices must be greater than 1', ephemeral=True)
+            return
+        if segment_length < 1:
+            await safe_response(itc, 'Segment length must be greater than 0', ephemeral=True)
+            return
+        if segment_mode not in ALLOWED_SEGMENT_MODES:
+            await safe_response(itc, f'Segment mode invalid', ephemeral=True)
+            return
         playlists = await m.Playlist.get_playlists(itc=itc)
         view = v.QuizSongs(
             itc, playlists=playlists,
