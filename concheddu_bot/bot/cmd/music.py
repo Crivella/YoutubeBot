@@ -49,9 +49,47 @@ class Music(commands.Cog):
         if playlist is not None:
             await playlist.add_song(song)
         await song.play(itc=itc)
-
     @play.autocomplete('playlist')
-    async def _load_playlist_name(self, itc: discord.Interaction, current: str):
+    async def _play_playlist_name(self, itc: discord.Interaction, current: str):
+        """Autocomplete the playlist name"""
+        return await autocomplete_playlist_name(self, itc, current)
+
+    @app_commands.command()
+    @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
+    async def search_and_add(self, itc: discord.Interaction, search: str, playlist: str = None):
+        """Search for a song and add it to the database, if a playlist is provided, it will be added to the playlist
+
+        Args:
+            search (str): The search string or youtube url
+            playlist (str, optional): Playlist name (must exist). Defaults to None.
+        """
+        logger.info(f'Command `search_and_add` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
+        user = itc.user
+        guild = itc.guild
+
+        if playlist is not None:
+            server = await m.DiscordServer.from_discord_guild(guild)
+            try:
+                playlist = await m.Playlist.objects.aget(server=server, name=playlist)
+            except m.Playlist.DoesNotExist:
+                await itc.response.send_message(
+                    f'Playlist `{playlist}` not found',
+                    ephemeral=True,
+                    delete_after=10
+                )
+                return
+
+        await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
+
+        song = await m.YTSong.from_search_string(search, user=user, server=guild)
+
+        msg = f'Added song `{song.title}`'
+        if playlist is not None:
+            await playlist.add_song(song)
+            msg += f' with playlist `{playlist.name}`'
+        await safe_response(itc, msg, ephemeral=True, delete_after=30)
+    @search_and_add.autocomplete('playlist')
+    async def _search_playlist_name(self, itc: discord.Interaction, current: str):
         """Autocomplete the playlist name"""
         return await autocomplete_playlist_name(self, itc, current)
 
