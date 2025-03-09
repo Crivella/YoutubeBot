@@ -159,12 +159,24 @@ class AddedSongEvent(models.Model):
     user = models.ForeignKey(DiscordUser, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
 
+class GuessSongEvent(models.Model):
+    """Guess song event model"""
+    real_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')
+    guessed_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')
+
+    user = models.ForeignKey(DiscordUser, on_delete=models.CASCADE, null=True, default=None, related_name='song_guesses')
+    date = models.DateTimeField(auto_now_add=True)
+
+    def __bool__(self):
+        return self.real_song_id == self.guessed_song_id
+
+
 class YTSong(models.Model):
     """Youtube song model"""
     original_title = models.CharField(max_length=255, null=True)
     manual_title = models.CharField(max_length=255, null=True)
 
-    youtube_id = models.CharField(max_length=128)
+    youtube_id = models.CharField(max_length=128, unique=True)
     extension = models.CharField(max_length=16, null=True)
     duration = models.IntegerField(null=True)
 
@@ -355,10 +367,12 @@ class YTSong(models.Model):
 
     async def guess_ytid(self, youtube_id: str) -> bool:
         """Guess the song"""
+        other = await YTSong.objects.aget(youtube_id=youtube_id)
         res = self.youtube_id == youtube_id
         self.times_answered += 1
         self.times_guessed += res
         await self.asave()
+        await GuessSongEvent.objects.acreate(real_song=self, guessed_song=other)
         return res
 
     @staticmethod
