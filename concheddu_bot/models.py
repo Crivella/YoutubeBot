@@ -523,7 +523,8 @@ class Playlist(models.Model):
     async def get_playlists(cls, *, itc: discord.Interaction, server: DiscordServer, user: DiscordUser):
         """Return the playlists"""
         res = []
-        async for a in cls.objects.filter(server=server, owner=user):
+        # async for a in cls.objects.filter(server=server, owner=user):
+        async for a in cls.objects.filter(server=server):
             res.append(a)
 
         for playlist in res:
