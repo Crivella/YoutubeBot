@@ -100,7 +100,11 @@ class Playlists(commands.Cog):
             name = playlist.name.strip()
             cnt = await playlist.get_song_count()
             duration = await playlist.get_duration()
-            res.append(f'**`{i:>4d}`** {name} ({cnt} songs) [{duration} s]')
+            hh = duration // 3600
+            mm = (duration % 3600) // 60
+            ss = duration % 60
+            duration = f'{hh:02d}:{mm:02d}:{ss:02d}'
+            res.append(f'**`{i:>4d}`** {name} ({cnt} songs) [{duration}]')
         queue_str = '\n'.join(res)
         embedVar = discord.Embed(color=0xFF0000)
         embedVar.add_field(name='Playlists:', value=queue_str)
