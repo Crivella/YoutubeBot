@@ -359,7 +359,7 @@ class YTSong(models.Model):
         self.times_answered += 1
         self.times_guessed += res
         await self.asave()
-        return self
+        return res
 
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:
