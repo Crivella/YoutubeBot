@@ -312,7 +312,7 @@ class YTSong(models.Model):
         q = q.filter(song=self, server=server)
         return await q.acount()
 
-    async def get_source(self, itc: discord.Interaction = None):
+    async def get_source(self, itc: discord.Interaction = None, start: int = None, end: int = None):
         """Perform the following steps to ensure the source is fetched and ready to play:
             1. Get the source info if it's not already fetched
             2. Download the source if it's not already downloaded
@@ -341,25 +341,11 @@ class YTSong(models.Model):
             await safe_response(itc, msg, ephemeral=True, append=True)
             await normalize
 
-        if hasattr(self, 'seg_length'):
-            seg_length = self.seg_length
-            seg_mode = self.seg_mode
-            if seg_length:
-                if seg_mode == 'start':
-                    start = 0
-                    end = seg_length
-                elif seg_mode == 'end':
-                    start = self.duration - seg_length
-                    end = self.duration
-                elif seg_mode == 'random':
-                    start = random.randint(0, self.duration - seg_length)
-                    end = start + seg_length
-                else:
-                    raise ValueError(f'Invalid segment mode {seg_mode}')
-                logger.debug(f'Setting segment {start} -> {end}')
-                await src.set_segment(start, end)
-        else:
-            logger.debug(f'No segment set for {self.title}')
+        if hasattr(self, 'start') and hasattr(self, 'end') and self.start is not None and self.end is not None:
+            start = self.start
+            end = self.end
+            logger.debug(f'Setting segment {start} -> {end}')
+            await src.set_segment(start, end)
 
         await safe_response(itc, f'Loaded {self.title}', ephemeral=True, append=True)
 
@@ -369,7 +355,7 @@ class YTSong(models.Model):
     async def play(
             self,
             update_msg: bool = True,
-            seg_length: int = 0, seg_mode: str = 'start',
+            start: int = None, end: int = None,
             *,
             itc: discord.Interaction, user: DiscordUser, server: DiscordServer,
             **kwargs
@@ -381,10 +367,8 @@ class YTSong(models.Model):
             logger.error(f'User `{user.username}` is not in a voice channel even if play is called')
             return
 
-        self.seg_length = seg_length
-        if seg_mode not in ('start', 'end', 'random'):
-            raise ValueError(f'Invalid segment mode {seg_mode}')
-        self.seg_mode = seg_mode
+        self.start = start
+        self.end = end
 
         async def on_play():
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)

@@ -171,6 +171,16 @@ class QuizSongs(discord.ui.View):
 
         enqueueing = False
 
+        if self.segment_mode == 'start':
+            start = 0
+            end = self.segment_length
+        elif self.segment_mode == 'end':
+            start = song.duration - self.segment_length
+            end = song.duration
+        elif self.segment_mode == 'random':
+            start = random.randint(0, song.duration - self.segment_length)
+            end = start + self.segment_length
+
         @ensure_response(before=False, defer=True)
         @ensure_user(users=[user], defer=True)
         async def play_callback(itc: discord.Interaction):
@@ -182,7 +192,7 @@ class QuizSongs(discord.ui.View):
             enqueueing = True
             await song.play(
                 update_msg=False, itc=itc,
-                seg_length=self.segment_length, seg_mode=self.segment_mode
+                start=start, end=end
             )
             enqueueing = False
 
