@@ -96,13 +96,17 @@ class QuizSongs(discord.ui.View):
             itc: discord.Interaction,
             playlists: list[m.Playlist],
             num_songs: int = 5,
-            num_choices: int = 5
+            num_choices: int = 5,
+            segment_length: int = 20,
+            segment_mode: str = 'start'
         ):
         super().__init__()
         self.itc = itc
         self.channel = itc.channel
         self.num_songs = num_songs
         self.nmc = num_choices
+        self.segment_length = segment_length
+        self.segment_mode = segment_mode
         # self.quiz = quiz
 
         users = self.itc.user.voice.channel.members
@@ -176,7 +180,10 @@ class QuizSongs(discord.ui.View):
             if enqueueing:
                 return
             enqueueing = True
-            await song.play(update_msg=False, itc=itc)
+            await song.play(
+                update_msg=False, itc=itc,
+                seg_length=self.segment_length, seg_mode=self.segment_mode
+            )
             enqueueing = False
 
         @ensure_response(before=False, defer=True)
@@ -204,7 +211,8 @@ class QuizSongs(discord.ui.View):
             answer = values[0]
             await server.clear()
 
-            result = await song.guess_ytid(answer)
+            user_obj = await m.DiscordUser.from_discord_user(user)
+            result = await song.guess_ytid(answer, user=user_obj)
 
             msg = []
             title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'

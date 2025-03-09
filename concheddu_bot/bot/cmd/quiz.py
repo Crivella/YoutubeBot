@@ -12,21 +12,46 @@ from .. import views as v
 
 logger = logging.getLogger('bot')
 
+ALLOWED_SEGMENT_MODES = ['start', 'end', 'random']
+SEGMENT_MODES_DESC = {
+    'start': 'Start of the song',
+    'end': 'End of the song',
+    'random': 'Random segment of the song'
+}
+
 class Quiz(commands.Cog):
     """Quiz commands"""
+
     @app_commands.command()
     @sense_check
     @ensure_response()
-    async def start_quiz(self, itc: discord.Interaction, num_songs: int = 5, num_choices: int = 5):
-        """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
+    async def start_quiz(
+            self, itc: discord.Interaction,
+            num_songs: int = 5, num_choices: int = 5,
+            segment_length: int = 20, segment_mode: str = 'start'
+        ):
+        f"""Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
 
         Args:
             itc (discord.Interaction): _description_
             num_songs (int, optional): Number of questions per user. Defaults to 5.
             num_choices (int, optional): Number of choices. Defaults to 5.
+            segment_length (int, optional): Length of the segment of the song to play. Defaults to 20.
+            segment_mode (str, optional): {'/'.join(ALLOWED_SEGMENT_MODES)}. Defaults to 'start'.
         """
         logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
         playlists = await m.Playlist.get_playlists(itc=itc)
-        view = v.QuizSongs(itc, playlists=playlists, num_songs=num_songs, num_choices=num_choices)
+        view = v.QuizSongs(
+            itc, playlists=playlists,
+            num_songs=num_songs, num_choices=num_choices,
+            segment_length=segment_length, segment_mode=segment_mode
+        )
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
+    @start_quiz.autocomplete('segment_mode')
+    async def _autocomplete_segment_mode(self, itc: discord.Interaction, current: str):
+        """Autocomplete the segment mode"""
+        return [
+            app_commands.Choice(name=SEGMENT_MODES_DESC[k], value=k) for k in ALLOWED_SEGMENT_MODES
+            if k.startswith(current)
+        ]

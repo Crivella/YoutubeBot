@@ -395,14 +395,14 @@ class YTSong(models.Model):
 
         await server.add_source(self, user.dc, on_play, channel=channel)
 
-    async def guess_ytid(self, youtube_id: str) -> bool:
+    async def guess_ytid(self, youtube_id: str, user: DiscordUser) -> bool:
         """Guess the song"""
         other = await YTSong.objects.aget(youtube_id=youtube_id)
         res = self.youtube_id == youtube_id
         self.times_answered += 1
         self.times_guessed += res
         await self.asave()
-        await GuessSongEvent.objects.acreate(real_song=self, guessed_song=other)
+        await GuessSongEvent.objects.acreate(real_song=self, guessed_song=other, user=user)
         return res
 
     @staticmethod
