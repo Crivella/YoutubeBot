@@ -184,7 +184,7 @@ class YTSong(models.Model):
         """Return the title"""
         if not hasattr(self, '_title') or self._title is None:
             self._title = self.manual_title or self.original_title
-        return self._title
+        return str(self._title)
     @title.setter
     def title(self, value):
         self._title = value
@@ -263,7 +263,7 @@ class YTSong(models.Model):
 
             # data = source.data
             song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
-            song.title = title
+            song.original_title = title
             song.duration = duration
             song.extension = extension
             song.local_path = local_path

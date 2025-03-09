@@ -30,10 +30,6 @@ class Music(commands.Cog):
         user = itc.user
         guild = user.voice.channel.guild
 
-        await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
-
-        song = await m.YTSong.from_search_string(search, user=user, server=guild)
-
         if playlist is not None:
             server = await m.DiscordServer.from_discord_guild(guild)
             try:
@@ -45,9 +41,15 @@ class Music(commands.Cog):
                     delete_after=10
                 )
                 return
+
+        await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
+
+        song = await m.YTSong.from_search_string(search, user=user, server=guild)
+
+        if playlist is not None:
             await playlist.add_song(song)
-            await asyncio.sleep(1.0)
         await song.play(itc=itc)
+
     @play.autocomplete('playlist')
     async def _load_playlist_name(self, itc: discord.Interaction, current: str):
         """Autocomplete the playlist name"""
@@ -118,7 +120,7 @@ class Music(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.player.queue.loop_all = False
         server.player.queue.loop_one = True
-        await safe_response(itc, 'Looping the last song')
+        await safe_response(itc, 'Looping the last song', ephemeral=True, delete_after=10)
 
     @app_commands.command()
     @sense_check
@@ -129,7 +131,7 @@ class Music(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.player.queue.loop_all = True
         server.player.queue.loop_one = False
-        await safe_response(itc, 'Looping all songs')
+        await safe_response(itc, 'Looping all songs', ephemeral=True, delete_after=10)
 
     @app_commands.command()
     @sense_check
@@ -140,7 +142,7 @@ class Music(commands.Cog):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.player.queue.loop_all = False
         server.player.queue.loop_one = False
-        await safe_response(itc, 'Stopped looping')
+        await safe_response(itc, 'Stopped looping', ephemeral=True, delete_after=10)
 
     @app_commands.command()
     @ensure_response()
@@ -149,7 +151,7 @@ class Music(commands.Cog):
         logger.info(f'Command `stop` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         await server.stop()
-        await safe_response(itc, 'Stopped the bot')
+        await safe_response(itc, 'Stopped the bot', ephemeral=True, delete_after=10)
 
     @app_commands.command()
     @sense_check
@@ -158,7 +160,7 @@ class Music(commands.Cog):
         """Resume the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         await server.resume(itc.user.voice.channel)
-        await safe_response(itc, 'Resumed the bot')
+        await safe_response(itc, 'Resumed the bot', ephemeral=True, delete_after=10)
 
     @app_commands.command()
     @ensure_response()
@@ -166,4 +168,4 @@ class Music(commands.Cog):
         """Resume the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         await server.clear()
-        await safe_response(itc, 'Cleared the bot')
+        await safe_response(itc, 'Cleared the bot', ephemeral=True, delete_after=10)
