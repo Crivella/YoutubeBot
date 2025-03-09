@@ -77,9 +77,14 @@ class YTDLSource():
     def from_path(cls, filename, metadata):
         """Create a YTDLSource from a path"""
         logger.debug(f'YTDLSource.from_path: {filename}')
-        if filename is None or not os.path.exists(filename):
-            logger.error(f'File {filename} does not exist')
+        if filename is None:
+            logger.error(f'No filename')
             return None
+        if not os.path.exists(filename):
+            filename = os.path.join(AUDIO_DIR, filename)
+            if not os.path.exists(filename):
+                return None
+            logger.error(f'File {filename} does not exist relative or absolute')
         res = cls(path=filename, data=metadata)
         return res
 
@@ -135,7 +140,7 @@ class YTDLSource():
         if not self.data:
             if self.url is None:
                 raise ValueError('No URL')
-            with SEMAPHORE_DOWNLOAD:
+            async with SEMAPHORE_DOWNLOAD:
                 loop = asyncio.get_event_loop()
                 data = await loop.run_in_executor(None, lambda: ytdl.extract_info(self.url, download=False))
             if 'entries' in data:
@@ -143,7 +148,7 @@ class YTDLSource():
                 data = data['entries'][0]
             self.data = data
 
-        self.path = self.data['local_path'] = ytdl.prepare_filename(self.data)
+        self.path = ytdl.prepare_filename(self.data)
         return self.data
 
     def get_source(self) -> discord.AudioSource:

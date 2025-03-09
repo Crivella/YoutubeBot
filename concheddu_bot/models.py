@@ -171,8 +171,6 @@ class YTSong(models.Model):
     times_answered = models.IntegerField(default=0)
     times_guessed = models.IntegerField(default=0)
 
-    local_path = models.CharField(max_length=512, null=True)
-
     sort_desc = {
         'title': 'Sort by title',
         'duration': 'Sort by duration',
@@ -227,7 +225,6 @@ class YTSong(models.Model):
             song.original_title = data['title'].strip()
             song.duration = data['duration']
             song.extension = data['ext']
-            song.local_path = data['local_path']
             await song.asave()
 
         if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
@@ -257,7 +254,6 @@ class YTSong(models.Model):
             title = data['title'].strip()
             duration = int(data['duration'])
             extension = data['ext']
-            local_path = data['local_path']
             if duration > MAX_DURATION:
                 raise YTSong.MaxDurationError(
                     f'The song durations {duration} exceeds the maximum duration {MAX_DURATION}'
@@ -269,7 +265,6 @@ class YTSong(models.Model):
             song.original_title = title
             song.duration = duration
             song.extension = extension
-            song.local_path = local_path
 
         if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
             logger.debug(f'Adding song {song.title} to {server.name}')
@@ -311,7 +306,8 @@ class YTSong(models.Model):
         if hasattr(self, 'source') and self.source:
             return self.source
 
-        src = YTDLSource.from_path(self.local_path, self.metadata)
+        path = f'{self.youtube_id}.{self.extension}'
+        src = YTDLSource.from_path(path, self.metadata)
         src = src or YTDLSource.from_url(self.url, self.metadata)
 
         await src.get_info()
