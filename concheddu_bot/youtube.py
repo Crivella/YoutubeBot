@@ -135,8 +135,9 @@ class YTDLSource():
         if not self.data:
             if self.url is None:
                 raise ValueError('No URL')
-            loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(self.url, download=False))
+            with SEMAPHORE_DOWNLOAD:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, lambda: ytdl.extract_info(self.url, download=False))
             if 'entries' in data:
                 # take first item from a playlist
                 data = data['entries'][0]
