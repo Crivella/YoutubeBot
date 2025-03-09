@@ -194,6 +194,16 @@ class Music(commands.Cog):
     @app_commands.command()
     @sense_check
     @ensure_response()
+    async def pause(self, itc: discord.Interaction):
+        """Pause the bot"""
+        logger.info(f'Command `pause` called by `{itc.user.name}` [{itc.guild.name}]')
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        await server.pause()
+        await safe_response(itc, 'Paused the bot', ephemeral=True, delete_after=10)
+
+    @app_commands.command()
+    @sense_check
+    @ensure_response()
     async def resume(self, itc: discord.Interaction):
         """Resume the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)

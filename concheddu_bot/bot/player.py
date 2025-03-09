@@ -131,6 +131,13 @@ class Player:
         if self.playing:
             self.client.stop()
 
+    async def pause(self):
+        """Pause the player"""
+        self.active = False
+        await asyncio.sleep(0.1)
+        if self.playing:
+            self.client.pause()
+
     async def stop(self):
         """Stop the player"""
         client = self.client
@@ -181,4 +188,5 @@ class Player:
     @with_monitor
     async def resume(self):
         """Resume the player"""
-        pass
+        if self.client.is_paused():
+            self.client.resume()

@@ -109,6 +109,10 @@ class DiscordServer(models.Model):
         """Clean the queue"""
         await self.player.stop()
 
+    async def pause(self):
+        """Pause the queue"""
+        await self.player.pause()
+
     async def resume(self, channel: discord.VoiceChannel):
         """Resume the queue"""
         await self.player.resume(channel=channel)
