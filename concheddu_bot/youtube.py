@@ -67,6 +67,8 @@ class YTDLSource():
         self.path_norm = None
         self.source = None
 
+        self.ff_opts = ffmpeg_options.copy()
+
     @classmethod
     def from_url(cls, url, data=None, *, loop=None):
         """Create a YTDLSource from a URL"""
@@ -134,6 +136,16 @@ class YTDLSource():
                 logger.info(f'Normalized {src} -> {dst}')
                 self.path_norm = dst
 
+    async def set_segment(self, start: int, end: int):
+        """Get a segment of the audio"""
+        if end > self.duration:
+            raise ValueError(f'End time {end} is greater than duration {self.duration}')
+        if start < 0:
+            raise ValueError(f'Start time {start} is less than 0')
+        if start >= end:
+            raise ValueError(f'Start time {start} is greater than end time {end}')
+        self.ff_opts['options'] += f' -ss {start} -to {end}'
+
     async def get_info(self) -> dict:
         """Get the Youtube info from a URL"""
         logger.debug(f'YTDLSource.get_info: {self.url}')
@@ -153,9 +165,10 @@ class YTDLSource():
 
     def get_source(self) -> discord.AudioSource:
         if self.source is None:
-            if self.path is None:
+            path = self.path_norm or self.path
+            if path is None:
                 raise ValueError('No path')
-            self.source = audio_class(self.path_norm or self.path, **ffmpeg_options)
+            self.source = audio_class(path, **self.ff_opts)
         return self.source
 
     @property

@@ -1,5 +1,6 @@
 """Models for the bot"""
 import logging
+import random
 import urllib
 from collections import defaultdict
 from functools import wraps
@@ -340,6 +341,26 @@ class YTSong(models.Model):
             await safe_response(itc, msg, ephemeral=True, append=True)
             await normalize
 
+        if hasattr(self, 'seg_length'):
+            seg_length = self.seg_length
+            seg_mode = self.seg_mode
+            if seg_length:
+                if seg_mode == 'start':
+                    start = 0
+                    end = seg_length
+                elif seg_mode == 'end':
+                    start = self.duration - seg_length
+                    end = self.duration
+                elif seg_mode == 'random':
+                    start = random.randint(0, self.duration - seg_length)
+                    end = start + seg_length
+                else:
+                    raise ValueError(f'Invalid segment mode {seg_mode}')
+                logger.debug(f'Setting segment {start} -> {end}')
+                await src.set_segment(start, end)
+        else:
+            logger.debug(f'No segment set for {self.title}')
+
         await safe_response(itc, f'Loaded {self.title}', ephemeral=True, append=True)
 
         return src.get_source()
@@ -348,6 +369,7 @@ class YTSong(models.Model):
     async def play(
             self,
             update_msg: bool = True,
+            seg_length: int = 0, seg_mode: str = 'start',
             *,
             itc: discord.Interaction, user: DiscordUser, server: DiscordServer,
             **kwargs
@@ -359,6 +381,11 @@ class YTSong(models.Model):
             logger.error(f'User `{user.username}` is not in a voice channel even if play is called')
             return
 
+        self.seg_length = seg_length
+        if seg_mode not in ('start', 'end', 'random'):
+            raise ValueError(f'Invalid segment mode {seg_mode}')
+        self.seg_mode = seg_mode
+
         async def on_play():
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
@@ -366,7 +393,6 @@ class YTSong(models.Model):
         if not update_msg:
             itc = None
 
-        await self.get_source(itc)
         await server.add_source(self, user.dc, on_play, channel=channel)
 
     async def guess_ytid(self, youtube_id: str) -> bool:
