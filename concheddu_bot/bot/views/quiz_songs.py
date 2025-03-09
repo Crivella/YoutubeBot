@@ -204,7 +204,7 @@ class QuizSongs(discord.ui.View):
             answer = values[0]
             await server.clear()
 
-            result = answer == song.youtube_id
+            result = await song.guess_ytid(answer)
 
             msg = []
             title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'

@@ -168,6 +168,9 @@ class YTSong(models.Model):
     extension = models.CharField(max_length=16, null=True)
     duration = models.IntegerField(null=True)
 
+    times_answered = models.IntegerField(default=0)
+    times_guessed = models.IntegerField(default=0)
+
     local_path = models.CharField(max_length=512, null=True)
 
     sort_desc = {
@@ -354,6 +357,14 @@ class YTSong(models.Model):
         await self.get_source(itc)
         await server.add_source(self, user.dc, on_play, channel=channel)
 
+    async def guess_ytid(self, youtube_id: str) -> bool:
+        """Guess the song"""
+        res = self.youtube_id == youtube_id
+        self.times_answered += 1
+        self.times_guessed += res
+        await self.asave()
+        return self
+
     @staticmethod
     async def get_all_songs_lp(server: DiscordServer) -> models.QuerySet:
         """Return a queryset of all songs ordered by last played on a server"""
@@ -470,7 +481,6 @@ class YTSong(models.Model):
         'times_favorited': get_all_songs_pl,
         'random': get_all_songs_random,
     }
-
 
 
 class PlayEvent(models.Model):
