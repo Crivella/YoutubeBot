@@ -83,8 +83,8 @@ class YTDLSource():
         if not os.path.exists(filename):
             filename = os.path.join(AUDIO_DIR, filename)
             if not os.path.exists(filename):
+                logger.error(f'File {filename} does not exist relative or absolute')
                 return None
-            logger.error(f'File {filename} does not exist relative or absolute')
         res = cls(path=filename, data=metadata)
         return res
 
