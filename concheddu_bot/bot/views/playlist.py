@@ -3,12 +3,17 @@ import discord
 from ... import models as m
 from ..utils import safe_response
 from .buttons import CallbackButton
-from .paged import ListMultiSelect, ListMultiSelect2
+from .paged import ListMultiSelect
 from .utils import MAX_LIST_OPT, logger
 
 
 class CreatePlaylist(discord.ui.View):
-    def __init__(self, itc: discord.Interaction, songs: list[m.YTSong], name):
+    def __init__(
+            self,
+            itc: discord.Interaction,
+            songs: list[m.YTSong],
+            name: str
+        ):
         super().__init__()
         self.itc = itc
 
@@ -24,7 +29,6 @@ class CreatePlaylist(discord.ui.View):
             return
 
         mv = min(MAX_LIST_OPT, len(songs))
-        # btn = ButtonPageNum(row=2)
         bwd_btn = CallbackButton(label='<', row=2, style=discord.ButtonStyle.primary)
         pge_btn = CallbackButton(label='1', row=2, disabled=True, style=discord.ButtonStyle.secondary)
         fwd_btn = CallbackButton(label='>', row=2, style=discord.ButtonStyle.primary)
@@ -91,7 +95,7 @@ class EditPlaylist(discord.ui.View):
         bwd_btn = CallbackButton(label='<', row=2, style=discord.ButtonStyle.primary)
         pge_btn = CallbackButton(label='1', row=2, disabled=True, style=discord.ButtonStyle.secondary)
         fwd_btn = CallbackButton(label='>', row=2, style=discord.ButtonStyle.primary)
-        self.list = ListMultiSelect2(
+        self.list = ListMultiSelect(
             lst,
             defaults,
             row=1, min_values=0, max_values=mv,

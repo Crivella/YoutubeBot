@@ -107,27 +107,9 @@ class ListPlay(Paged, discord.ui.Select):
         await song.play(itc=itc)
 
 class ListMultiSelect(Paged, discord.ui.Select):
-    def __init__(self, songs: list[m.YTSong], *args, **kwargs):
+    def __init__(self, songs: list[m.YTSong], defaults: list[m.YTSong] = None, *args, **kwargs):
+        defaults = defaults or []
         logger.debug(f'ListMultiSelect: {len(songs)}')
-        opts = [SongOption(song) for song in songs]
-        super().__init__(
-            placeholder='Select a song to play',
-            options=opts[:MAX_LIST_OPT],
-            *args, **kwargs
-        )
-        self.follow_changes = True
-        self.options_ = opts
-        self.songs_map = {opt.value: opt.song for opt in opts}
-
-    @ensure_response(before=False, defer=True)
-    async def callback(self, itc: discord.Interaction):
-        values = set(self.values)
-        for opt in self.options_[self.page * MAX_LIST_OPT:(self.page + 1) * MAX_LIST_OPT]:
-            opt.default = opt.value in values
-
-class ListMultiSelect2(Paged, discord.ui.Select):
-    def __init__(self, songs: list[m.YTSong], defaults: list[m.YTSong], *args, **kwargs):
-        logger.debug(f'ListMultiSelect2: {len(songs)}')
         opts = [SongOption(song) for song in songs]
         for opt in opts:
             opt.default = opt.song in defaults
@@ -145,3 +127,24 @@ class ListMultiSelect2(Paged, discord.ui.Select):
         values = set(self.values)
         for opt in self.options_[self.page * MAX_LIST_OPT:(self.page + 1) * MAX_LIST_OPT]:
             opt.default = opt.value in values
+
+# class ListMultiSelect2(Paged, discord.ui.Select):
+#     def __init__(self, songs: list[m.YTSong], defaults: list[m.YTSong], *args, **kwargs):
+#         logger.debug(f'ListMultiSelect2: {len(songs)}')
+#         opts = [SongOption(song) for song in songs]
+#         for opt in opts:
+#             opt.default = opt.song in defaults
+#         super().__init__(
+#             placeholder='Select a song to play',
+#             options=opts[:MAX_LIST_OPT],
+#             *args, **kwargs
+#         )
+#         self.follow_changes = True
+#         self.options_ = opts
+#         self.songs_map = {opt.value: opt.song for opt in opts}
+
+#     @ensure_response(before=False, defer=True)
+#     async def callback(self, itc: discord.Interaction):
+#         values = set(self.values)
+#         for opt in self.options_[self.page * MAX_LIST_OPT:(self.page + 1) * MAX_LIST_OPT]:
+#             opt.default = opt.value in values
