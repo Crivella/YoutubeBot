@@ -384,12 +384,14 @@ class YTSong(models.Model):
         self.end = end
 
         async def on_play():
+            logger.debug(f'ON_PLAY: Playing {self.title} on {server.name}')
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(user=user, song=self, server=server)
 
         if not update_msg:
             itc = None
 
+        await self.get_source(itc=itc)
         await server.add_source(self, user.dc, on_play, channel=channel)
 
     async def guess_ytid(

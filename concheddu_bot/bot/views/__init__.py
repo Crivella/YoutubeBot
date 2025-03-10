@@ -1,5 +1,5 @@
 from .list_songs import SongList
-from .playlist import CreatePlaylist, DeletePlaylist, EditPlaylist
+from .playlist import DeletePlaylist, EditPlaylist
 from .quiz_songs import QuizSongs
 
 __all__ = [
