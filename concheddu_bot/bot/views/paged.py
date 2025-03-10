@@ -19,22 +19,28 @@ class SongOption(discord.SelectOption):
         self.song = song
 
 class Paged:
-    def __init__(
-            self,
-            bwd_btn: CallbackButton,
-            pge_btn: CallbackButton,
-            fwd_btn: CallbackButton,
-            *args, **kwargs
-        ):
+    def __init__(self, view: discord.ui.View, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.bwd_btn = bwd_btn
-        self.pge_btn = pge_btn
-        self.fwd_btn = fwd_btn
+        btn_row = kwargs.get('row', 0) + 1
 
-        bwd_btn.add_callback(self.page_backward)
-        fwd_btn.add_callback(self.page_forward)
-        pge_btn.disabled = True
+        self.fst_btn = CallbackButton(label='<<', row=btn_row, style=discord.ButtonStyle.primary)
+        self.bwd_btn = CallbackButton(label='<', row=btn_row, style=discord.ButtonStyle.primary)
+        self.pge_btn = CallbackButton(label='1', row=btn_row, disabled=True, style=discord.ButtonStyle.secondary)
+        self.fwd_btn = CallbackButton(label='>', row=btn_row, style=discord.ButtonStyle.primary)
+        self.lst_btn = CallbackButton(label='>>', row=btn_row, style=discord.ButtonStyle.primary)
+
+        self.fst_btn.add_callback(lambda *args: self.go_to_page(0))
+        self.bwd_btn.add_callback(self.page_backward)
+        self.fwd_btn.add_callback(self.page_forward)
+        self.lst_btn.add_callback(lambda *args: self.go_to_page(self.num_pages))
+        self.pge_btn.disabled = True
+
+        view.add_item(self.fst_btn)
+        view.add_item(self.bwd_btn)
+        view.add_item(self.pge_btn)
+        view.add_item(self.fwd_btn)
+        view.add_item(self.lst_btn)
 
         self.page = None
         self.options__: list[SongOption] = []
@@ -70,8 +76,10 @@ class Paged:
             self.max_values = min(MAX_LIST_OPT, len(lst))
         self.options = lst
 
+        self.fst_btn.disabled = page <= 0
         self.bwd_btn.disabled = page <= 0
         self.fwd_btn.disabled = page >= self.num_pages
+        self.lst_btn.disabled = page >= self.num_pages
         self.pge_btn.label = f'{page+1} / {self.num_pages+1}'
         await safe_response(self.view.itc, view=self.view)
 

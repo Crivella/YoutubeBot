@@ -33,14 +33,11 @@ class EditPlaylist(discord.ui.View):
                 lst.append(song)
 
         mv = min(MAX_LIST_OPT, len(songs))
-        bwd_btn = CallbackButton(label='<', row=2, style=discord.ButtonStyle.primary)
-        pge_btn = CallbackButton(label='1', row=2, disabled=True, style=discord.ButtonStyle.secondary)
-        fwd_btn = CallbackButton(label='>', row=2, style=discord.ButtonStyle.primary)
         self.list = ListMultiSelect(
             lst,
             defaults,
             row=1, min_values=0, max_values=mv,
-            bwd_btn=bwd_btn, pge_btn=pge_btn, fwd_btn=fwd_btn
+            view = self,
         )
 
         async def submit_callback(itc: discord.Interaction):
@@ -70,9 +67,6 @@ class EditPlaylist(discord.ui.View):
         self.submit.add_callback(submit_callback)
 
         self.add_item(self.list)
-        self.add_item(bwd_btn)
-        self.add_item(pge_btn)
-        self.add_item(fwd_btn)
         self.add_item(self.submit)
 
     async def on_timeout(self):
