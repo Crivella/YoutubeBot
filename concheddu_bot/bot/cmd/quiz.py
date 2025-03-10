@@ -32,14 +32,14 @@ class Quiz(commands.Cog):
             segment_length: int = 20,
             segment_mode: str = 'start'
         ):
-        f"""Start a quiz: select atleast 1 user. The number of songs will be adjusted down
+        """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
 
         Args:
             num_songs (int, optional): Number of questions per user. Defaults to 5.
             num_choices (int, optional): Number of choices. Defaults to 5.
             segment_length (int, optional): Length of the segment of the song to play. Defaults to 20.
-            segment_mode (str, optional): {'/'.join(ALLOWED_SEGMENT_MODES)}. Defaults to 'start'.
+            segment_mode (str, optional): start/end/random. Defaults to 'start'.
         """
         logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
         if num_songs < 1:

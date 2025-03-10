@@ -37,11 +37,11 @@ class ServerUtils(commands.Cog):
     @ensure_response()
     async def sync(self, itc: discord.Interaction):
         """Sync the bot commands"""
-        logging.info(f'Command `sync` called by `{itc.user.name}` [{itc.guild.name}]')
+        logger.info(f'Command `sync` called by `{itc.user.name}` [{itc.guild.name}]')
         fmt = await self.bot.tree.sync(guild=itc.guild)
 
         for cmd in fmt:
-            logging.debug(f'Synced {cmd} commands')
+            logger.debug(f'Synced {cmd} commands')
 
         await itc.response.send_message(f'Synced {fmt} commands')
 
