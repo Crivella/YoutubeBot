@@ -5,7 +5,6 @@ from django.db import models as m
 
 logger = logging.getLogger('bot')
 
-
 def ytsong_odby_title(queryset: m.QuerySet, asc: str = '', server = None) -> m.QuerySet:
     """Filter queryset by title"""
     logger.debug(f'Ordering queryset by title `{asc or "+"}`')
@@ -76,3 +75,21 @@ def ytsong_odby_random(queryset: m.QuerySet, asc: str = '', server = None) -> m.
     res = queryset
     res = res.order_by('?')
     return res
+
+song_order_map = {
+    'times_played': ytsong_odby_times_played,
+    'times_added': ytsong_odby_times_added,
+    'last_played': ytsong_odby_last_played,
+    'random': ytsong_odby_random,
+    'title': ytsong_odby_title,
+    'duration': ytsong_odby_duration,
+}
+
+song_order_desc = {
+    'title': 'Sort by title',
+    'duration': 'Sort by duration',
+    'last_played': 'Sort by last played',
+    'times_played': 'Sort by times played',
+    'times_added': 'Sort by times added to playlists',
+    'random': 'Sort randomly',
+}

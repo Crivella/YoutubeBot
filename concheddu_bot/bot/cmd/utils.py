@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from ... import filters as flt
 from ... import models as m
 from ...youtube import AUDIO_DIR
 from ..utils import ensure_response, safe_response
@@ -15,7 +16,7 @@ logger = logging.getLogger('bot')
 async def autocomplete_songs_sorting(self, itc: discord.Interaction, current: str):
     """Autocomplete the sorting option"""
     return [
-        app_commands.Choice(name=m.YTSong.sort_desc[k], value=k) for k in m.YTSong.sort_map.keys()
+        app_commands.Choice(name=flt.song_order_desc[k], value=k) for k in flt.song_order_map.keys()
         if k.startswith(current)
     ]
 

@@ -205,15 +205,6 @@ class YTSong(models.Model):
     times_answered = models.IntegerField(default=0)
     times_guessed = models.IntegerField(default=0)
 
-    sort_desc = {
-        'title': 'Sort by title',
-        'duration': 'Sort by duration',
-        'last_played': 'Sort by last played',
-        'times_played': 'Sort by times played',
-        'times_favorited': 'Sort by times added to playlists',
-        'random': 'Sort randomly',
-    }
-
     @property
     def title(self):
         """Return the title"""
@@ -439,7 +430,7 @@ class YTSong(models.Model):
         kwargs = {}
         if asc is not None:
             kwargs['asc'] = '' if asc else '-'
-        q = YTSong.sort_map[sorting](q, server=server, **kwargs)
+        q = flt.song_order_map[sorting](q, server=server, **kwargs)
         if n:
             q = q[:n]
 
@@ -449,16 +440,6 @@ class YTSong(models.Model):
             song.times_played_ = await song.get_times_played(server=server)
 
         return res
-
-    sort_map = {
-        'title': flt.ytsong_odby_title,
-        'duration': flt.ytsong_odby_duration,
-        'last_played': flt.ytsong_odby_last_played,
-        'times_played': flt.ytsong_odby_times_played,
-        'times_favorited': flt.ytsong_odby_times_added,
-        'random': flt.ytsong_odby_random,
-    }
-
 
 class PlayEvent(models.Model):
     """Play event model"""
@@ -537,7 +518,7 @@ class Playlist(models.Model):
                 models.Q(original_title__icontains=filter_title) |
                 models.Q(manual_title__icontains=filter_title)
             )
-        q = YTSong.sort_map[sorting](q, **kwargs)
+        q = flt.song_order_map[sorting](q, **kwargs)
 
         if n:
             q = q[:n]

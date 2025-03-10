@@ -33,12 +33,6 @@ class Playlists(commands.Cog):
         logger.info(f'Command `list_songs` called with num={num}, sorting={sorting} by `{itc.user.name}` [{itc.guild.name}]')
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
-        if sorting not in m.YTSong.sort_map:
-            await itc.response.send_message(
-                'Invalid sorting option',
-                ephemeral=True
-            )
-            return
         songs = await m.YTSong.get_all_songs(
             server=server, n=num, sorting=sorting,
             filter_title=filter_title,
