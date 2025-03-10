@@ -222,7 +222,10 @@ class QuizSongs(discord.ui.View):
             await server.clear()
 
             user_obj = await m.DiscordUser.from_discord_user(user)
-            result = await song.guess_ytid(answer, user=user_obj)
+            result = await song.guess_ytid(
+                answer, user=user_obj,
+                start=start, end=end, num_choices=self.nmc
+                )
 
             msg = []
             title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'

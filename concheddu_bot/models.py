@@ -169,6 +169,10 @@ class GuessSongEvent(models.Model):
     real_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')
     guessed_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')
 
+    start = models.IntegerField(null=True)
+    end = models.IntegerField(null=True)
+    num_choices = models.IntegerField(null=True)
+
     user = models.ForeignKey(DiscordUser, on_delete=models.CASCADE, null=True, default=None, related_name='song_guesses')
     date = models.DateTimeField(auto_now_add=True)
 
@@ -379,14 +383,21 @@ class YTSong(models.Model):
 
         await server.add_source(self, user.dc, on_play, channel=channel)
 
-    async def guess_ytid(self, youtube_id: str, user: DiscordUser) -> bool:
+    async def guess_ytid(
+            self,
+            youtube_id: str, user: DiscordUser,
+            start: int = None, end: int = None, num_choices: int = None
+        ) -> bool:
         """Guess the song"""
         other = await YTSong.objects.aget(youtube_id=youtube_id)
         res = self.youtube_id == youtube_id
         self.times_answered += 1
         self.times_guessed += res
         await self.asave()
-        await GuessSongEvent.objects.acreate(real_song=self, guessed_song=other, user=user)
+        await GuessSongEvent.objects.acreate(
+            real_song=self, guessed_song=other, user=user,
+            start=start, end=end, num_choices=num_choices
+            )
         return res
 
     @staticmethod
