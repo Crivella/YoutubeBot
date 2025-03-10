@@ -18,7 +18,9 @@ class Playlists(commands.Cog):
     @ensure_response()
     async def list_songs(
             self, itc: discord.Interaction,
-            num: int = 100, sorting: str = 'times_played',  filter_title: str = None
+            num: int = 100, sorting: str = 'times_played',
+            filter_title: str = None,
+            ascending: bool = None
         ):
         """Generate a list of songs already known to the bot
 
@@ -26,6 +28,7 @@ class Playlists(commands.Cog):
             num (int, optional): Number of songs to list. Defaults to 100.
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
             filter_title (str, optional): Filter the songs by title. Defaults to None.
+            ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
         logger.info(f'Command `list_songs` called with num={num}, sorting={sorting} by `{itc.user.name}` [{itc.guild.name}]')
         guild = itc.guild
@@ -36,7 +39,11 @@ class Playlists(commands.Cog):
                 ephemeral=True
             )
             return
-        songs = await m.YTSong.get_all_songs(server=server, n=num, sorting=sorting, filter_title=filter_title)
+        songs = await m.YTSong.get_all_songs(
+            server=server, n=num, sorting=sorting,
+            filter_title=filter_title,
+            asc=ascending
+            )
         for song in songs:
             song.times_played_ = await song.get_times_played(server=server)
         view = v.SongList(itc, songs)
@@ -57,7 +64,8 @@ class Playlists(commands.Cog):
         self, itc: discord.Interaction,
         name: str,
         sorting: str = 'times_played',
-        filter_title: str = None
+        filter_title: str = None,
+        ascending: bool = None
         ):
         """Create a playlist
 
@@ -65,11 +73,16 @@ class Playlists(commands.Cog):
             name (str): The name of the playlist
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
             filter_title (str, optional): Filter the songs by title. Defaults to None.
+            ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
         logger.info(f'Command `create_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         user = await m.DiscordUser.from_discord_user(itc.user)
-        songs = await m.YTSong.get_all_songs(server=server, sorting=sorting, filter_title=filter_title)
+        songs = await m.YTSong.get_all_songs(
+            server=server, sorting=sorting,
+            filter_title=filter_title,
+            asc=ascending
+            )
         if await m.Playlist.objects.filter(server=server, name=name, owner=user).aexists():
             await itc.response.send_message(
                 'Playlist already exists',
@@ -177,7 +190,8 @@ class Playlists(commands.Cog):
     async def edit_playlist(
             self, itc: discord.Interaction,
             name: str, rename_to: str = None, sorting: str = 'times_played',
-            filter_title: str = None
+            filter_title: str = None,
+            ascending: bool = None
         ):
         """Edit a playlist
 
@@ -186,6 +200,7 @@ class Playlists(commands.Cog):
             rename_to (str, optional): If set, rename the playlist to this name. Defaults to None.
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
             filter_title (str, optional): Filter the songs by title. Defaults to None.
+            ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
         logger.info(f'Command `edit_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
@@ -200,7 +215,11 @@ class Playlists(commands.Cog):
                 delete_after=10
             )
             return
-        all_songs = await m.YTSong.get_all_songs(server=server, sorting=sorting, filter_title=filter_title)
+        all_songs = await m.YTSong.get_all_songs(
+            server=server, sorting=sorting,
+            filter_title=filter_title,
+            asc=ascending
+            )
         pls_songs = [s async for s in playlist.songs.all()]
         for song in all_songs + pls_songs:
             song.times_played_ = await song.get_times_played(server=server)

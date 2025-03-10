@@ -438,7 +438,7 @@ class YTSong(models.Model):
             )
         kwargs = {}
         if asc is not None:
-            kwargs['asc'] = asc
+            kwargs['asc'] = '' if asc else '-'
         q = YTSong.sort_map[sorting](q, server=server, **kwargs)
         if n:
             q = q[:n]
@@ -530,7 +530,7 @@ class Playlist(models.Model):
         """Return N songs from the playlist with custom sorting"""
         kwargs = {}
         if asc is not None:
-            kwargs['asc'] = asc
+            kwargs['asc'] = '' if asc else '-'
         q = self.songs
         if filter_title:
             q = q.filter(
