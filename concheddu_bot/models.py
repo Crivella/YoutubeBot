@@ -1,6 +1,6 @@
 """Models for the bot"""
 import logging
-import random
+import re
 import urllib
 from collections import defaultdict
 from functools import wraps
@@ -14,6 +14,19 @@ from .bot.utils import safe_response
 from .youtube import MAX_DURATION, YTDLSource
 
 logger = logging.getLogger('bot')
+
+def title_cleaner(title: str) -> str:
+    """Clean the title"""
+    res = title
+    res = re.sub(r'「[^」]*」?', '', res)
+    res = re.sub(r'『[^』]*』?', '', res)
+    res = re.sub(r'\[[^\]]*\] ?', '', res)
+    res = re.sub(r'creditless', '', res, flags=re.I)
+    res = re.sub(r'4K ?', '', res, flags=re.I)
+    res = re.sub(r'1080p ?', '', res, flags=re.I)
+    res = re.sub(r'U?HD ?', '', res, flags=re.I)
+    res = re.sub(r'\d* ?FPS ?', '', res, flags=re.I)
+    return res
 
 
 def extract_server_user_from_itc_async(func):
@@ -205,8 +218,13 @@ class YTSong(models.Model):
     def title(self):
         """Return the title"""
         if not hasattr(self, '_title') or self._title is None:
-            self._title = self.manual_title or self.original_title
-        return str(self._title)
+            res = self.manual_title or self.original_title
+            if isinstance(res, str):
+                res = title_cleaner(res)
+            self._title = res
+        else:
+            res = self._title
+        return str(res)
     @title.setter
     def title(self, value):
         self._title = value
