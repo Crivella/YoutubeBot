@@ -84,9 +84,11 @@ class Playlists(commands.Cog):
                 delete_after=10
             )
             return
-        view = v.CreatePlaylist(itc, songs, name)
+        playlist = await m.Playlist.create_playlist(server=server, name=name, user=user)
+        view = v.EditPlaylist(itc, playlist, songs)
+        # view = v.CreatePlaylist(itc, songs, name)
         await itc.response.send_message(
-            'Enter the name of the playlist',
+            f'Editing playlist `{name}`',
             view=view,
             ephemeral=True
         )
@@ -95,6 +97,40 @@ class Playlists(commands.Cog):
     async def _create_playlist_sorting(self, itc: discord.Interaction, current: str):
         """Autocomplete the sorting option"""
         return await autocomplete_songs_sorting(self, itc, current)
+
+    @app_commands.command()
+    @ensure_response()
+    async def delete_playlist(self, itc: discord.Interaction, name: str):
+        """Delete a playlist by name
+
+        Args:
+            name (str): The name of the playlist
+        """
+        logger.info(f'Command `delete_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        try:
+            playlist = await m.Playlist.objects.aget(server=server, name=name, owner=user)
+        except m.Playlist.DoesNotExist:
+            await itc.response.send_message(
+                f'Playlist `{name}` not found',
+                ephemeral=True,
+                delete_after=10
+            )
+            return
+        view = v.DeletePlaylist(itc, playlist)
+        duration = await playlist.get_duration()
+        num_songs = await playlist.get_song_count()
+        msg = f'Are you sure you want to delete the playlist `{name}` with {num_songs} songs and duration={duration} s?'
+        await itc.response.send_message(
+            msg,
+            view=view,
+            ephemeral=True
+        )
+    @delete_playlist.autocomplete('name')
+    async def _delete_playlist_name(self, itc: discord.Interaction, current: str):
+        """Autocomplete the playlist name"""
+        return await autocomplete_playlist_name(self, itc, current, enforce_user=True)
 
     @app_commands.command()
     @ensure_response()
