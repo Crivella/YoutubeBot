@@ -285,6 +285,17 @@ class QuizSongs(discord.ui.View):
             description=f'{sum(self.answers)} / {len(self.answers)} correct answers',
             color=0x00ff00
         )
+        msg = ['Quiz finished!!!']
+        msg.append(f'- Each user will have to guess {self.num_songs} songs')
+        msg.append(f'- Each song will have {self.nmc} choices')
+        msg.append(f'- Segment length: {self.segment_length} s')
+        msg.append(f'- Segment mode: {self.segment_mode}')
+        msg.append(f'- Audio filter: "{self.audio_filter}"')
+        embed.add_field(
+            name='Quiz details',
+            value='\n'.join(msg),
+            inline=False
+        )
         self.embed_score(embed, sort=True)
         await self.channel.send(embed=embed)
         await safe_response(self.itc, 'Quiz finished!!!')
