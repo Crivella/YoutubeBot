@@ -16,7 +16,7 @@ logger = logging.getLogger('bot')
 
 def sanitize_ffmpeg_filter(afilt: str):
     """Sanitize the ffmpeg filter"""
-    rgx = re.compile(r'^[a-z0-9=_:,\-]+$')
+    rgx = re.compile(r'^[a-z0-9=_:,\-\.]+$')
     res = afilt
     res = res.replace(';', '')
     res = res.replace('|', '')
