@@ -54,7 +54,7 @@ class Queue(list):
 
     def get_current(self):
         if self.idx >= len(self):
-            return (None, None, None)
+            return (None, None, None, None)
         return self[self.idx]
 
     def go_next(self, val = 1):
@@ -117,9 +117,9 @@ class Player:
                 logger.error(e, exc_info=True)
 
     @with_monitor
-    async def add_source(self, song, user: discord.Member, on_play: Callable = None):
+    async def add_source(self, song, user: discord.Member, on_play: Callable = None, audio_filter: str = None):
         """Add a song to the queue"""
-        self.queue.append((song, user, on_play))
+        self.queue.append((song, user, on_play, audio_filter))
 
     @with_monitor
     async def jump(self, pos: int):
@@ -164,7 +164,7 @@ class Player:
                 return
             self.client.stop()
 
-        song, user, on_play = self.queue.get_current()
+        song, user, on_play, afilt = self.queue.get_current()
         logger.debug(f'Playing {song} from `{user}`')
         if not song:
             await self.stop()
@@ -177,7 +177,7 @@ class Player:
             self.client = await self.channel.connect()
 
         try:
-            source = await song.get_source()
+            source = await song.get_source(audio_filter=afilt)
             self.client.play(source)
         except Exception as e:
             logger.error(e, exc_info=True)

@@ -159,7 +159,11 @@ class YTSong(models.Model):
         q = q.filter(song=self, server_id=server_id)
         return await q.acount()
 
-    async def get_source(self, itc: discord.Interaction = None, start: int = None, end: int = None):
+    async def get_source(
+            self, itc: discord.Interaction = None,
+            start: int = None, end: int = None,
+            audio_filter: str = None
+            ):
         """Perform the following steps to ensure the source is fetched and ready to play:
             1. Get the source info if it's not already fetched
             2. Download the source if it's not already downloaded
@@ -196,13 +200,14 @@ class YTSong(models.Model):
 
         await safe_response(itc, f'Loaded {self.title}', ephemeral=True, append=True)
 
-        return src.get_source()
+        return src.get_source(audio_filter=audio_filter)
 
     @extract_server_user_from_itc_async
     async def play(
             self,
             update_msg: bool = True,
             start: int = None, end: int = None,
+            audio_filter: str = None,
             *,
             itc: discord.Interaction, user: 'DiscordUser', server: 'DiscordServer',
             **kwargs
@@ -220,30 +225,16 @@ class YTSong(models.Model):
         async def on_play():
             logger.debug(f'ON_PLAY: Playing {self.title} on {server.name}')
             await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
-            await PlayEvent.objects.acreate(user=user, song=self, server=server)
+            await PlayEvent.objects.acreate(
+                user=user, song=self, server=server,
+                start=start, end=end, audio_filter=audio_filter
+            )
 
         if not update_msg:
             itc = None
 
         await self.get_source(itc=itc)
-        await server.add_source(self, user.dc, on_play, channel=channel)
-
-    async def guess_ytid(
-            self,
-            youtube_id: str, user: 'DiscordUser',
-            start: int = None, end: int = None, num_choices: int = None
-        ) -> bool:
-        """Guess the song"""
-        other = await YTSong.objects.aget(youtube_id=youtube_id)
-        res = self.youtube_id == youtube_id
-        self.times_answered += 1
-        self.times_guessed += res
-        await self.asave()
-        await GuessSongEvent.objects.acreate(
-            real_song=self, guessed_song=other, user=user,
-            start=start, end=end, num_choices=num_choices
-            )
-        return res
+        await server.add_source(self, user.dc, on_play, audio_filter, channel=channel)
 
     @staticmethod
     @with_discord_server_async

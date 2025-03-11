@@ -12,9 +12,8 @@ from .semaphores import SEMAPHORE_DOWNLOAD, SEMAPHORE_FFMPEG
 
 FORMAT = os.getenv('BOT_YTDL_FORMAT', 'worstaudio')
 AUDIO_DIR = os.getenv('BOT_AUDIO_DIR', './dl')
-# FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
 MAX_DURATION = int(os.getenv('BOT_MAX_DURATION', 7*60))
-FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '')
+FFMPEG_OPTIONS = os.getenv('BOT_FFMPEG_OPTIONS', '-vn')
 NORMALIZE = os.getenv('BOT_NORMALIZE', 'True').lower() in ['true', '1', 't', 'y', 'yes']
 NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
 NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
@@ -47,6 +46,7 @@ ytdl = yt_dlp.YoutubeDL({
 
 ffmpeg_options = {
     'options': FFMPEG_OPTIONS,
+    'before_options': '',
 }
 
 
@@ -163,7 +163,9 @@ class YTDLSource():
         self.path = ytdl.prepare_filename(self.data)
         return self.data
 
-    def get_source(self) -> discord.AudioSource:
+    def get_source(self, audio_filter: str = None) -> discord.AudioSource:
+        if audio_filter is not None and audio_filter not in self.ff_opts['options']:
+            self.ff_opts['options'] += f' -af "{audio_filter}" '
         if self.source is None:
             path = self.path_norm or self.path
             if path is None:

@@ -30,7 +30,8 @@ class Quiz(commands.Cog):
             num_songs: int = 5,
             num_choices: int = 5,
             segment_length: int = 20,
-            segment_mode: str = 'start'
+            segment_mode: str = 'start',
+            audio_filter: str = None
         ):
         """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
@@ -40,6 +41,7 @@ class Quiz(commands.Cog):
             num_choices (int, optional): Number of choices. Defaults to 5.
             segment_length (int, optional): Length of the segment of the song to play. Defaults to 20.
             segment_mode (str, optional): start/end/random. Defaults to 'start'.
+            audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
         """
         logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
         if num_songs < 1:
@@ -58,7 +60,8 @@ class Quiz(commands.Cog):
         view = v.QuizSongs(
             itc, playlists=playlists,
             num_songs=num_songs, num_choices=num_choices,
-            segment_length=segment_length, segment_mode=segment_mode
+            segment_length=segment_length, segment_mode=segment_mode,
+            audio_filter=audio_filter
         )
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
     @start_quiz.autocomplete('segment_mode')

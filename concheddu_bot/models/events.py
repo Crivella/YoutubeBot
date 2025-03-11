@@ -9,6 +9,10 @@ class PlayEvent(models.Model):
     song = models.ForeignKey('YTSong', on_delete=models.CASCADE)
     server = models.ForeignKey('DiscordServer', on_delete=models.CASCADE)
 
+    start = models.IntegerField(null=True)
+    end = models.IntegerField(null=True)
+    audio_filter = models.CharField(max_length=512, null=True)
+
     date = models.DateTimeField(auto_now_add=True)
 
 class GuessSongEvent(models.Model):

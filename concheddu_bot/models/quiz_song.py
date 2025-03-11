@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from django.db import models
+from django.utils import timezone
 
 from .events import GuessSongEvent
 from .yt_song import YTSong
@@ -20,6 +21,7 @@ class QuizSong(models.Model):
     server = models.ForeignKey('DiscordServer', on_delete=models.CASCADE)
     creator = models.ForeignKey('DiscordUser', on_delete=models.CASCADE)
     players = models.ManyToManyField('DiscordUser', related_name='quizzes')
+    playlist = models.ForeignKey('Playlist', on_delete=models.SET_NULL, null=True)
 
     song_choice_ids = models.JSONField()
 
@@ -28,7 +30,7 @@ class QuizSong(models.Model):
 
     async def finish(self):
         """Finish the quiz"""
-        self.date_end = datetime.now()
+        self.date_end = datetime.now(tz=timezone.utc)
         await self.asave()
 
     async def guess(
@@ -48,4 +50,13 @@ class QuizSong(models.Model):
             start=start, end=end, num_choices=num_choices,
             num_plays=num_plays
         )
+        return res
+
+    async def get_score(self) -> dict[int, int]:
+        """Get the score"""
+        res = {}
+        async for user in self.players.all():
+            res[user.id] = await self.guesses.filter(
+                user=user, real_song=models.F('guessed_song')
+            ).acount()
         return res

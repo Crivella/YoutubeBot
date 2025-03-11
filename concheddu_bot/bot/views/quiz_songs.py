@@ -98,7 +98,8 @@ class QuizSongs(discord.ui.View):
             num_songs: int = 5,
             num_choices: int = 5,
             segment_length: int = 20,
-            segment_mode: str = 'start'
+            segment_mode: str = 'start',
+            audio_filter: str = None
         ):
         super().__init__()
         self.itc = itc
@@ -107,6 +108,7 @@ class QuizSongs(discord.ui.View):
         self.nmc = num_choices
         self.segment_length = segment_length
         self.segment_mode = segment_mode
+        self.audio_filter = audio_filter
         # self.quiz = quiz
 
         users = self.itc.user.voice.channel.members
@@ -194,7 +196,8 @@ class QuizSongs(discord.ui.View):
             num_plays += 1
             await song.play(
                 update_msg=False, itc=itc,
-                start=start, end=end
+                start=start, end=end,
+                audio_filter=self.audio_filter
             )
             enqueueing = False
 
@@ -265,6 +268,7 @@ class QuizSongs(discord.ui.View):
     async def quiz_finish(self):
         """Finish the quiz"""
         await self.quiz_obj.finish()
+        print(await self.quiz_obj.get_score())
         max_score = max(self.score.values())
         winners = [user for user in self.users if self.score[user.id] == max_score]
         msg = []
@@ -351,8 +355,9 @@ class QuizSongs(discord.ui.View):
 
             segment_length=self.segment_length,
             segment_mode=self.segment_mode,
-            audio_filter='',
+            audio_filter=self.audio_filter,
 
+            playlist=playlist,
             creator=await m.DiscordUser.from_discord_user(itc.user),
             song_choice_ids=[song.id for song in songs]
         )
@@ -366,6 +371,7 @@ class QuizSongs(discord.ui.View):
         msg.append(f'- Each song will have {self.nmc} choices')
         msg.append(f'- Segment length: {self.segment_length} s')
         msg.append(f'- Segment mode: {self.segment_mode}')
+        msg.append(f'- Audio filter: "{self.audio_filter}"')
         await safe_response(self.itc, '\n'.join(msg), ephemeral=True, view=None)
         await self.display_score()
         await self.quiz_step()

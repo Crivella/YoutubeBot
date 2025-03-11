@@ -19,12 +19,13 @@ class Music(commands.Cog):
     @app_commands.command()
     @sense_check
     @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
-    async def play(self, itc: discord.Interaction, search: str, playlist: str = None):
+    async def play(self, itc: discord.Interaction, search: str, playlist: str = None, audio_filter: str = None):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
 
         Args:
             search (str): The search string or youtube url
             playlist (str, optional): Playlist name (must exist). Defaults to None.
+            audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
         """
         logger.info(f'Command `play` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
         user = itc.user
@@ -48,7 +49,7 @@ class Music(commands.Cog):
 
         if playlist is not None:
             await playlist.add_song(song)
-        await song.play(itc=itc)
+        await song.play(itc=itc, audio_filter=audio_filter)
     @play.autocomplete('playlist')
     async def _play_playlist_name(self, itc: discord.Interaction, current: str):
         """Autocomplete the playlist name"""
