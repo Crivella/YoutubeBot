@@ -23,6 +23,9 @@ class GuessSongEvent(models.Model):
     user = models.ForeignKey('DiscordUser', on_delete=models.CASCADE, null=True, default=None, related_name='song_guesses')
     date = models.DateTimeField(auto_now_add=True)
 
+    quiz = models.ForeignKey('QuizSong', on_delete=models.CASCADE, null=True, default=None, related_name='guesses')
+    num_plays = models.IntegerField(default=0)
+
     def __bool__(self):
         return self.real_song_id == self.guessed_song_id
 

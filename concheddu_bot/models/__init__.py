@@ -1,6 +1,7 @@
 from .discord import DiscordChannel, DiscordServer, DiscordUser
 from .events import AddedSongEvent, GuessSongEvent, PlayEvent
 from .playlist import Playlist
+from .quiz_song import QuizSong
 from .through_objects import PlaylistThrough
 from .yt_song import YTSong
 
@@ -14,4 +15,5 @@ __all__ = [
     'DiscordUser',
     'DiscordServer',
     'DiscordChannel',
+    'QuizSong',
 ]

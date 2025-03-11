@@ -169,6 +169,7 @@ class QuizSongs(discord.ui.View):
             style=discord.ButtonStyle.primary
         )
 
+        num_plays = 0
         enqueueing = False
 
         if self.segment_mode == 'start':
@@ -184,12 +185,13 @@ class QuizSongs(discord.ui.View):
         @ensure_response(before=False, defer=True)
         @ensure_user(users=[user], defer=True)
         async def play_callback(itc: discord.Interaction):
-            nonlocal enqueueing
+            nonlocal enqueueing, num_plays
             if answered:
                 return
             if enqueueing:
                 return
             enqueueing = True
+            num_plays += 1
             await song.play(
                 update_msg=False, itc=itc,
                 start=start, end=end
@@ -222,9 +224,11 @@ class QuizSongs(discord.ui.View):
             await server.clear()
 
             user_obj = await m.DiscordUser.from_discord_user(user)
-            result = await song.guess_ytid(
-                answer, user=user_obj,
-                start=start, end=end, num_choices=self.nmc
+            # result = await song.guess_ytid(
+            result = await self.quiz_obj.guess(
+                song_id=song.youtube_id, answer_id=answer, user=user_obj,
+                start=start, end=end, num_choices=self.nmc,
+                num_plays=num_plays
                 )
 
             msg = []
@@ -259,6 +263,8 @@ class QuizSongs(discord.ui.View):
         message = await self.channel.send(content=msg, view=view)
 
     async def quiz_finish(self):
+        """Finish the quiz"""
+        await self.quiz_obj.finish()
         max_score = max(self.score.values())
         winners = [user for user in self.users if self.score[user.id] == max_score]
         msg = []
@@ -289,6 +295,7 @@ class QuizSongs(discord.ui.View):
             itc (discord.Interaction): Interaction
             num_songs (int, optional): The number of songs to pick from the playlist. Defaults to 20.
         """
+
         users = self.select_users.get_users()
         random.shuffle(users)  #random order for the users
 
@@ -305,9 +312,9 @@ class QuizSongs(discord.ui.View):
             return
 
         if playlist is None:
-            songs = await m.YTSong.get_all_songs(server=itc.guild, sorting='random')
+            songs = await m.YTSong.get_all_songs(server=itc.guild)
         else:
-            songs = await playlist.get_all_songs(sorting='random')
+            songs = await playlist.get_all_songs()
         # playlist_id = self.playlist.values[0] if self.playlist.values else None
 
         needed_songs = len(users) * self.num_songs
@@ -321,7 +328,7 @@ class QuizSongs(discord.ui.View):
         logger.info(f'Found {found_songs} songs')
 
         self.all_song = songs
-        songs = songs[:needed_songs]
+        songs = random.sample(songs, needed_songs)
 
         self.users = users
         self.user_map = {user.id: user for user in users}
@@ -333,6 +340,24 @@ class QuizSongs(discord.ui.View):
         logger.info('Quiz songs:')
         for song in songs:
             logger.info(f' - {song.title}')
+
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        self.quiz_obj = await m.QuizSong.objects.acreate(
+            server=server,
+            num_songs=self.num_songs,
+            num_choices=self.nmc,
+            total_songs=len(songs),
+            total_choices=len(self.all_song),
+
+            segment_length=self.segment_length,
+            segment_mode=self.segment_mode,
+            audio_filter='',
+
+            creator=await m.DiscordUser.from_discord_user(itc.user),
+            song_choice_ids=[song.id for song in songs]
+        )
+        for user in users:
+            await self.quiz_obj.players.aadd(await m.DiscordUser.from_discord_user(user))
 
         self.clear_items()
         msg = []
