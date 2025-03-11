@@ -1,9 +1,9 @@
 """Music commands for the bot"""
 import logging
 import os
+import re
 
 import discord
-import res
 from discord import app_commands
 from discord.ext import commands
 
@@ -25,7 +25,7 @@ def sanitize_ffmpeg_filter(afilt: str):
 
     if not rgx.match(res):
         logger.warning(f'Invalid ffmpeg filter: {afilt}')
-        return ''
+        raise ValueError(f'Invalid ffmpeg filter: {afilt}')
     logger.debug(f'Sanitized ffmpeg filter: {afilt} -> {res}')
 
     return res
