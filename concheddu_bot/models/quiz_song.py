@@ -30,7 +30,7 @@ class QuizSong(models.Model):
 
     async def finish(self):
         """Finish the quiz"""
-        self.date_end = datetime.now(tz=timezone.utc)
+        self.date_end = datetime.now(tz=timezone)
         await self.asave()
 
     async def guess(
