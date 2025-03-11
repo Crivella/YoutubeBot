@@ -6,8 +6,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ... import filters as flt
 from ... import models as m
+from ...models import filters as flt
 from ...youtube import AUDIO_DIR
 from ..utils import ensure_response, safe_response
 

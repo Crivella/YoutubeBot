@@ -8,14 +8,14 @@ from discord.ext import commands
 from ...import models as m
 from .. import views as v
 from .utils import autocomplete_playlist_name, autocomplete_songs_sorting
-from ..utils import ensure_response, sense_check, safe_defer
+from ..utils import ensure_response, sense_check, safe_defer, safe_response
 
 logger = logging.getLogger('bot')
 
 class Playlists(commands.Cog):
     """Play command"""
     @app_commands.command()
-    @ensure_response()
+    @ensure_response(before=True, defer=True)  # Defer to avoid timeout
     async def list_songs(
             self, itc: discord.Interaction,
             num: int = 100, sorting: str = 'times_played',
@@ -38,14 +38,9 @@ class Playlists(commands.Cog):
             filter_title=filter_title,
             asc=ascending
             )
-
-        if num > 50 :
-            # Defer to avoid timeout
-            await safe_defer(itc, ephemeral=True)
-        for song in songs:
-            song.times_played_ = await song.get_times_played(server=server)
         view = v.SongList(itc, songs)
-        await itc.response.send_message(
+        await safe_response(
+            itc,
             'Select a song to play',
             view=view,
             ephemeral=True
@@ -254,9 +249,7 @@ class Playlists(commands.Cog):
             filter_title=filter_title,
             asc=ascending
             )
-        pls_songs = [s async for s in playlist.songs.all()]
-        for song in all_songs + pls_songs:
-            song.times_played_ = await song.get_times_played(server=server)
+        pls_songs = await playlist.get_all_songs()
         view = v.EditPlaylist(itc, playlist, all_songs, defaults=pls_songs, new_name=rename_to)
         await itc.response.send_message(
             'Edit the playlist',
