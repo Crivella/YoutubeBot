@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
+from .utils import sanitize_ffmpeg_filter
 from ..utils import sense_check, safe_response, ensure_response
 from .. import views as v
 
@@ -57,6 +58,7 @@ class Quiz(commands.Cog):
             await safe_response(itc, f'Segment mode invalid', ephemeral=True)
             return
         playlists = await m.Playlist.get_playlists(itc=itc)
+        audio_filter = sanitize_ffmpeg_filter(audio_filter)
         view = v.QuizSongs(
             itc, playlists=playlists,
             num_songs=num_songs, num_choices=num_choices,

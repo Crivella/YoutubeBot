@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
-from .utils import autocomplete_playlist_name
+from .utils import autocomplete_playlist_name, sanitize_ffmpeg_filter
 from ..utils import sense_check, safe_response, ensure_response
 
 
@@ -49,6 +49,7 @@ class Music(commands.Cog):
 
         if playlist is not None:
             await playlist.add_song(song)
+        audio_filter = sanitize_ffmpeg_filter(audio_filter)
         await song.play(itc=itc, audio_filter=audio_filter)
     @play.autocomplete('playlist')
     async def _play_playlist_name(self, itc: discord.Interaction, current: str):

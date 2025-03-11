@@ -3,6 +3,7 @@ import logging
 import os
 
 import discord
+import res
 from discord import app_commands
 from discord.ext import commands
 
@@ -12,6 +13,23 @@ from ...youtube import AUDIO_DIR
 from ..utils import ensure_response, safe_response
 
 logger = logging.getLogger('bot')
+
+def sanitize_ffmpeg_filter(afilt: str):
+    """Sanitize the ffmpeg filter"""
+    rgx = re.compile(r'^[a-z0-9=_:,]+$')
+    res = afilt
+    res = res.replace(';', '')
+    res = res.replace('|', '')
+    res = res.replace('"', '')
+    res = res.replace("'", '')
+
+    if not rgx.match(res):
+        logger.warning(f'Invalid ffmpeg filter: {afilt}')
+        return ''
+    logger.debug(f'Sanitized ffmpeg filter: {afilt} -> {res}')
+
+    return res
+
 
 async def autocomplete_songs_sorting(self, itc: discord.Interaction, current: str):
     """Autocomplete the sorting option"""
