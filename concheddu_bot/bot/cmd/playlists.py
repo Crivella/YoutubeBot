@@ -8,7 +8,7 @@ from discord.ext import commands
 from ...import models as m
 from .. import views as v
 from .utils import autocomplete_playlist_name, autocomplete_songs_sorting
-from ..utils import ensure_response, sense_check
+from ..utils import ensure_response, sense_check, safe_defer
 
 logger = logging.getLogger('bot')
 
@@ -38,6 +38,10 @@ class Playlists(commands.Cog):
             filter_title=filter_title,
             asc=ascending
             )
+
+        if num > 50 :
+            # Defer to avoid timeout
+            await safe_defer(itc, ephemeral=True)
         for song in songs:
             song.times_played_ = await song.get_times_played(server=server)
         view = v.SongList(itc, songs)
