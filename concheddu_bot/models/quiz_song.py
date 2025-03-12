@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .discord import DiscordUser
 from .events import GuessSongEvent
+from .playlist import Playlist
 from .yt_song import YTSong
 
 
@@ -31,6 +32,7 @@ class QuizSong(models.Model):
     async def get_embed(self) -> discord.Embed:
         """Generate the embed"""
         creator = await DiscordUser.objects.aget(id=self.creator_id)
+        playlist = await Playlist.objects.aget(id=self.playlist_id) if self.playlist_id else None
         score = await self.get_score()
         users = [user async for user in self.players.all()]
         users.sort(key=lambda _: score.get(_.id, 0), reverse=True)
@@ -52,7 +54,7 @@ class QuizSong(models.Model):
             value='\n'.join(f'{_.username} ({score[_.id]})' for _ in users)
         )
         params_msg = []
-        params_msg.append(f'- Playlist={self.playlist.name if self.playlist else "None"} (tot={self.total_choices})')
+        params_msg.append(f'- Playlist={playlist.name if playlist else "None"} (tot={self.total_choices})')
         params_msg.append(f'- num_songs={self.num_songs}')
         params_msg.append(f'- num_choices={self.num_choices}')
         params_msg.append(f'- segment_mode={self.segment_mode}')
