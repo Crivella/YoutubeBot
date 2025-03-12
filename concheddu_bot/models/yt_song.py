@@ -8,7 +8,7 @@ from django.db import models
 from ..bot.utils import safe_response
 from ..youtube import MAX_DURATION, YTDLSource
 from . import filters as flt
-from .events import AddedSongEvent, GuessSongEvent, PlayEvent
+from .events import AddedSongEvent, PlayEvent
 from .utils import (extract_server_user_from_itc_async,
                     with_discord_server_async, with_discord_user_async)
 
@@ -16,6 +16,8 @@ from .utils import (extract_server_user_from_itc_async,
 def title_cleaner(title: str) -> str:
     """Clean the title"""
     res = title
+    if res is None:
+        return None
     res = re.sub(r'「[^」]*」?', '', res)
     res = re.sub(r'『[^』]*』?', '', res)
     res = re.sub(r'\[[^\]]*\] ?', '', res)
@@ -53,7 +55,7 @@ class YTSong(models.Model):
         return str(res)
     @title.setter
     def title(self, value):
-        self._title = value
+        self._title = title_cleaner(value)
 
     class MaxDurationError(Exception):
         """Max duration error"""
