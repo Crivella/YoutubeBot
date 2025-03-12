@@ -284,7 +284,7 @@ class QuizSongs(discord.ui.View):
     async def quiz_finish(self):
         """Finish the quiz"""
         await self.quiz_obj.finish()
-        print(await self.quiz_obj.get_score())
+        # print(await self.quiz_obj.get_score())
         max_score = max(self.score.values())
         winners = [user for user in self.users if self.score[user.id] == max_score]
         msg = []
