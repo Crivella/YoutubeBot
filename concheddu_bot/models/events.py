@@ -24,7 +24,7 @@ class GuessSongEvent(models.Model):
     end = models.IntegerField(null=True)
     num_choices = models.IntegerField(null=True)
 
-    time_to_answer = models.IntegerField(null=True)
+    time_to_answer = models.FloatField(null=True)
 
     user = models.ForeignKey('DiscordUser', on_delete=models.CASCADE, null=True, default=None, related_name='song_guesses')
     date = models.DateTimeField(auto_now_add=True)
