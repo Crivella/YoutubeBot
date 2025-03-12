@@ -73,3 +73,15 @@ class Quiz(commands.Cog):
             app_commands.Choice(name=SEGMENT_MODES_DESC[k], value=k) for k in ALLOWED_SEGMENT_MODES
             if k.startswith(current)
         ]
+
+    @app_commands.command()
+    @ensure_response()
+    async def list_quizes(self, itc: discord.Interaction):
+        """List the quizzes"""
+        logger.info(f'Command `list_quizzes` called by `{itc.user.name}` [{itc.guild.name}]')
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        quizes = [quiz async for quiz in m.QuizSong.objects.filter(server=server).all()]
+        view = v.QuizSongsList(itc, quizes)
+        await safe_response(itc, 'Select a quiz to play', view=view, ephemeral=True)
+
+

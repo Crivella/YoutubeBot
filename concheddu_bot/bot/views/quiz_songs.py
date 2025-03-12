@@ -7,8 +7,23 @@ import discord
 from ... import models as m
 from ..utils import ensure_response, ensure_user, safe_response
 from .buttons import CallbackButton
+from .paged import ListQuiz
 from .utils import elide, logger
 
+
+class QuizSongsList(discord.ui.View):
+    def __init__(self, itc: discord.Interaction, quizes: list[m.QuizSong]):
+        super().__init__()
+        self.itc = itc
+        
+        self.quiz_list = ListQuiz(
+            quizes,
+            view = self,
+            )
+        self.add_item(self.quiz_list)
+
+    async def on_timeout(self):
+        await self.itc.delete_original_response()
 
 class UserList(discord.ui.Select):
     def __init__(self, users: list[discord.Member], *args, **kwargs):

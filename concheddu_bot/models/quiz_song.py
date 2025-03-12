@@ -1,7 +1,9 @@
 """Quiz models on songs"""
+import discord
 from django.db import models
 from django.utils import timezone
 
+from .discord import DiscordUser
 from .events import GuessSongEvent
 from .yt_song import YTSong
 
@@ -25,6 +27,39 @@ class QuizSong(models.Model):
 
     date_start = models.DateTimeField(auto_now_add=True)
     date_end = models.DateTimeField(null=True)
+
+    async def get_embed(self) -> discord.Embed:
+        """Generate the embed"""
+        creator = await DiscordUser.objects.aget(id=self.creator_id)
+        score = await self.get_score()
+        users = [user async for user in self.players.all()]
+        users.sort(key=lambda _: score.get(_.id, 0), reverse=True)
+
+        fmt = '%Y-%m-%d %H:%M:%S'
+        start = self.date_start.strftime(fmt)
+        end = self.date_end.strftime(fmt) if self.date_end else 'Unfinished'
+        desc = []
+        desc.append(f'CREATOR: {creator.username}')
+        desc.append(f'START: {start} - END: {end}')
+        res = discord.Embed(
+            title=f'QuizSong',
+            description='\n'.join(desc),
+            color=discord.Color.blurple()
+        )
+
+        res.add_field(
+            name='Players',
+            value='\n'.join(f'{_.username} ({score[_.id]})' for _ in users)
+        )
+        params_msg = []
+        params_msg.append(f'- Playlist={self.playlist.name if self.playlist else "None"} (tot={self.total_choices})')
+        params_msg.append(f'- num_songs={self.num_songs}')
+        params_msg.append(f'- num_choices={self.num_choices}')
+        params_msg.append(f'- segment_mode={self.segment_mode}')
+        params_msg.append(f'- segment_length={self.segment_length}')
+        params_msg.append(f'- audio_filter="{self.audio_filter}"')
+        res.add_field(name='Parameters', value='\n'.join(params_msg))
+        return res
 
     async def finish(self):
         """Finish the quiz"""

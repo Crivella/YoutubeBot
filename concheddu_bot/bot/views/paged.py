@@ -43,7 +43,7 @@ class Paged:
         view.add_item(self.lst_btn)
 
         self.page = None
-        self.options__: list[SongOption] = []
+        self.options__: list = []
         self.num_pages = 0
         self.follow_changes = False
 
@@ -135,3 +135,33 @@ class ListMultiSelect(Paged, discord.ui.Select):
         values = set(self.values)
         for opt in self.options_[self.page * MAX_LIST_OPT:(self.page + 1) * MAX_LIST_OPT]:
             opt.default = opt.value in values
+
+class ListQuiz(Paged, discord.ui.Select):
+    def __init__(self, quizes: list[m.QuizSong], *args, **kwargs):
+        logger.debug(f'ListQuiz: {len(quizes)}')
+        opts = [
+            discord.SelectOption(
+                label=elide(f'{quiz.__class__.__name__} {quiz.date_start}'),
+                value=str(quiz.id),
+                description=f'{quiz.num_songs} songs, {quiz.num_choices} choices',
+                emoji='❓'
+            ) for quiz in quizes
+        ]
+        super().__init__(
+            placeholder='Select a quiz to play',
+            options=opts[:MAX_LIST_OPT],
+            min_values=1,
+            max_values=1,
+            *args, **kwargs
+        )
+        self.options_ = opts
+        self.quizes_map = {quiz.id: quiz for quiz in quizes}
+
+    @ensure_response(before=False, defer=True)
+    async def callback(self, itc: discord.Interaction):
+        if not self.values:
+            return
+        quiz_id = int(self.values[0])
+        quiz = self.quizes_map.get(quiz_id)
+        embed = await quiz.get_embed()
+        await safe_response(itc, embed=embed, ephemeral=True, delete_after=60)
