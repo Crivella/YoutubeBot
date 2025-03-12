@@ -80,7 +80,10 @@ class Quiz(commands.Cog):
         """List the quizzes"""
         logger.info(f'Command `list_quizzes` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
-        quizes = [quiz async for quiz in m.QuizSong.objects.filter(server=server).all()]
+        q = m.QuizSong.objects
+        q = q.filter(server=server)
+        q = q.order_by('-date_start')
+        quizes = [quiz async for quiz in q.all()]
         view = v.QuizSongsList(itc, quizes)
         await safe_response(itc, 'Select a quiz to play', view=view, ephemeral=True)
 
