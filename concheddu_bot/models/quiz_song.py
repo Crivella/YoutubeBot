@@ -1,6 +1,4 @@
 """Quiz models on songs"""
-from datetime import datetime
-
 from django.db import models
 from django.utils import timezone
 
@@ -30,7 +28,7 @@ class QuizSong(models.Model):
 
     async def finish(self):
         """Finish the quiz"""
-        self.date_end = datetime.now()
+        self.date_end = timezone.now()
         await self.asave()
 
     async def guess(
