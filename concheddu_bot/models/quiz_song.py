@@ -36,7 +36,8 @@ class QuizSong(models.Model):
     async def guess(
             self, song_id: int, answer_id: int, user: 'DiscordUser',
             start: int, end: int, num_choices: int,
-            num_plays: int = 0
+            num_plays: int = 0,
+            time: int = None
         ) -> bool:
         """Guess a song"""
         song = await YTSong.objects.aget(youtube_id=song_id)
@@ -46,9 +47,15 @@ class QuizSong(models.Model):
         song.times_guessed += res
         await song.asave()
         await GuessSongEvent.objects.acreate(
-            quiz=self, real_song=song, guessed_song=answer, user=user,
-            start=start, end=end, num_choices=num_choices,
-            num_plays=num_plays
+            quiz=self,
+            real_song=song,
+            guessed_song=answer,
+            user=user,
+            start=start,
+            end=end,
+            num_choices=num_choices,
+            num_plays=num_plays,
+            time_to_answer=time
         )
         return res
 

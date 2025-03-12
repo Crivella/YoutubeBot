@@ -1,4 +1,5 @@
 import random
+import time
 from collections import defaultdict
 
 import discord
@@ -151,6 +152,9 @@ class QuizSongs(discord.ui.View):
         message = None
         answered = False
 
+        time_first_play = None
+        time_blind_guess = time.time()
+
         # Instead of using the current list of song pick X random songs + the current song
         choices = random.sample(self.all_song, self.nmc)
         if song not in choices:
@@ -187,13 +191,15 @@ class QuizSongs(discord.ui.View):
         @ensure_response(before=False, defer=True)
         @ensure_user(users=[user], defer=True)
         async def play_callback(itc: discord.Interaction):
-            nonlocal enqueueing, num_plays
+            nonlocal enqueueing, num_plays, time_first_play
             if answered:
                 return
             if enqueueing:
                 return
             enqueueing = True
             num_plays += 1
+            if time_first_play is None:
+                time_first_play = time.time()
             await song.play(
                 update_msg=False, itc=itc,
                 start=start, end=end,
@@ -226,12 +232,22 @@ class QuizSongs(discord.ui.View):
             answer = values[0]
             await server.clear()
 
+            time_start = time_blind_guess
+            if time_first_play is not None:
+                time_start = time_first_play
+            time_end = time.time()
+
             user_obj = await m.DiscordUser.from_discord_user(user)
             # result = await song.guess_ytid(
             result = await self.quiz_obj.guess(
-                song_id=song.youtube_id, answer_id=answer, user=user_obj,
-                start=start, end=end, num_choices=self.nmc,
-                num_plays=num_plays
+                song_id=song.youtube_id,
+                answer_id=answer,
+                user=user_obj,
+                start=start,
+                end=end,
+                num_choices=self.nmc,
+                num_plays=num_plays,
+                time=time_end - time_start
                 )
 
             msg = []
