@@ -222,10 +222,9 @@ class YTSong(models.Model):
                 start=start, end=end, audio_filter=audio_filter
             )
 
-        if not update_msg:
-            itc = None
+        itc_ = itc if update_msg else None
 
-        await self.get_source(itc=itc)
+        await self.get_source(itc=itc_)
         await server.add_source(self, itc.user, on_play, audio_filter, channel=channel)
 
     @classmethod
