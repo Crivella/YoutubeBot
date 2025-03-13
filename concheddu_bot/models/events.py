@@ -42,3 +42,16 @@ class AddedSongEvent(models.Model):
 
     user = models.ForeignKey('DiscordUser', on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
+
+class CallCommandEvent(models.Model):
+    """Call command event model"""
+    user = models.ForeignKey('DiscordUser', on_delete=models.CASCADE)
+    server = models.ForeignKey('DiscordServer', on_delete=models.CASCADE)
+    command = models.CharField(max_length=512)
+
+    args = models.JSONField()
+    kwargs = models.JSONField()
+
+    error = models.TextField(null=True)
+
+    date = models.DateTimeField(auto_now_add=True)
