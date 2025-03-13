@@ -68,13 +68,6 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             name (str): The name of the playlist
         """
         logger.info(f'Command `delete_playlist` called by `{itc.user.name}` [{itc.guild.name}]')
-        if playlist is None:
-            await itc.response.send_message(
-                f'Playlist not found',
-                ephemeral=True,
-                delete_after=10
-            )
-            return
         view = v.DeletePlaylist(itc, playlist)
         duration = await playlist.get_duration()
         num_songs = await playlist.get_song_count()
@@ -125,13 +118,6 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
         """
         logger.info(f'Command `load_playlist` called by `{itc.user.name}` [{itc.guild.name}]')
-        if playlist is None:
-            await itc.response.send_message(
-                f'Playlist not found',
-                ephemeral=True,
-                delete_after=10
-            )
-            return
         if num < 0:
             await itc.response.send_message(
                 'Number of songs must be positive',
@@ -179,13 +165,6 @@ class Playlists(commands.GroupCog, group_name='playlists'):
         logger.info(f'Command `edit_playlist` called with by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
 
-        if playlist is None:
-            await itc.response.send_message(
-                f'Playlist not found',
-                ephemeral=True,
-                delete_after=10
-            )
-            return
         all_songs = await m.YTSong.get_all_songs(
             server=server, sorting=sorting,
             filter_title=filter_title,

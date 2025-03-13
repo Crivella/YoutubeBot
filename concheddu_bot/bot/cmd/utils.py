@@ -25,9 +25,11 @@ class PlaylistTransformer(app_commands.Transformer):
         server = await m.DiscordServer.from_discord_guild(ctx.guild)
         user = await m.DiscordUser.from_discord_user(ctx.user)
         try:
-            playlist = await m.Playlist.objects.aget(server=server, owner=user, name=argument)
+            if self.enforce_user:
+                playlist = await m.Playlist.objects.aget(server=server, owner=user, name=argument)
+            else:
+                playlist = await m.Playlist.objects.aget(server=server, name=argument)
         except m.Playlist.DoesNotExist:
-            playlist = None
             await safe_response(ctx, f'Playlist `{argument}` not found', ephemeral=True)
             raise ValueError(f'Playlist `{argument}` not found')
         return playlist
