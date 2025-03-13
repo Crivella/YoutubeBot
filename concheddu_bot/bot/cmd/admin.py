@@ -31,7 +31,7 @@ class Admin(commands.GroupCog, group_name='admin'):
         for cmd in fmt:
             logger.debug(f'Synced {cmd} commands')
 
-        await itc.response.send_message(f'Synced {fmt} commands')
+        await itc.response.send_message(f'Synced {fmt} commands', ephemeral=True)
 
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
