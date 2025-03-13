@@ -12,7 +12,7 @@ from ..utils import ensure_response, safe_response
 
 logger = logging.getLogger('bot')
 
-ADMIN_ID = os.getenv('ADMIN_ID', 209828306944524288)
+ADMIN_ID = os.getenv('BOT_ADMIN_ID', -1)
 
 class Admin(commands.GroupCog, group_name='admin'):
     """Play command"""
