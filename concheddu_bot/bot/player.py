@@ -43,7 +43,7 @@ class Queue(list):
             res.append(f'... ({start} songs) ...')
         for i in range(max(0, idx-pre), min(len(self), idx + post)):
             pre = '` ‣‣‣`' if idx == i else f'`{i - idx:>4d}`'
-            song, user, _ = self[i]
+            song, user, _, _ = self[i]
             res.append(f'{pre} [{song.duration:>4d} s] ({user.name:>10s}) - {song.title:>40s}')
         if after > 0:
             res.append(f'... ({after} songs) ...')
