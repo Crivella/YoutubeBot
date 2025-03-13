@@ -239,7 +239,12 @@ class YTSong(models.Model):
             filter_title: str = None
         ) -> list['YTSong']:
         """Return n random songs"""
-        server = await DiscordServer.from_discord_guild(server)
+        if isinstance(server, discord.Guild):
+            server = await DiscordServer.from_discord_guild(server)
+        elif isinstance(server, DiscordServer):
+            pass
+        else:
+            raise ValueError(f'Invalid type for server: {type(server)}')
         logger.debug(f'Getting all songs on [{server.name}] sorted by `{sorting}`')
         q = cls.objects
 

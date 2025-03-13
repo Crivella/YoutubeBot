@@ -162,6 +162,6 @@ async def get_all_songs(
     if times_played:
         res = song_annotate_times_played(res, server_id=server_id)
 
-    res = [a async for a in res]
+    res = [a async for a in res.all()]
 
     return res

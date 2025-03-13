@@ -121,7 +121,9 @@ class Music(commands.GroupCog, group_name='music'):
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
         songs = await m.YTSong.get_all_songs(
-            server=server, n=num, sorting=sorting,
+            server=server,
+            n=num,
+            sorting=sorting,
             filter_title=filter_title,
             asc=ascending
             )
