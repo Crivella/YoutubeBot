@@ -90,7 +90,7 @@ def ensure_response(before=False, defer=False, allowed_exceptions: list = ()):
                 if defer:
                     await safe_defer(itc)
                 else:
-                    await safe_response(itc, '', ephemeral=True)
+                    await safe_response(itc, 'DONE', ephemeral=True, delete_after=10)
             try:
                 await func(*args, **kwargs)
             except allowed_exceptions as e:
@@ -108,7 +108,7 @@ def ensure_response(before=False, defer=False, allowed_exceptions: list = ()):
                     if defer:
                         await safe_defer(itc)
                     else:
-                        await safe_response(itc, '', ephemeral=True, delete_after=10)
+                        await safe_response(itc, 'DONE', ephemeral=True, delete_after=10)
         return wrapped
     return wrapper
 
