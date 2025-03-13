@@ -170,7 +170,7 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             filter_title=filter_title,
             asc=ascending
             )
-        pls_songs = await playlist.get_all_songs()
+        pls_songs = await playlist.get_all_songs(filter_title=filter_title)
         view = v.EditPlaylist(itc, playlist, all_songs, defaults=pls_songs, new_name=rename_to)
         await safe_response(
             itc,
