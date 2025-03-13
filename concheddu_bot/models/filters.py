@@ -7,7 +7,7 @@ logger = logging.getLogger('bot')
 
 def song_annotate_title(queryset: m.QuerySet) -> m.QuerySet:
     """Annotate the title"""
-    if 'title' in queryset.query.annotations:
+    if hasattr(queryset, 'query') and 'title' in queryset.query.annotations:
         return queryset
     res = queryset
     res = res.annotate(title=m.Case(
@@ -19,7 +19,7 @@ def song_annotate_title(queryset: m.QuerySet) -> m.QuerySet:
 
 def song_annotate_times_played(queryset: m.QuerySet, server_id: int = None) -> m.QuerySet:
     """Annotate the times played"""
-    if 'times_played' in queryset.query.annotations:
+    if hasattr(queryset, 'query') and 'times_played' in queryset.query.annotations:
         return queryset
     res = queryset
     pv_query = m.Q(playevent__song=m.F('id'))
