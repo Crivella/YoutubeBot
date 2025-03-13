@@ -1,7 +1,6 @@
 import discord
 
 from ... import models as m
-from .buttons import CallbackButton
 from .paged import ListPlay
 
 
