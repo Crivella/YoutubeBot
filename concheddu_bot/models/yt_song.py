@@ -260,3 +260,11 @@ class YTSong(models.Model):
             asc=asc,
             filter_title=filter_title
         )
+
+    async def delete_files(self):
+        """Delete the files"""
+        logger.debug(f'Deleting files for {self.title}')
+        path = f'{self.youtube_id}.{self.extension}'
+        src = YTDLSource.from_path(path, self.metadata)
+
+        await src.delete_files()

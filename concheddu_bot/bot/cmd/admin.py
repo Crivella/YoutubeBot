@@ -38,7 +38,7 @@ class Admin(commands.GroupCog, group_name='admin'):
     @ensure_response()
     async def sync_files_to_db(self, itc: discord.Interaction):
         """Add files present on the device to songs in the database"""
-        logging.info(f'Command `sync_files_to_db` called by `{itc.user.name}` [{itc.guild.name}]')
+        logger.info(f'Command `sync_files_to_db` called by `{itc.user.name}` [{itc.guild.name}]')
 
         files = os.listdir(AUDIO_DIR)
         await safe_response(itc, f'Ensuring all files correspond to a song', ephemeral=True)
@@ -59,8 +59,32 @@ class Admin(commands.GroupCog, group_name='admin'):
     @ensure_response()
     async def sync_db_to_files(self, itc: discord.Interaction):
         """Ensure all entries in the database have a corresponding file"""
-        logging.info(f'Command `sync_db_to_files` called by `{itc.user.name}` [{itc.guild.name}]')
+        logger.info(f'Command `sync_db_to_files` called by `{itc.user.name}` [{itc.guild.name}]')
 
         await safe_response(itc, f'Ensuring all songs are downloaded/normailzed', ephemeral=True)
         async for song in m.YTSong.objects.all():
             await song.get_source()
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response()
+    async def delete_song(
+            self, itc: discord.Interaction,
+            youtube_id: str,
+            delete_files: bool = True
+        ):
+        """Delete a song
+
+        Args:
+            youtube_id (str): Youtube ID of the song
+            delete_files (bool, optional): Whether to delete the files associated with the song. Defaults to True.
+        """
+        logger.info(f'Command `delete_song` called by `{itc.user.name}` [{itc.guild.name}]')
+
+        song = await m.YTSong.objects.aget(youtube_id=youtube_id)
+
+        if delete_files:
+            await song.delete_files()
+
+        await song.adelete()
+        await safe_response(itc, f'Deleted song `{song.title}`', ephemeral=True)

@@ -105,18 +105,23 @@ class YTDLSource():
             loop = loop or asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: ytdl.download(self.url))
 
+    def get_norm_path(self):
+        """Get the normalized path"""
+        if self.path_norm is None:
+            name, _ = os.path.splitext(self.path)
+            fname = os.path.basename(name)
+            self.path_norm = os.path.join(AUDIO_DIR, f'{fname}.norm.{NORMALIZE_EXT}')
+        return self.path_norm
+
     def normalize(self, *, loop = None):
         """Normalize the audio"""
         if not NORMALIZE:
             logger.debug(f'Normalization disabled {self.path}')
             return
 
-        name, ext = os.path.splitext(self.path)
-        fname = os.path.basename(name)
-        outfile = os.path.join(AUDIO_DIR, f'{fname}.norm.{NORMALIZE_EXT}')
+        outfile = self.get_norm_path()
         if os.path.exists(outfile):
             logger.debug(f'Normalized file already exists {outfile}')
-            self.path_norm = outfile
             return
 
         return self._normalize(self.path, outfile, loop=loop)
@@ -172,6 +177,14 @@ class YTDLSource():
                 raise ValueError('No path')
             self.source = audio_class(path, **self.ff_opts)
         return self.source
+
+    async def delete_files(self):
+        """Delete the files"""
+        if self.path is not None and os.path.exists(self.path):
+            os.remove(self.path)
+        path_norm = self.get_norm_path()
+        if path_norm is not None and os.path.exists(path_norm):
+            os.remove(self.path_norm)
 
     @property
     def title(self):
