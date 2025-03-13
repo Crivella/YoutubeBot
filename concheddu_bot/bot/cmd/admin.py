@@ -12,6 +12,8 @@ from ..utils import ensure_response, safe_response
 
 logger = logging.getLogger('bot')
 
+ADMIN_ID = os.getenv('ADMIN_ID', 209828306944524288)
+
 class Admin(commands.GroupCog, group_name='admin'):
     """Play command"""
     def __init__(self, *args, bot, **kwargs):
@@ -19,8 +21,8 @@ class Admin(commands.GroupCog, group_name='admin'):
         self.bot = bot
 
     @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
-    @app_commands.check(lambda itc: itc.user.id == 209828306944524288)
     async def sync(self, itc: discord.Interaction):
         """Sync the bot commands"""
         logger.info(f'Command `sync` called by `{itc.user.name}` [{itc.guild.name}]')
@@ -32,7 +34,7 @@ class Admin(commands.GroupCog, group_name='admin'):
         await itc.response.send_message(f'Synced {fmt} commands')
 
     @app_commands.command()
-    @app_commands.check(lambda itc: itc.user.id == 209828306944524288)
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
     async def sync_files_to_db(self, itc: discord.Interaction):
         """Add files present on the device to songs in the database"""
@@ -53,7 +55,7 @@ class Admin(commands.GroupCog, group_name='admin'):
         await safe_response(itc, f'Synced {len(files)} songs ... DONE', ephemeral=True)
 
     @app_commands.command()
-    @app_commands.check(lambda itc: itc.user.id == 209828306944524288)
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
     async def sync_db_to_files(self, itc: discord.Interaction):
         """Ensure all entries in the database have a corresponding file"""
