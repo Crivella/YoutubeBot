@@ -20,13 +20,13 @@ SEGMENT_MODES_DESC = {
     'random': 'Random segment of the song'
 }
 
-class Quiz(commands.Cog):
+class QuizSong(commands.GroupCog, group_name='quiz_song'):
     """Quiz commands"""
 
     @app_commands.command()
     @sense_check
     @ensure_response()
-    async def start_quiz(
+    async def start(
             self, itc: discord.Interaction,
             num_songs: int = 5,
             num_choices: int = 5,
@@ -66,7 +66,7 @@ class Quiz(commands.Cog):
             audio_filter=audio_filter
         )
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
-    @start_quiz.autocomplete('segment_mode')
+    @start.autocomplete('segment_mode')
     async def _autocomplete_segment_mode(self, itc: discord.Interaction, current: str):
         """Autocomplete the segment mode"""
         return [
@@ -76,7 +76,7 @@ class Quiz(commands.Cog):
 
     @app_commands.command()
     @ensure_response()
-    async def list_quizes(self, itc: discord.Interaction):
+    async def list(self, itc: discord.Interaction):
         """List the quizzes"""
         logger.info(f'Command `list_quizzes` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
@@ -86,5 +86,3 @@ class Quiz(commands.Cog):
         quizes = [quiz async for quiz in q.all()]
         view = v.QuizSongsList(itc, quizes)
         await safe_response(itc, 'Select a quiz to play', view=view, ephemeral=True)
-
-

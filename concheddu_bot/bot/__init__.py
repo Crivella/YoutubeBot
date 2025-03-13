@@ -2,6 +2,7 @@ import logging
 import sys
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from .. import models as m
@@ -14,12 +15,23 @@ class MyBot(commands.Bot):
         self.playing_on: set[int] = set()
         self.queues: dict[int, list[str]] = {}
 
+        self.tree.error(self._on_tree_error)
+
     async def on_ready(self):
         """Make sure the bot is ready before doing anything"""
         logger.info(f'Logged in as {self.user.name} ID<{self.user.id}>')
         fmt = await self.tree.sync()
         for cmd in fmt:
             logging.debug(f'Synced {cmd} commands')
+
+    async def _on_tree_error(self, ctx: discord.Interaction, error: app_commands.AppCommandError):
+        """Handle errors from the command tree"""
+        name = ctx.command.name
+        ptr = ctx.command.parent
+        while ptr is not None:
+            name = f'{ptr.name}:{name}'
+            ptr = ptr.parent
+        logger.error(f'Error in `{name}` command {error}')
 
     async def on_error(self, event, *args, **kwargs):
         logger.error(f'Error in {event}')

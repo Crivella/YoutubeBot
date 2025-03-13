@@ -7,56 +7,19 @@ from discord.ext import commands
 
 from ...import models as m
 from .. import views as v
-from .utils import autocomplete_playlist_name, autocomplete_songs_sorting
-from ..utils import ensure_response, sense_check, safe_defer, safe_response
+from .utils import PlaylistTransformer, SongFilterTransformer
+from ..utils import ensure_response, sense_check
 
 logger = logging.getLogger('bot')
 
-class Playlists(commands.Cog):
+class Playlists(commands.GroupCog, group_name='playlists'):
     """Play command"""
     @app_commands.command()
-    @ensure_response(before=True, defer=True)  # Defer to avoid timeout
-    async def list_songs(
-            self, itc: discord.Interaction,
-            num: int = 100, sorting: str = 'times_played',
-            filter_title: str = None,
-            ascending: bool = None
-        ):
-        """Generate a list of songs already known to the bot
-
-        Args:
-            num (int, optional): Number of songs to list. Defaults to 100.
-            sorting (str, optional): Sorting option. Defaults to 'times_played'.
-            filter_title (str, optional): Filter the songs by title. Defaults to None.
-            ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
-        """
-        logger.info(f'Command `list_songs` called with num={num}, sorting={sorting} by `{itc.user.name}` [{itc.guild.name}]')
-        guild = itc.guild
-        server = await m.DiscordServer.from_discord_guild(guild)
-        songs = await m.YTSong.get_all_songs(
-            server=server, n=num, sorting=sorting,
-            filter_title=filter_title,
-            asc=ascending
-            )
-        view = v.SongList(itc, songs)
-        await safe_response(
-            itc,
-            'Select a song to play',
-            view=view,
-            ephemeral=True
-        )
-        await view.list.go_to_page(0)
-    @list_songs.autocomplete('sorting')
-    async def _list_songs_sorting(self, itc: discord.Interaction, current: str):
-        """Autocomplete the sorting option"""
-        return await autocomplete_songs_sorting(self, itc, current)
-
-    @app_commands.command()
     @ensure_response()
-    async def create_playlist(
+    async def create(
         self, itc: discord.Interaction,
         name: str,
-        sorting: str = 'times_played',
+        sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
         filter_title: str = None,
         ascending: bool = None
         ):
@@ -85,34 +48,29 @@ class Playlists(commands.Cog):
             return
         playlist = await m.Playlist.create_playlist(server=server, name=name, user=user)
         view = v.EditPlaylist(itc, playlist, songs)
-        # view = v.CreatePlaylist(itc, songs, name)
         await itc.response.send_message(
             f'Editing playlist `{name}`',
             view=view,
             ephemeral=True
         )
         await view.list.go_to_page(0)
-    @create_playlist.autocomplete('sorting')
-    async def _create_playlist_sorting(self, itc: discord.Interaction, current: str):
-        """Autocomplete the sorting option"""
-        return await autocomplete_songs_sorting(self, itc, current)
 
     @app_commands.command()
     @ensure_response()
-    async def delete_playlist(self, itc: discord.Interaction, name: str):
+    async def delete(
+            self,
+            itc: discord.Interaction,
+            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+        ):
         """Delete a playlist by name
 
         Args:
             name (str): The name of the playlist
         """
-        logger.info(f'Command `delete_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
-        server = await m.DiscordServer.from_discord_guild(itc.guild)
-        user = await m.DiscordUser.from_discord_user(itc.user)
-        try:
-            playlist = await m.Playlist.objects.aget(server=server, name=name, owner=user)
-        except m.Playlist.DoesNotExist:
+        logger.info(f'Command `delete_playlist` called by `{itc.user.name}` [{itc.guild.name}]')
+        if playlist is None:
             await itc.response.send_message(
-                f'Playlist `{name}` not found',
+                f'Playlist not found',
                 ephemeral=True,
                 delete_after=10
             )
@@ -120,20 +78,16 @@ class Playlists(commands.Cog):
         view = v.DeletePlaylist(itc, playlist)
         duration = await playlist.get_duration()
         num_songs = await playlist.get_song_count()
-        msg = f'Are you sure you want to delete the playlist `{name}` with {num_songs} songs and duration={duration} s?'
+        msg = f'Are you sure you want to delete the playlist `{playlist.name}` with {num_songs} songs and duration={duration} s?'
         await itc.response.send_message(
             msg,
             view=view,
             ephemeral=True
         )
-    @delete_playlist.autocomplete('name')
-    async def _delete_playlist_name(self, itc: discord.Interaction, current: str):
-        """Autocomplete the playlist name"""
-        return await autocomplete_playlist_name(self, itc, current, enforce_user=True)
 
     @app_commands.command()
     @ensure_response()
-    async def list_playlists(self, itc: discord.Interaction):
+    async def list(self, itc: discord.Interaction):
         """List the playlists"""
         logger.info(f'Command `list_playlists` called by `{itc.user.name}` [{itc.guild.name}]')
         guild = itc.guild
@@ -157,10 +111,11 @@ class Playlists(commands.Cog):
     @app_commands.command()
     @sense_check
     @ensure_response()
-    async def load_playlist(
+    async def load(
             self, itc: discord.Interaction,
-            name: str, num: int = 0,
-            sorting: str = 'times_played'
+            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+            num: int = 0,
+            sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
             ):
         """Load a playlist
 
@@ -169,13 +124,10 @@ class Playlists(commands.Cog):
             num (int, optional): The number of songs to load. Defaults to 0 (all).
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
         """
-        logger.info(f'Command `load_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
-        server = await m.DiscordServer.from_discord_guild(itc.guild)
-        try:
-            playlist = await m.Playlist.objects.aget(server=server, name=name)
-        except m.Playlist.DoesNotExist:
+        logger.info(f'Command `load_playlist` called by `{itc.user.name}` [{itc.guild.name}]')
+        if playlist is None:
             await itc.response.send_message(
-                f'Playlist `{name}` not found',
+                f'Playlist not found',
                 ephemeral=True,
                 delete_after=10
             )
@@ -197,7 +149,7 @@ class Playlists(commands.Cog):
             return
         duration = sum(song.duration for song in songs)
         await itc.response.send_message(
-            f'Loaded playlist `{name}` with {len(songs)} songs duration={duration} s',
+            f'Loaded playlist `{playlist.name}` with {len(songs)} songs duration={duration} s',
             ephemeral=True,
             delete_after=duration
         )
@@ -205,20 +157,13 @@ class Playlists(commands.Cog):
         for song in songs:
             await song.play(itc=itc)
 
-    @load_playlist.autocomplete('name')
-    async def _load_playlist_name(self, itc: discord.Interaction, current: str):
-        """Autocomplete the playlist name"""
-        return await autocomplete_playlist_name(self, itc, current)
-    @load_playlist.autocomplete('sorting')
-    async def _load_playlist_sorting(self, itc: discord.Interaction, current: str):
-        """Autocomplete the sorting option"""
-        return await autocomplete_songs_sorting(self, itc, current)
-
     @app_commands.command()
-    @ensure_response()
-    async def edit_playlist(
+    @ensure_response(before=True, defer=True)
+    async def edit(
             self, itc: discord.Interaction,
-            name: str, rename_to: str = None, sorting: str = 'times_played',
+            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+            rename_to: str = None,
+            sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
             filter_title: str = None,
             ascending: bool = None
         ):
@@ -231,15 +176,12 @@ class Playlists(commands.Cog):
             filter_title (str, optional): Filter the songs by title. Defaults to None.
             ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
-        logger.info(f'Command `edit_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
+        logger.info(f'Command `edit_playlist` called with by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
-        user = await m.DiscordUser.from_discord_user(itc.user)
-        try:
-            # playlist = await m.Playlist.objects.aget(server=server, name=name, owner=user)
-            playlist = await m.Playlist.objects.aget(server=server, name=name)
-        except m.Playlist.DoesNotExist:
+
+        if playlist is None:
             await itc.response.send_message(
-                f'Playlist `{name}` not found',
+                f'Playlist not found',
                 ephemeral=True,
                 delete_after=10
             )
@@ -257,12 +199,3 @@ class Playlists(commands.Cog):
             ephemeral=True
         )
         await view.list.go_to_page(0)
-
-    @edit_playlist.autocomplete('name')
-    async def _edit_playlist_name(self, itc: discord.Interaction, current: str):
-        """Autocomplete the playlist name"""
-        return await autocomplete_playlist_name(self, itc, current)
-    @edit_playlist.autocomplete('sorting')
-    async def _edit_playlist_sorting(self, itc: discord.Interaction, current: str):
-        """Autocomplete the sorting option"""
-        return await autocomplete_songs_sorting(self, itc, current)

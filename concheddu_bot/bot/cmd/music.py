@@ -1,5 +1,4 @@
 """Music commands for the bot"""
-import asyncio
 import logging
 
 import discord
@@ -8,18 +7,23 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
-from .utils import autocomplete_playlist_name, sanitize_ffmpeg_filter
+from .utils import sanitize_ffmpeg_filter, PlaylistTransformer, SongFilterTransformer
 from ..utils import sense_check, safe_response, ensure_response
-
+from .. import views as v
 
 logger = logging.getLogger('bot')
 
-class Music(commands.Cog):
+class Music(commands.GroupCog, group_name='music'):
     """Play command"""
     @app_commands.command()
     @sense_check
     @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
-    async def play(self, itc: discord.Interaction, search: str, playlist: str = None, audio_filter: str = None):
+    async def play(
+            self, itc: discord.Interaction,
+            search: str,
+            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+            audio_filter: str = None
+        ):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
 
         Args:
@@ -51,14 +55,14 @@ class Music(commands.Cog):
             await playlist.add_song(song)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
         await song.play(itc=itc, audio_filter=audio_filter)
-    @play.autocomplete('playlist')
-    async def _play_playlist_name(self, itc: discord.Interaction, current: str):
-        """Autocomplete the playlist name"""
-        return await autocomplete_playlist_name(self, itc, current)
 
     @app_commands.command()
     @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
-    async def search_and_add(self, itc: discord.Interaction, search: str, playlist: str = None):
+    async def search_and_add(
+            self, itc: discord.Interaction,
+            search: str,
+            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+        ):
         """Search for a song and add it to the database, if a playlist is provided, it will be added to the playlist
 
         Args:
@@ -90,10 +94,6 @@ class Music(commands.Cog):
             await playlist.add_song(song)
             msg += f' with playlist `{playlist.name}`'
         await safe_response(itc, msg, ephemeral=True, delete_after=30)
-    @search_and_add.autocomplete('playlist')
-    async def _search_playlist_name(self, itc: discord.Interaction, current: str):
-        """Autocomplete the playlist name"""
-        return await autocomplete_playlist_name(self, itc, current)
 
     @app_commands.command()
     @sense_check
@@ -122,6 +122,42 @@ class Music(commands.Cog):
         for a in awaitables:
             await a
 
+    @app_commands.command()
+    @ensure_response(before=True, defer=True)  # Defer to avoid timeout
+    async def list_songs(
+            self, itc: discord.Interaction,
+            num: int = 100,
+            # sorting: str = 'times_played',
+            sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
+            filter_title: str = None,
+            ascending: bool = None
+        ):
+        """Generate a list of songs already known to the bot
+
+        Args:
+            num (int, optional): Number of songs to list. Defaults to 100.
+            sorting (str, optional): Sorting option. Defaults to 'times_played'.
+            filter_title (str, optional): Filter the songs by title. Defaults to None.
+            ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
+        """
+        logger.info(f'Command `list_songs` called with num={num}, sorting={sorting} by `{itc.user.name}` [{itc.guild.name}]')
+        guild = itc.guild
+        server = await m.DiscordServer.from_discord_guild(guild)
+        songs = await m.YTSong.get_all_songs(
+            server=server, n=num, sorting=sorting,
+            filter_title=filter_title,
+            asc=ascending
+            )
+        view = v.SongList(itc, songs)
+        await safe_response(
+            itc,
+            'Select a song to play',
+            view=view,
+            ephemeral=True
+        )
+        await view.list.go_to_page(0)
+
+class MusicPlayer(commands.GroupCog, group_name='player'):
     @app_commands.command()
     @ensure_response()
     async def queue(self, itc: discord.Interaction):

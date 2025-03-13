@@ -1,11 +1,11 @@
-from .music import Music
+from .admin import Admin
+from .music import Music, MusicPlayer
 from .playlists import Playlists
-from .quiz import Quiz
-from .utils import ServerUtils
+from .quiz import QuizSong
 
 __all__ = [
-    'Music',
+    'Music', 'MusicPlayer',
     'Playlists',
-    'Quiz',
-    'ServerUtils'
+    'QuizSong',
+    'Admin'
 ]

@@ -93,7 +93,7 @@ song_order_map = {
     'duration': ytsong_odby_duration,
 }
 
-song_order_desc = {
+song_order_descr = {
     'title': 'Sort by title',
     'duration': 'Sort by duration',
     'last_played': 'Sort by last played',

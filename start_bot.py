@@ -48,9 +48,10 @@ def main():
     print('Starting bot...')
     bot = get_bot()
     asyncio.run(bot.add_cog(cmd.Music()))
+    asyncio.run(bot.add_cog(cmd.MusicPlayer()))
     asyncio.run(bot.add_cog(cmd.Playlists()))
-    asyncio.run(bot.add_cog(cmd.Quiz()))
-    asyncio.run(bot.add_cog(cmd.ServerUtils(bot=bot)))
+    asyncio.run(bot.add_cog(cmd.QuizSong()))
+    asyncio.run(bot.add_cog(cmd.Admin(bot=bot)))
     bot.run(token)
 
 if __name__ == '__main__':
