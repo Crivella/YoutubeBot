@@ -26,7 +26,6 @@ COPY start_bot.py /bot
 
 ENV \
     BOT_TOKEN="" \
-    BOT_PREFIX=. \
     BOT_FFMPEG_OPTIONS="" \
     BOT_AUDIO_DIR=/bot/dl \
     BOT_MAX_DURATION=420 \
