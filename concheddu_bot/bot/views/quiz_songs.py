@@ -191,10 +191,16 @@ class QuizSongs(discord.ui.View):
             label='PLAY',
             style=discord.ButtonStyle.success
         )
-        self.answer_btn = CallbackButton(
-            label='SUBMIT',
-            style=discord.ButtonStyle.primary
-        )
+        if self.multiple_choice:
+            self.answer_btn = CallbackButton(
+                label='SUBMIT',
+                style=discord.ButtonStyle.primary
+            )
+        else:
+            self.answer_btn = CallbackButton(
+                label='Minkia suco',
+                style=discord.ButtonStyle.primary
+            )
 
         num_plays = 0
         enqueueing = False
@@ -255,8 +261,12 @@ class QuizSongs(discord.ui.View):
                 answer = values[0]
                 answer_title = self.answer_list.songs_map[answer].title
             else:
-                answer = answer_song.youtube_id
-                answer_title = answer_song.title
+                if answer_song is None:
+                    answer = None
+                    answer_title = 'No answer'
+                else:
+                    answer = answer_song.youtube_id
+                    answer_title = answer_song.title
             await server.clear()
 
             time_start = time_blind_guess
@@ -305,10 +315,10 @@ class QuizSongs(discord.ui.View):
             view.add_item(self.answer_list)
         else:
             self.answer_callback = answer_callback
+
         view.add_item(self.play_stop)
         view.add_item(self.play_start)
-        if self.multiple_choice:
-            view.add_item(self.answer_btn)
+        view.add_item(self.answer_btn)
         msg = f'<@{user.id}> \'s turn'
         message = await self.channel.send(content=msg, view=view)
 

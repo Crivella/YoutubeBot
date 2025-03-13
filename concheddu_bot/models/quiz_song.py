@@ -78,7 +78,10 @@ class QuizSong(models.Model):
         ) -> bool:
         """Guess a song"""
         song = await YTSong.objects.aget(youtube_id=song_id)
-        answer = await YTSong.objects.aget(youtube_id=answer_id)
+        if answer_id is not None:
+            answer = await YTSong.objects.aget(youtube_id=answer_id)
+        else:
+            answer = None
         res = song_id == answer_id
         song.times_answered += 1
         song.times_guessed += res

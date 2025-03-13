@@ -1,4 +1,5 @@
 """Run quizzes for the bot."""
+import asyncio
 import discord
 import logging
 
@@ -107,7 +108,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             await safe_response(itc, 'No quiz started', ephemeral=True)
             return
         await current_quiz.command_answer(itc, song)
-        await safe_response(itc, 'Answered', ephemeral=True, delete_after=5)
+        await safe_response(itc, 'Answered', ephemeral=True)
+        await asyncio.sleep(1)
+        await itc.delete_original_response()
 
     @app_commands.command()
     @ensure_response()
