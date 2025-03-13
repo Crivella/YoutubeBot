@@ -9,16 +9,18 @@ from discord.ext import commands
 from ...import models as m
 from .utils import sanitize_ffmpeg_filter
 from . import transformers as tfs
-from ..utils import sense_check, safe_response, ensure_response
+from ..utils import sense_check, safe_response, ensure_response, SenseCheckError
 from .. import views as v
+from .utils import call_command_register
 
 logger = logging.getLogger('bot')
 
 class Music(commands.GroupCog, group_name='music'):
     """Play command"""
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError, SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
     async def play(
             self, itc: discord.Interaction,
             song: app_commands.Transform[m.YTSong, tfs.SongTransformer(allow_new=True)],
@@ -32,12 +34,6 @@ class Music(commands.GroupCog, group_name='music'):
             playlist (str, optional): Playlist name (must exist). Defaults to None.
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
         """
-        logger.info(f'Command `play` called with search={song} by `{itc.user.name}` [{itc.guild.name}]')
-
-        if song is None:
-            await safe_response(itc, 'Song not found', ephemeral=True)
-            return
-
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         user = await m.DiscordUser.from_discord_user(itc.user)
         await server.add_song(song=song, user=user)
@@ -48,6 +44,7 @@ class Music(commands.GroupCog, group_name='music'):
 
     @app_commands.command()
     @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
+    @call_command_register()
     async def search_and_add(
             self, itc: discord.Interaction,
             search: str,
@@ -59,7 +56,6 @@ class Music(commands.GroupCog, group_name='music'):
             search (str): The search string or youtube url
             playlist (str, optional): Playlist name (must exist). Defaults to None.
         """
-        logger.info(f'Command `search_and_add` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
         user = itc.user
         guild = itc.guild
 
@@ -78,8 +74,9 @@ class Music(commands.GroupCog, group_name='music'):
         await safe_response(itc, msg, ephemeral=True, delete_after=30)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def play_random(
             self, itc: discord.Interaction,
             num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=10)] = 1
@@ -89,7 +86,6 @@ class Music(commands.GroupCog, group_name='music'):
         Args:
             num (int, optional): The number of random songs to play. Defaults to 1.
         """
-        logger.info(f'Command `play_random` called with num={num} by `{itc.user.name}` [{itc.guild.name}]')
         guild = itc.guild
         song = await m.YTSong.get_all_songs(server=guild, n=num, sorting='random')
         res = []
@@ -106,6 +102,7 @@ class Music(commands.GroupCog, group_name='music'):
 
     @app_commands.command()
     @ensure_response(before=True, defer=True)  # Defer to avoid timeout
+    @call_command_register()
     async def list_songs(
             self, itc: discord.Interaction,
             num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=1000)] = 100,
@@ -121,7 +118,6 @@ class Music(commands.GroupCog, group_name='music'):
             filter_title (str, optional): Filter the songs by title. Defaults to None.
             ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
-        logger.info(f'Command `list_songs` called with num={num}, sorting={sorting} by `{itc.user.name}` [{itc.guild.name}]')
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
         songs = await m.YTSong.get_all_songs(
@@ -141,61 +137,61 @@ class Music(commands.GroupCog, group_name='music'):
 class MusicPlayer(commands.GroupCog, group_name='player'):
     @app_commands.command()
     @ensure_response()
+    @call_command_register()
     async def queue(self, itc: discord.Interaction):
         """Sync the bot commands"""
-        logger.info(f'Command `queue` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         embedVar = discord.Embed(color=0xFF0000)
         embedVar.add_field(name='Now playing:', value=str(server.player.queue))
         await safe_response(itc, embed=embedVar, ephemeral=True)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def jump(self, itc: discord.Interaction, pos: int = 1):
         """Skip the current song"""
-        logger.info(f'Command `jump` called with pos={pos} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         await server.jump(pos, channel=itc.user.voice.channel)
         await safe_response(itc, f'skipped `{pos}` songs', ephemeral=True, delete_after=10)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def play_last(self, itc: discord.Interaction):
         """Play the last song"""
-        logger.info(f'Command `play_last` called by `{itc.user.name}` [{itc.guild.name}]')
         song = await m.YTSong.get_last_played(server=itc.guild)
         await song.play(itc=itc)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def loop_one(self, itc: discord.Interaction):
         """Loop the last song"""
-        logger.info(f'Command `loop_one` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.player.queue.loop_all = False
         server.player.queue.loop_one = True
         await safe_response(itc, 'Looping the last song', ephemeral=True, delete_after=10)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def loop_all(self, itc: discord.Interaction):
         """Loop all songs"""
-        logger.info(f'Command `loop_all` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.player.queue.loop_all = True
         server.player.queue.loop_one = False
         await safe_response(itc, 'Looping all songs', ephemeral=True, delete_after=10)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def loop_stop(self, itc: discord.Interaction):
         """Stop looping"""
-        logger.info(f'Command `loop_stop` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         server.player.queue.loop_all = False
         server.player.queue.loop_one = False
@@ -203,26 +199,27 @@ class MusicPlayer(commands.GroupCog, group_name='player'):
 
     @app_commands.command()
     @ensure_response()
+    @call_command_register()
     async def stop(self, itc: discord.Interaction):
         """Stop the bot"""
-        logger.info(f'Command `stop` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         await server.stop()
         await safe_response(itc, 'Stopped the bot', ephemeral=True, delete_after=10)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def pause(self, itc: discord.Interaction):
         """Pause the bot"""
-        logger.info(f'Command `pause` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         await server.pause()
         await safe_response(itc, 'Paused the bot', ephemeral=True, delete_after=10)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def resume(self, itc: discord.Interaction):
         """Resume the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
@@ -231,6 +228,7 @@ class MusicPlayer(commands.GroupCog, group_name='player'):
 
     @app_commands.command()
     @ensure_response()
+    @call_command_register()
     async def clear(self, itc: discord.Interaction):
         """Resume the bot"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)

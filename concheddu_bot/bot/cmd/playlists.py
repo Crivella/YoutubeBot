@@ -8,7 +8,8 @@ from discord.ext import commands
 from ...import models as m
 from .. import views as v
 from . import transformers as tfs
-from ..utils import ensure_response, sense_check, safe_response
+from ..utils import ensure_response, sense_check, safe_response, SenseCheckError
+from .utils import call_command_register
 
 logger = logging.getLogger('bot')
 
@@ -16,6 +17,7 @@ class Playlists(commands.GroupCog, group_name='playlists'):
     """Play command"""
     @app_commands.command()
     @ensure_response()
+    @call_command_register()
     async def create(
         self, itc: discord.Interaction,
         name: str,
@@ -31,7 +33,6 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             filter_title (str, optional): Filter the songs by title. Defaults to None.
             ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
-        logger.info(f'Command `create_playlist` called with name={name} by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         user = await m.DiscordUser.from_discord_user(itc.user)
         songs = await m.YTSong.get_all_songs(
@@ -57,6 +58,7 @@ class Playlists(commands.GroupCog, group_name='playlists'):
 
     @app_commands.command()
     @ensure_response()
+    @call_command_register()
     async def delete(
             self,
             itc: discord.Interaction,
@@ -67,7 +69,6 @@ class Playlists(commands.GroupCog, group_name='playlists'):
         Args:
             name (str): The name of the playlist
         """
-        logger.info(f'Command `delete_playlist` called by `{itc.user.name}` [{itc.guild.name}]')
         view = v.DeletePlaylist(itc, playlist)
         duration = await playlist.get_duration()
         num_songs = await playlist.get_song_count()
@@ -80,9 +81,9 @@ class Playlists(commands.GroupCog, group_name='playlists'):
 
     @app_commands.command()
     @ensure_response()
+    @call_command_register()
     async def list(self, itc: discord.Interaction):
         """List the playlists"""
-        logger.info(f'Command `list_playlists` called by `{itc.user.name}` [{itc.guild.name}]')
         guild = itc.guild
         server = await m.DiscordServer.from_discord_guild(guild)
         playlists = [p async for p in m.Playlist.objects.filter(server=server)]
@@ -102,8 +103,9 @@ class Playlists(commands.GroupCog, group_name='playlists'):
         await itc.response.send_message(embed=embedVar, ephemeral=True)
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def load(
             self, itc: discord.Interaction,
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer],
@@ -117,7 +119,6 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             num (int, optional): The number of songs to load. Defaults to 0 (all).
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
         """
-        logger.info(f'Command `load_playlist` called by `{itc.user.name}` [{itc.guild.name}]')
         songs = await playlist.get_all_songs(n=num, sorting=sorting)
         if not songs:
             await safe_response(
@@ -140,6 +141,7 @@ class Playlists(commands.GroupCog, group_name='playlists'):
 
     @app_commands.command()
     @ensure_response(before=True, defer=True)
+    @call_command_register()
     async def edit(
             self, itc: discord.Interaction,
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer],
@@ -157,7 +159,6 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             filter_title (str, optional): Filter the songs by title. Defaults to None.
             ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
-        logger.info(f'Command `edit_playlist` called with by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
 
         all_songs = await m.YTSong.get_all_songs(

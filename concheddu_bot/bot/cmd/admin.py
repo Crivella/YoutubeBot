@@ -10,6 +10,7 @@ from ... import models as m
 from ...youtube import AUDIO_DIR
 from ..utils import ensure_response, safe_response
 from . import transformers as tfs
+from .utils import call_command_register
 
 logger = logging.getLogger('bot')
 
@@ -24,9 +25,10 @@ class Admin(commands.GroupCog, group_name='admin'):
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
+    @call_command_register()
     async def sync(self, itc: discord.Interaction):
         """Sync the bot commands"""
-        logger.info(f'Command `sync` called by `{itc.user.name}` [{itc.guild.name}]')
+        raise ValueError('Not implemented')
         fmt = await self.bot.tree.sync(guild=itc.guild)
 
         for cmd in fmt:
@@ -37,10 +39,9 @@ class Admin(commands.GroupCog, group_name='admin'):
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
+    @call_command_register()
     async def sync_files_to_db(self, itc: discord.Interaction):
         """Add files present on the device to songs in the database"""
-        logger.info(f'Command `sync_files_to_db` called by `{itc.user.name}` [{itc.guild.name}]')
-
         files = os.listdir(AUDIO_DIR)
         await safe_response(itc, f'Ensuring all files correspond to a song', ephemeral=True)
 
@@ -62,10 +63,9 @@ class Admin(commands.GroupCog, group_name='admin'):
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
+    @call_command_register()
     async def sync_db_to_files(self, itc: discord.Interaction):
         """Ensure all entries in the database have a corresponding file"""
-        logger.info(f'Command `sync_db_to_files` called by `{itc.user.name}` [{itc.guild.name}]')
-
         await safe_response(itc, f'Ensuring all songs are downloaded/normailzed', ephemeral=True)
         async for song in m.YTSong.objects.all():
             await song.get_source()
@@ -73,6 +73,7 @@ class Admin(commands.GroupCog, group_name='admin'):
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
+    @call_command_register()
     async def delete_song(
             self, itc: discord.Interaction,
             song:app_commands.Transform[m.YTSong, tfs.SongTransformer],
@@ -84,8 +85,6 @@ class Admin(commands.GroupCog, group_name='admin'):
             song (str): An existing song
             delete_files (bool, optional): Whether to delete the files associated with the song. Defaults to True.
         """
-        logger.info(f'Command `delete_song` called by `{itc.user.name}` [{itc.guild.name}]')
-
         if delete_files:
             await song.delete_files()
 

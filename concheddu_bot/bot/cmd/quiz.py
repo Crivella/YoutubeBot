@@ -8,8 +8,9 @@ from discord.ext import commands
 
 from ...import models as m
 from .utils import sanitize_ffmpeg_filter
-from ..utils import sense_check, safe_response, ensure_response
+from ..utils import sense_check, safe_response, ensure_response, SenseCheckError
 from .. import views as v
+from .utils import call_command_register
 
 logger = logging.getLogger('bot')
 
@@ -24,8 +25,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     """Quiz commands"""
 
     @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
     @sense_check
-    @ensure_response()
     async def start(
             self, itc: discord.Interaction,
             num_songs: int = 5,
@@ -44,7 +46,6 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             segment_mode (str, optional): start/end/random. Defaults to 'start'.
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
         """
-        logger.info(f'Command `start_quiz` called by `{itc.user.name}` [{itc.guild.name}]')
         if num_songs < 1:
             await safe_response(itc, 'Number of songs must be greater than 0', ephemeral=True)
             return
@@ -76,9 +77,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
 
     @app_commands.command()
     @ensure_response()
+    @call_command_register()
     async def list(self, itc: discord.Interaction):
         """List the quizzes"""
-        logger.info(f'Command `list_quizzes` called by `{itc.user.name}` [{itc.guild.name}]')
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         q = m.QuizSong.objects
         q = q.filter(server=server)
