@@ -18,7 +18,7 @@ class PlayEvent(models.Model):
 class GuessSongEvent(models.Model):
     """Guess song event model"""
     real_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')
-    guessed_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')
+    guessed_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+', null=True)
 
     start = models.IntegerField(null=True)
     end = models.IntegerField(null=True)

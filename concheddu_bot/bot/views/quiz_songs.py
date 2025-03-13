@@ -47,6 +47,13 @@ class UserList(discord.ui.Select):
     def get_users(self):
         return [self.map[user_id] for user_id in self.values]
 
+skip_titles = [
+    'Minkia suko',
+    'Shame!!',
+    'Ram lover',
+    'Concheddu',
+    'Scallonis'
+]
 
 class PlaylistList(discord.ui.Select):
     def __init__(self, playlists: list[m.Playlist], *args, **kwargs):
@@ -198,7 +205,7 @@ class QuizSongs(discord.ui.View):
             )
         else:
             self.answer_btn = CallbackButton(
-                label='Minkia suco',
+                label=random.choice(skip_titles),
                 style=discord.ButtonStyle.primary
             )
 
