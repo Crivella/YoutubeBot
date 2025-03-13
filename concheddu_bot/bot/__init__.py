@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from .. import models as m
+from .utils import DEBUG_MESSAGES, safe_response
 
 logger = logging.getLogger('bot')
 
@@ -32,6 +33,10 @@ class MyBot(commands.Bot):
             name = f'{ptr.name}:{name}'
             ptr = ptr.parent
         logger.error(f'Error in `{name}` command {error}')
+        if DEBUG_MESSAGES:
+            await safe_response(ctx, f'Error in `{name}` command {error}', ephemeral=True)
+        else:
+            await safe_response(ctx, f'Error in `{name}`', ephemeral=True)
 
     async def on_error(self, event, *args, **kwargs):
         logger.error(f'Error in {event}')
