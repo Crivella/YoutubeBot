@@ -7,7 +7,8 @@ from discord import app_commands
 from discord.ext import commands
 
 from ...import models as m
-from .utils import sanitize_ffmpeg_filter, PlaylistTransformer, SongFilterTransformer
+from .utils import sanitize_ffmpeg_filter
+from . import transformers as tfs
 from ..utils import sense_check, safe_response, ensure_response
 from .. import views as v
 
@@ -21,7 +22,7 @@ class Music(commands.GroupCog, group_name='music'):
     async def play(
             self, itc: discord.Interaction,
             search: str,
-            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer] = None,
+            playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
             audio_filter: str = None
         ):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
@@ -49,7 +50,7 @@ class Music(commands.GroupCog, group_name='music'):
     async def search_and_add(
             self, itc: discord.Interaction,
             search: str,
-            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer] = None,
+            playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
         ):
         """Search for a song and add it to the database, if a playlist is provided, it will be added to the playlist
 
@@ -74,16 +75,16 @@ class Music(commands.GroupCog, group_name='music'):
     @app_commands.command()
     @sense_check
     @ensure_response()
-    async def play_random(self, itc: discord.Interaction, num: int = 1):
+    async def play_random(
+            self, itc: discord.Interaction,
+            num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=10)] = 1
+        ):
         """Play from 1 to 10 random songs
 
         Args:
             num (int, optional): The number of random songs to play. Defaults to 1.
         """
         logger.info(f'Command `play_random` called with num={num} by `{itc.user.name}` [{itc.guild.name}]')
-        if num < 1 or num > 10:
-            await itc.response.send_message('Number of songs must be between 1 and 10', ephemeral=True, delete_after=10)
-            return
         guild = itc.guild
         song = await m.YTSong.get_all_songs(server=guild, n=num, sorting='random')
         res = []
@@ -102,9 +103,8 @@ class Music(commands.GroupCog, group_name='music'):
     @ensure_response(before=True, defer=True)  # Defer to avoid timeout
     async def list_songs(
             self, itc: discord.Interaction,
-            num: int = 100,
-            # sorting: str = 'times_played',
-            sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
+            num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=1000)] = 100,
+            sorting: app_commands.Transform[str, tfs.SongFilterTransformer] = 'times_played',
             filter_title: str = None,
             ascending: bool = None
         ):

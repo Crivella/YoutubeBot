@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from ...import models as m
 from .. import views as v
-from .utils import PlaylistTransformer, SongFilterTransformer
+from . import transformers as tfs
 from ..utils import ensure_response, sense_check, safe_response
 
 logger = logging.getLogger('bot')
@@ -19,7 +19,7 @@ class Playlists(commands.GroupCog, group_name='playlists'):
     async def create(
         self, itc: discord.Interaction,
         name: str,
-        sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
+        sorting: app_commands.Transform[str, tfs.SongFilterTransformer] = 'times_played',
         filter_title: str = None,
         ascending: bool = None
         ):
@@ -60,7 +60,7 @@ class Playlists(commands.GroupCog, group_name='playlists'):
     async def delete(
             self,
             itc: discord.Interaction,
-            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+            playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer],
         ):
         """Delete a playlist by name
 
@@ -106,9 +106,9 @@ class Playlists(commands.GroupCog, group_name='playlists'):
     @ensure_response()
     async def load(
             self, itc: discord.Interaction,
-            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
-            num: int = 0,
-            sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
+            playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer],
+            num: app_commands.Transform[int, tfs.IntRangeTransformer(min=0)] = 0,
+            sorting: app_commands.Transform[str, tfs.SongFilterTransformer] = 'times_played',
             ):
         """Load a playlist
 
@@ -118,23 +118,18 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
         """
         logger.info(f'Command `load_playlist` called by `{itc.user.name}` [{itc.guild.name}]')
-        if num < 0:
-            await itc.response.send_message(
-                'Number of songs must be positive',
-                ephemeral=True,
-                delete_after=10
-            )
-            return
         songs = await playlist.get_all_songs(n=num, sorting=sorting)
         if not songs:
-            await itc.response.send_message(
+            await safe_response(
+                itc,
                 'No songs in the playlist',
                 ephemeral=True,
                 delete_after=10
             )
             return
         duration = sum(song.duration for song in songs)
-        await itc.response.send_message(
+        await safe_response(
+            itc,
             f'Loaded playlist `{playlist.name}` with {len(songs)} songs duration={duration} s',
             ephemeral=True,
             delete_after=duration
@@ -147,9 +142,9 @@ class Playlists(commands.GroupCog, group_name='playlists'):
     @ensure_response(before=True, defer=True)
     async def edit(
             self, itc: discord.Interaction,
-            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+            playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer],
             rename_to: str = None,
-            sorting: app_commands.Transform[str, SongFilterTransformer] = 'times_played',
+            sorting: app_commands.Transform[str, tfs.SongFilterTransformer] = 'times_played',
             filter_title: str = None,
             ascending: bool = None
         ):
