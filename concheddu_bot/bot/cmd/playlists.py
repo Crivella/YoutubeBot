@@ -8,7 +8,7 @@ from discord.ext import commands
 from ...import models as m
 from .. import views as v
 from .utils import PlaylistTransformer, SongFilterTransformer
-from ..utils import ensure_response, sense_check
+from ..utils import ensure_response, sense_check, safe_response
 
 logger = logging.getLogger('bot')
 
@@ -193,7 +193,8 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             )
         pls_songs = await playlist.get_all_songs()
         view = v.EditPlaylist(itc, playlist, all_songs, defaults=pls_songs, new_name=rename_to)
-        await itc.response.send_message(
+        await safe_response(
+            itc,
             'Edit the playlist',
             view=view,
             ephemeral=True
