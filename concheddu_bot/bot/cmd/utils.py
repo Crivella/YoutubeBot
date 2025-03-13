@@ -1,6 +1,12 @@
 """Music commands for the bot"""
 import logging
 import re
+from functools import wraps
+
+import discord
+from django.db import models
+
+from ... import models as m
 
 logger = logging.getLogger('bot')
 
@@ -25,3 +31,56 @@ def sanitize_ffmpeg_filter(afilt: str):
     logger.debug(f'Sanitized ffmpeg filter: {afilt} -> {res}')
 
     return res
+
+def call_command_register():
+    """Decorator to register a call command event"""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            if isinstance(args[0], discord.Interaction):
+                itc = args[0]
+                other_args = args[1:]
+            elif isinstance(args[1], discord.Interaction):
+                itc = args[1]
+                other_args = args[2:]
+            else:
+                raise ValueError('No interaction found')
+
+            # Ensure all models are converted to strings to be JSON serializable
+            other_kwargs = kwargs.copy()
+            idx = 0
+            while idx < len(other_args):
+                app = other_args[idx]
+                if isinstance(app, models.Model):
+                    other_args[idx] = f'{app.__class__.__name__}<{app.pk}>'
+                idx += 1
+            for key in kwargs:
+                app = kwargs[key]
+                if isinstance(app, models.Model):
+                    other_kwargs[key] = f'{app.__class__.__name__}<{app.pk}>'
+            
+            user = await m.DiscordUser.from_discord_user(itc.user)
+            server = await m.DiscordServer.from_discord_guild(itc.guild)
+            name = itc.command.name
+            ptr = itc.command.parent
+            while ptr is not None:
+                name = f'{ptr.name}:{name}'
+                ptr = ptr.parent
+
+            logger.debug(f'Command `{name}` called by `{itc.user.name}` on [{itc.guild.name}]')
+            event = await m.CallCommandEvent.objects.acreate(
+                user=user,
+                server=server,
+                command=name,
+                args=other_args,
+                kwargs=other_kwargs,
+            )
+            try:
+                res = await func(*args, **kwargs)
+            except Exception as e:
+                event.error = str(e)
+                await event.asave()
+                raise e
+            return res
+        return wrapper
+    return decorator
