@@ -54,11 +54,22 @@ class SongFilterTransformer(app_commands.Transformer):
         ]
 
 class IntRangeTransformer(app_commands.Transformer):
-    def __init__(self, *args, min: int = None, max: int = None, **kwargs):
+    def __init__(
+            self, *args,
+            min: int = None, max: int = None,
+            nullable: bool = False,
+            **kwargs
+        ):
         super().__init__(*args, **kwargs)
         self.min_ = min
         self.max_ = max
+        self.nullable = nullable
     async def transform(self, ctx: discord.Interaction, argument: int | str):
+        if argument is None:
+            if self.nullable:
+                return None
+            await safe_response(ctx, f'Value cannot be null', ephemeral=True)
+            raise ValueError(f'Value cannot be null')
         try:
             res = int(argument)
         except ValueError:
