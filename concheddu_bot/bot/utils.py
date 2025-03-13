@@ -43,7 +43,7 @@ def sense_check(func):
 
 async def safe_defer(itc: discord.Interaction):
     try:
-        await itc.response.defer()
+        await itc.response.defer(ephemeral=True)
     except discord.errors.InteractionResponded:
         pass
     except discord.errors.NotFound:
