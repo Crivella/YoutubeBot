@@ -107,6 +107,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             await safe_response(itc, 'No quiz started', ephemeral=True)
             return
         await current_quiz.command_answer(itc, song)
+        await safe_response(itc, 'Answered', ephemeral=True, delete_after=5)
 
     @app_commands.command()
     @ensure_response()

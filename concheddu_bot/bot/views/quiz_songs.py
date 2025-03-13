@@ -278,11 +278,11 @@ class QuizSongs(discord.ui.View):
                 )
 
             msg = []
-            answer_title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'
+            embed_title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'
             msg.append(f'Real answer: {song.title}')
             msg.append(f'Your answer: {answer_title}')
             embed = discord.Embed(
-                title=answer_title,
+                title=embed_title,
                 description='\n'.join(msg),
                 color=self.user_colors[user.id]
             )
