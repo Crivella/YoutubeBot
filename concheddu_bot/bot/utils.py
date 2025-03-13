@@ -19,6 +19,10 @@ async def safe_disconnect(connection: discord.VoiceClient):
         connection.stop()
     await connection.disconnect(force=True)
 
+class SenseCheckError(Exception):
+    """Error for sense check"""
+    pass
+
 def sense_check(func):
     """Check if the user can use the command"""
     @wraps(func)
@@ -26,18 +30,10 @@ def sense_check(func):
         user = itc.user
         guild = itc.guild
         if not user.voice:
-            await itc.response.send_message(
-                'You must be in a voice channel to use this command',
-                ephemeral=True
-            )
-            return
+            raise SenseCheckError('You must be in a voice channel to use this command')
         server = await m.DiscordServer.from_discord_guild(guild)
         if server.playing and user.voice.channel != server.channel:
-            await itc.response.send_message(
-                'Bot already playing. You must be in the same voice channel as you to use this command',
-                ephemeral=True
-            )
-            return
+            raise SenseCheckError('Bot already playing. You must be in the same voice channel as you to use this command')
         return await func(self, itc, *args, **kwargs)
     return wrapper
 
@@ -91,13 +87,16 @@ def ensure_response(before=False, defer=False, allowed_exceptions: list = ()):
                     await safe_defer(itc)
                 else:
                     await safe_response(itc, 'DONE', ephemeral=True, delete_after=10)
+            aexc = allowed_exceptions
+            if isinstance(aexc, list):
+                aexc = tuple(aexc)
             try:
                 await func(*args, **kwargs)
-            except allowed_exceptions as e:
+            except aexc as e:
                 logger.debug(f'Allowed exception in {func.__name__}: {e}')
                 await safe_response(itc, str(e), ephemeral=True)
             except Exception as e:
-                logger.error(f'Error in {func.__name__}: {e}', exc_info=True)
+                logger.error(f'ensure_response: Error in {func.__name__}: {e}', exc_info=True)
                 if DEBUG_MESSAGES:
                     msg = f'Error in {func.__name__}: {e}'
                 else:
