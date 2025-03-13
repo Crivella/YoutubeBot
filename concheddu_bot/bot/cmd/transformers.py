@@ -17,12 +17,14 @@ MAX_AUTO_COMPLETE = 10
 #  probably based on django signals on when playlists are updated
 # server_playlist_cache = {}
 
+NONE_STR = '__NO__NE__'
+
 class PlaylistTransformer(app_commands.Transformer):
     def __init__(self, *args, enforce_user: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.enforce_user = enforce_user
     async def transform(self, ctx: discord.Interaction, argument: str):
-        if argument is None:
+        if argument is None or argument == NONE_STR:
             return
         server = await m.DiscordServer.from_discord_guild(ctx.guild)
         user = await m.DiscordUser.from_discord_user(ctx.user)
@@ -46,7 +48,7 @@ class PlaylistTransformer(app_commands.Transformer):
             q = q.filter(server=server, name__startswith=current)
         cnt = await q.acount()
         if cnt > MAX_AUTO_COMPLETE:
-            return [app_commands.Choice(name=f'{cnt} playlists found', value=None)]
+            return [app_commands.Choice(name=f'{cnt} playlists found', value=NONE_STR)]
         playlists = [p async for p in q.all()]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
 
@@ -63,7 +65,7 @@ class SongTransformer(app_commands.Transformer):
         self.nullable = False
 
     async def transform(self, ctx: discord.Interaction, argument: str):
-        if argument is None:
+        if argument is None or argument == NONE_STR:
             if self.nullable:
                 return
             raise ValueError(f'Song cannot be null')
@@ -83,7 +85,7 @@ class SongTransformer(app_commands.Transformer):
         q = q.filter(title__icontains=current)
         cnt = await q.acount()
         if cnt > MAX_AUTO_COMPLETE:
-            return [app_commands.Choice(name=f'{cnt} songs found', value=None)]
+            return [app_commands.Choice(name=f'{cnt} songs found', value=NONE_STR)]
         songs = [s async for s in q.all()]
         self.song_map = {s.youtube_id: s for s in songs}
         return [
