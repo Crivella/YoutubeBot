@@ -145,6 +145,8 @@ async def get_all_songs(
         res = query
     elif isinstance(query, m.Manager):
         res = query.get_queryset()
+    else:
+        raise ValueError('Invalid queryset')
     if filter_title:
         res = res.filter(
             m.Q(original_title__icontains=filter_title) |
