@@ -6,7 +6,7 @@ from discord import app_commands
 
 from ... import models as m
 from ...models import filters as flt
-from ..utils import safe_response
+from ..utils import safe_defer, safe_response
 from ..views.utils import elide
 
 logger = logging.getLogger('bot')
@@ -77,6 +77,7 @@ class SongTransformer(app_commands.Transformer):
         return song
 
     async def autocomplete(self, ctx: discord.Interaction, current: str):
+        await safe_defer(ctx)
         q = m.YTSong.objects
         q = flt.song_annotate_title(q)
         q = q.filter(title__icontains=current)
