@@ -49,8 +49,6 @@ class PlaylistTransformer(app_commands.Transformer):
         cnt = await q.acount()
         if cnt > MAX_AUTO_COMPLETE:
             return [app_commands.Choice(name=f'{cnt} playlists found', value=NONE_STR)]
-        if cnt == 0:
-            return [app_commands.Choice(name='NO MATCH FOUND', value=NONE_STR)]
         playlists = [p async for p in q.all()]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
 
@@ -88,8 +86,6 @@ class SongTransformer(app_commands.Transformer):
         cnt = await q.acount()
         if cnt > MAX_AUTO_COMPLETE:
             return [app_commands.Choice(name=f'{cnt} songs found', value=NONE_STR)]
-        if cnt == 0:
-            return [app_commands.Choice(name='NO MATCH FOUND', value=NONE_STR)]
         songs = [s async for s in q.all()]
         self.song_map = {s.youtube_id: s for s in songs}
         return [

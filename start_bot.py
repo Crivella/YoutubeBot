@@ -33,6 +33,7 @@ def main():
     except ModuleNotFoundError:
         print('Django settings not found')
         print(os.getcwd())
+        raise
         return
     print('Django setup done')
 

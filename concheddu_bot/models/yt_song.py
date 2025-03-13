@@ -8,9 +8,8 @@ from django.db import models
 from ..bot.utils import safe_response
 from ..youtube import MAX_DURATION, YTDLSource
 from . import filters as flt
-from .events import AddedSongEvent, PlayEvent
-from .utils import (extract_server_user_from_itc_async,
-                    with_discord_server_async, with_discord_user_async)
+from .discord import DiscordServer, DiscordUser
+from .events import PlayEvent
 
 
 def title_cleaner(title: str) -> str:
@@ -61,10 +60,10 @@ class YTSong(models.Model):
         """Max duration error"""
 
     @staticmethod
-    @with_discord_server_async
-    async def get_last_played(*, server: 'DiscordServer') -> 'YTSong':
+    async def get_last_played(*, server: discord.Guild) -> 'YTSong':
         """Return the last played song"""
         logger.debug(f'Getting last played song on {server.name}')
+        server = await DiscordServer.from_discord_guild(server)
         q = PlayEvent.objects
         q = q.filter(server=server)
         q = q.order_by('date')
@@ -73,9 +72,7 @@ class YTSong(models.Model):
         return event.song
 
     @classmethod
-    @with_discord_user_async
-    @with_discord_server_async
-    async def from_youtube_id(cls, ytid: str, *, user: 'DiscordUser', server: 'DiscordServer') -> 'YTSong':
+    async def from_youtube_id(cls, ytid: str) -> 'YTSong':
         """Return the song from search string"""
         logger.debug(f'Getting song from youtube id {ytid}')
         song = None
@@ -94,16 +91,10 @@ class YTSong(models.Model):
             song.extension = data['ext']
             await song.asave()
 
-        if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
-            logger.debug(f'Adding song {song.title} to {server.name}')
-            await AddedSongEvent.objects.acreate(user=user, song=song, server=server)
-
         return song
 
     @classmethod
-    @with_discord_user_async
-    @with_discord_server_async
-    async def from_search_string(cls, search: str, *, user: 'DiscordUser', server: 'DiscordServer') -> 'YTSong':
+    async def from_search_string(cls, search: str) -> 'YTSong':
         """Return the song from search string"""
         logger.debug(f'Getting song from search string {search}')
         song = None
@@ -133,9 +124,6 @@ class YTSong(models.Model):
             song.duration = duration
             song.extension = extension
 
-        if not await AddedSongEvent.objects.filter(song=song, server=server).aexists():
-            logger.debug(f'Adding song {song.title} to {server.name}')
-            await AddedSongEvent.objects.acreate(user=user, song=song, server=server)
         await song.asave()
         return song
 
@@ -204,25 +192,27 @@ class YTSong(models.Model):
 
         return src.get_source(audio_filter=audio_filter)
 
-    @extract_server_user_from_itc_async
     async def play(
             self,
             update_msg: bool = True,
             start: int = None, end: int = None,
             audio_filter: str = None,
             *,
-            itc: discord.Interaction, user: 'DiscordUser', server: 'DiscordServer',
+            itc: discord.Interaction,
             **kwargs
         ):
         """Play or queue the song"""
         # Ensure the channel is extracted ASAP in case the users leaves the channel before add_source
-        channel = user.dc.voice.channel
+        channel = itc.user.voice.channel
         if not channel:
-            logger.error(f'User `{user.username}` is not in a voice channel even if play is called')
+            logger.error(f'User `{itc.user}` is not in a voice channel even if play is called')
             return
 
         self.start = start
         self.end = end
+
+        user = await DiscordUser.from_discord_user(itc.user)
+        server = await DiscordServer.from_discord_guild(itc.guild)
 
         async def on_play():
             logger.debug(f'ON_PLAY: Playing {self.title} on {server.name}')
@@ -236,21 +226,22 @@ class YTSong(models.Model):
             itc = None
 
         await self.get_source(itc=itc)
-        await server.add_source(self, user.dc, on_play, audio_filter, channel=channel)
+        await server.add_source(self, itc.user, on_play, audio_filter, channel=channel)
 
-    @staticmethod
-    @with_discord_server_async
+    @classmethod
     async def get_all_songs(
+            cls,
             *,
-            server: 'DiscordServer',
+            server: discord.Guild,
             n: int = None,
             sorting: str = 'title',
             asc: str = None,
             filter_title: str = None
         ) -> list['YTSong']:
         """Return n random songs"""
+        server = await DiscordServer.from_discord_guild(server)
         logger.debug(f'Getting all songs on [{server.name}] sorted by `{sorting}`')
-        q = YTSong.objects
+        q = cls.objects
 
         return await flt.get_all_songs(
             query=q,

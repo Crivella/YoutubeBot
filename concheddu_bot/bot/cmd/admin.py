@@ -48,9 +48,13 @@ class Admin(commands.GroupCog, group_name='admin'):
             path = os.path.join(AUDIO_DIR, file)
             if not os.path.isfile(path):
                 continue
-            name, ext = os.path.splitext(file)
+            name, _ = os.path.splitext(file)
 
-            song = await m.YTSong.from_youtube_id(name, server=itc.guild, user=itc.user)
+            song = await m.YTSong.from_youtube_id(name)
+            if song:
+                user = await m.DiscordUser.from_discord_user(itc.user)
+                server = await m.DiscordServer.from_discord_guild(itc.guild)
+                await server.add_song(song=song, user=user)
             await song.get_source()
 
         await safe_response(itc, f'Synced {len(files)} songs ... DONE', ephemeral=True)

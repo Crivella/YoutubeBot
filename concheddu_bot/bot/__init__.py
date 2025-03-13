@@ -32,7 +32,7 @@ class MyBot(commands.Bot):
         while ptr is not None:
             name = f'{ptr.name}:{name}'
             ptr = ptr.parent
-        logger.error(f'Error in `{name}` command {error}')
+        logger.error(f'Error in `{name}` command {error}', exc_info=True)
         if DEBUG_MESSAGES:
             await safe_response(ctx, f'Error in `{name}` command {error}', ephemeral=True)
         else:

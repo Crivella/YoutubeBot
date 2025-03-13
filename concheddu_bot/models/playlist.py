@@ -4,9 +4,8 @@ import discord
 from django.db import models
 
 from . import filters as flt
+from .discord import DiscordServer, DiscordUser
 from .through_objects import PlaylistThrough
-from .utils import (extract_server_user_from_itc_async,
-                    with_discord_server_async, with_discord_user_async)
 from .yt_song import YTSong
 
 
@@ -21,10 +20,10 @@ class Playlist(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     @classmethod
-    @with_discord_server_async
-    @with_discord_user_async
-    async def create_playlist(cls, name: str, *, server: 'DiscordServer', user: 'DiscordUser'):
+    async def create_playlist(cls, name: str, *, server: discord.Guild, user: discord.User | discord.Member):
         """Create a playlist"""
+        user = await DiscordUser.from_discord_user(user)
+        server = await DiscordServer.from_discord_guild(server)
         q = cls.objects
         q = q.filter(server=server, owner=user, name=name)
         if await q.aexists():
@@ -32,10 +31,11 @@ class Playlist(models.Model):
         return await cls.objects.acreate(name=name, server=server, owner=user)
 
     @classmethod
-    @extract_server_user_from_itc_async
-    async def get_playlists(cls, *, itc: discord.Interaction, server: 'DiscordServer', user: 'DiscordUser'):
+    async def get_playlists(cls, *, itc: discord.Interaction):
         """Return the playlists"""
         res = []
+        server = await DiscordServer.from_discord_guild(itc.guild)
+        # user = await DiscordUser.from_discord_user(itc.user)
         # async for a in cls.objects.filter(server=server, owner=user):
         async for a in cls.objects.filter(server=server):
             res.append(a)

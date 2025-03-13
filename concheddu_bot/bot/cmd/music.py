@@ -65,7 +65,11 @@ class Music(commands.GroupCog, group_name='music'):
 
         await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
 
-        song = await m.YTSong.from_search_string(search, user=user, server=guild)
+        song = await m.YTSong.from_search_string(search)
+        if song:
+            server = await m.DiscordServer.from_discord_guild(guild)
+            user = await m.DiscordUser.from_discord_user(user)
+            await server.add_song(song=song, user=user)
 
         msg = f'Added song `{song.title}`'
         if playlist is not None:

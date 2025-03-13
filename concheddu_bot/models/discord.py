@@ -1,4 +1,5 @@
 """Models for the bot"""
+import logging
 from collections import defaultdict
 
 import discord
@@ -6,7 +7,8 @@ from django.db import models
 
 from ..bot.player import Player
 from .events import AddedSongEvent
-from .utils import logger
+
+logger = logging.getLogger('bot')
 
 memo_server: dict[int, 'DiscordServer'] = {}
 memo_plater: dict[int, 'Player'] = defaultdict(Player)
