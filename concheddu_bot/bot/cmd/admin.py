@@ -9,6 +9,7 @@ from discord.ext import commands
 from ... import models as m
 from ...youtube import AUDIO_DIR
 from ..utils import ensure_response, safe_response
+from . import transformers as tfs
 
 logger = logging.getLogger('bot')
 
@@ -70,18 +71,16 @@ class Admin(commands.GroupCog, group_name='admin'):
     @ensure_response()
     async def delete_song(
             self, itc: discord.Interaction,
-            youtube_id: str,
+            song:app_commands.Transform[m.YTSong, tfs.SongTransformer],
             delete_files: bool = True
         ):
         """Delete a song
 
         Args:
-            youtube_id (str): Youtube ID of the song
+            song (str): An existing song
             delete_files (bool, optional): Whether to delete the files associated with the song. Defaults to True.
         """
         logger.info(f'Command `delete_song` called by `{itc.user.name}` [{itc.guild.name}]')
-
-        song = await m.YTSong.objects.aget(youtube_id=youtube_id)
 
         if delete_files:
             await song.delete_files()

@@ -5,15 +5,37 @@ from django.db import models as m
 
 logger = logging.getLogger('bot')
 
-def ytsong_odby_title(queryset: m.QuerySet, asc: str = '', server_id: int = None) -> m.QuerySet:
-    """Filter queryset by title"""
-    logger.debug(f'Ordering queryset by title `{asc or "+"}`')
+def song_annotate_title(queryset: m.QuerySet) -> m.QuerySet:
+    """Annotate the title"""
+    logger.debug('Annotating title')
     res = queryset
     res = res.annotate(title=m.Case(
         m.When(m.Q(manual_title__isnull=False), then=m.F('manual_title')),
         default=m.F('original_title'),
         output_field=m.CharField(),
     ))
+    return res
+
+def song_annotate_times_played(queryset: m.QuerySet, server_id: int = None) -> m.QuerySet:
+    """Annotate the times played"""
+    logger.debug('Annotating times played')
+    res = queryset
+    pv_query = m.Q(playevent__song=m.F('id'))
+    if server_id:
+        pv_query &= m.Q(playevent__server_id=server_id)
+    res = res.annotate(times_played=m.Count(
+        m.Case(
+            m.When(pv_query, then=1),
+            output_field=m.IntegerField(),
+        )
+    ))
+    return res
+
+def ytsong_odby_title(queryset: m.QuerySet, asc: str = '', server_id: int = None) -> m.QuerySet:
+    """Filter queryset by title"""
+    logger.debug(f'Ordering queryset by title `{asc or "+"}`')
+    res = queryset
+    res = song_annotate_title(res)
 
     ord_func = m.functions.Lower('title')
     ord_func = ord_func if asc == '' else ord_func.desc()
@@ -32,15 +54,7 @@ def ytsong_odby_times_played(queryset: m.QuerySet, asc: str = '-', server_id: in
     """Filter queryset by times played"""
     logger.debug(f'Ordering queryset by times played `{asc or "+"}`')
     res = queryset
-    pv_query = m.Q(playevent__song=m.F('id'))
-    if server_id:
-        pv_query &= m.Q(playevent__server_id=server_id)
-    res = res.annotate(times_played=m.Count(
-        m.Case(
-            m.When(pv_query, then=1),
-            output_field=m.IntegerField(),
-        )
-    ))
+    res = song_annotate_times_played(res, server_id=server_id)
     res = res.order_by(f'{asc}times_played')
     return res
 

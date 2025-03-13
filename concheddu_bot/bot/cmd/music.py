@@ -21,25 +21,26 @@ class Music(commands.GroupCog, group_name='music'):
     @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
     async def play(
             self, itc: discord.Interaction,
-            search: str,
+            song: app_commands.Transform[m.YTSong, tfs.SongTransformer(allow_new=True)],
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
             audio_filter: str = None
         ):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
 
         Args:
-            search (str): The search string or youtube url
+            song (str): Existing song / search string / youtube url
             playlist (str, optional): Playlist name (must exist). Defaults to None.
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
         """
-        logger.info(f'Command `play` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
-        user = itc.user
-        guild = user.voice.channel.guild
+        logger.info(f'Command `play` called with search={song} by `{itc.user.name}` [{itc.guild.name}]')
 
-        await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
+        if song is None:
+            await safe_response(itc, 'Song not found', ephemeral=True)
+            return
 
-        song = await m.YTSong.from_search_string(search, user=user, server=guild)
-
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        await server.add_song(song=song, user=user)
         if playlist is not None:
             await playlist.add_song(song)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)

@@ -5,6 +5,7 @@ import discord
 from django.db import models
 
 from ..bot.player import Player
+from .events import AddedSongEvent
 from .utils import logger
 
 memo_server: dict[int, 'DiscordServer'] = {}
@@ -34,6 +35,15 @@ class DiscordServer(models.Model):
 
         memo_server[guild.id] = server_obj
         return server_obj
+
+    async def add_song(self, song: 'YTSong', user: 'DiscordUser') -> bool:
+        """Add a song to the server"""
+        logger.debug(f'Adding song {song.title} to server {self.name}')
+        q = AddedSongEvent.objects.filter(server=self, song=song)
+        if not await q.aexists():
+            await AddedSongEvent.objects.acreate(server=self, song=song, user=user)
+            return True
+        return False
 
     @property
     def player(self) -> Player:

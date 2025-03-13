@@ -7,8 +7,11 @@ from discord import app_commands
 from ... import models as m
 from ...models import filters as flt
 from ..utils import safe_response
+from ..views.utils import elide
 
 logger = logging.getLogger('bot')
+
+MAX_AUTO_COMPLETE = 10
 
 # TODO: need to add proper invalidation before using this
 #  probably based on django signals on when playlists are updated
@@ -35,13 +38,60 @@ class PlaylistTransformer(app_commands.Transformer):
 
     async def autocomplete(self, ctx: discord.Interaction, current: str):
         server = await m.DiscordServer.from_discord_guild(ctx.guild)
+        q = m.Playlist.objects
         if self.enforce_user:
             user = await m.DiscordUser.from_discord_user(ctx.user)
-            playlists = [p async for p in m.Playlist.objects.filter(server=server, owner=user, name__startswith=current)]
+            q = q.filter(server=server, owner=user, name__startswith=current)
         else:
-            playlists = [p async for p in m.Playlist.objects.filter(server=server, name__startswith=current)]
-        # user = await m.DiscordUser.from_discord_user(ctx.user)
+            q = q.filter(server=server, name__startswith=current)
+        cnt = await q.acount()
+        if cnt > MAX_AUTO_COMPLETE:
+            return [app_commands.Choice(name=f'{cnt} playlists found', value=None)]
+        playlists = [p async for p in q.all()]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
+
+class SongTransformer(app_commands.Transformer):
+    def __init__(
+            self, *args,
+            allow_new: bool = False,
+            nullable: bool = False,
+            **kwargs
+        ):
+        super().__init__(*args, **kwargs)
+        self.song_map = {}
+        self.allow_new = allow_new
+        self.nullable = False
+
+    async def transform(self, ctx: discord.Interaction, argument: str):
+        if argument is None:
+            if self.nullable:
+                return
+            raise ValueError(f'Song cannot be null')
+        song = self.song_map.get(argument, argument)
+        if isinstance(song, str):
+            if not self.allow_new:
+                await safe_response(ctx, f'Song `{argument}` not found', ephemeral=True)
+                raise ValueError(f'Song `{argument}` not found')
+            await safe_response(ctx, f'Searching for {argument}', ephemeral=True, delete_after=240)
+            song = await m.YTSong.from_search_string(argument)
+        return song
+
+    async def autocomplete(self, ctx: discord.Interaction, current: str):
+        q = m.YTSong.objects
+        q = flt.song_annotate_title(q)
+        q = q.filter(title__icontains=current)
+        cnt = await q.acount()
+        if cnt > MAX_AUTO_COMPLETE:
+            return [app_commands.Choice(name=f'{cnt} songs found', value=None)]
+        songs = [s async for s in q.all()]
+        self.song_map = {s.youtube_id: s for s in songs}
+        return [
+            app_commands.Choice(
+                name=f'[{s.duration}] {elide(s.title, 50)}',
+                value=s.youtube_id
+            )
+            for s in songs
+        ]
 
 class SongFilterTransformer(app_commands.Transformer):
     async def transform(self, ctx: discord.Interaction, argument: str):
@@ -82,5 +132,7 @@ class IntRangeTransformer(app_commands.Transformer):
         if self.max_ is not None and res > self.max_:
             await safe_response(ctx, f'Value must be <= than {self.max_}', ephemeral=True)
             raise ValueError(f'Value must be less than {self.max_}')
+
+        return res
 
         return res
