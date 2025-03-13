@@ -215,8 +215,9 @@ class YTSong(models.Model):
         server = await DiscordServer.from_discord_guild(itc.guild)
 
         async def on_play():
-            logger.debug(f'ON_PLAY: Playing {self.title} on {server.name}')
-            await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
+            # logger.debug(f'ON_PLAY: Playing {self.title} on {server.name}')
+            if update_msg:
+                await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(
                 user=user, song=self, server=server,
                 start=start, end=end, audio_filter=audio_filter
