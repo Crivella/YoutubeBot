@@ -32,6 +32,22 @@ def sanitize_ffmpeg_filter(afilt: str):
 
     return res
 
+def serialize(app):
+    """Serialize a model"""
+    if isinstance(app, models.Model):
+        return f'{app.__class__.__name__}<{app.pk}>'
+    elif isinstance(app, (discord.User, discord.Member)):
+        return f'{app.__class__.__name__}<{app.id}>'
+    return app
+
+def recursive_serialize(obj):
+    """Recursively serialize an object"""
+    if isinstance(obj, dict):
+        return {key: recursive_serialize(obj[key]) for key in obj}
+    if isinstance(obj, list):
+        return [recursive_serialize(app) for app in obj]
+    return serialize(obj)
+
 def call_command_register():
     """Decorator to register a call command event"""
     def decorator(func):
@@ -47,18 +63,9 @@ def call_command_register():
                 raise ValueError('No interaction found')
 
             # Ensure all models are converted to strings to be JSON serializable
-            other_kwargs = kwargs.copy()
-            idx = 0
-            while idx < len(other_args):
-                app = other_args[idx]
-                if isinstance(app, models.Model):
-                    other_args[idx] = f'{app.__class__.__name__}<{app.pk}>'
-                idx += 1
-            for key in kwargs:
-                app = kwargs[key]
-                if isinstance(app, models.Model):
-                    other_kwargs[key] = f'{app.__class__.__name__}<{app.pk}>'
-            
+            other_args = recursive_serialize(other_args)
+            other_kwargs = recursive_serialize(kwargs)
+
             user = await m.DiscordUser.from_discord_user(itc.user)
             server = await m.DiscordServer.from_discord_guild(itc.guild)
             name = itc.command.name

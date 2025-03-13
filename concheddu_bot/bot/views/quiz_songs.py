@@ -15,7 +15,7 @@ class QuizSongsList(discord.ui.View):
     def __init__(self, itc: discord.Interaction, quizes: list[m.QuizSong]):
         super().__init__()
         self.itc = itc
-        
+
         self.quiz_list = ListQuiz(
             quizes,
             view = self,
@@ -114,7 +114,8 @@ class QuizSongs(discord.ui.View):
             num_choices: int = 5,
             segment_length: int = 20,
             segment_mode: str = 'start',
-            audio_filter: str = None
+            audio_filter: str = None,
+            multiple_choice: bool = True
         ):
         super().__init__()
         self.itc = itc
@@ -152,6 +153,10 @@ class QuizSongs(discord.ui.View):
 
         self.scoreboard: discord.Message = None
 
+        self.multiple_choice = multiple_choice
+
+        self.answer_callback = None
+
     async def quiz_step(self):
         if self.idx >= len(self.songs):
             await self.quiz_finish()
@@ -170,11 +175,13 @@ class QuizSongs(discord.ui.View):
         time_blind_guess = time.time()
 
         # Instead of using the current list of song pick X random songs + the current song
-        choices = random.sample(self.all_song, self.nmc)
-        if song not in choices:
-            choices[-1] = song
-        random.shuffle(choices)
-        self.answer_list = ListAnswer(choices, user)
+        self.answer_list = None
+        if self.multiple_choice:
+            choices = random.sample(self.all_song, self.nmc)
+            if song not in choices:
+                choices[-1] = song
+            random.shuffle(choices)
+            self.answer_list = ListAnswer(choices, user)
 
         self.play_stop = CallbackButton(
             label='STOP',
@@ -232,18 +239,24 @@ class QuizSongs(discord.ui.View):
 
         @ensure_response(before=False, defer=True)
         @ensure_user(users=[user], defer=True)
-        async def answer_callback(itc: discord.Interaction):
+        async def answer_callback(itc: discord.Interaction, answer_song: m.YTSong = None):
             nonlocal message, answered, enqueueing
             if answered:
                 return
-            values = self.answer_list.values
-            if not values:
-                await safe_response(itc, 'Select an answer', ephemeral=True, delete_after=10)
-                return
+            if self.multiple_choice:
+                values = self.answer_list.values
+                if not values:
+                    await safe_response(itc, 'Select an answer', ephemeral=True, delete_after=10)
+                    return
 
             answered = True
             enqueueing = False
-            answer = values[0]
+            if self.multiple_choice:
+                answer = values[0]
+                answer_title = self.answer_list.songs_map[answer].title
+            else:
+                answer = answer_song.youtube_id
+                answer_title = answer_song.title
             await server.clear()
 
             time_start = time_blind_guess
@@ -265,11 +278,11 @@ class QuizSongs(discord.ui.View):
                 )
 
             msg = []
-            title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'
+            answer_title = f'{user.nick}: ' + 'Correct ❤️❤️' if result else 'Incorrect 🙁🙁'
             msg.append(f'Real answer: {song.title}')
-            msg.append(f'Your answer: {self.answer_list.songs_map[answer].title}')
+            msg.append(f'Your answer: {answer_title}')
             embed = discord.Embed(
-                title=title,
+                title=answer_title,
                 description='\n'.join(msg),
                 color=self.user_colors[user.id]
             )
@@ -288,12 +301,20 @@ class QuizSongs(discord.ui.View):
         self.play_stop.add_callback(stop_callback)
         self.answer_btn.add_callback(answer_callback)
 
-        view.add_item(self.answer_list)
+        if self.multiple_choice:
+            view.add_item(self.answer_list)
+        else:
+            self.answer_callback = answer_callback
         view.add_item(self.play_stop)
         view.add_item(self.play_start)
-        view.add_item(self.answer_btn)
+        if self.multiple_choice:
+            view.add_item(self.answer_btn)
         msg = f'<@{user.id}> \'s turn'
         message = await self.channel.send(content=msg, view=view)
+
+    async def command_answer(self, itc: discord.Interaction, song: m.YTSong):
+        if self.answer_callback:
+            await self.answer_callback(itc, song)
 
     async def quiz_finish(self):
         """Finish the quiz"""
@@ -373,6 +394,8 @@ class QuizSongs(discord.ui.View):
         logger.info(f'Found {found_songs} songs')
 
         self.all_song = songs
+        if self.multiple_choice:
+            self.nmc = len(songs)
         songs = random.sample(songs, needed_songs)
 
         self.users = users

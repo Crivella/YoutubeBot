@@ -26,6 +26,8 @@ class QuizSong(models.Model):
 
     song_choice_ids = models.JSONField()
 
+    multple_choice = models.BooleanField(default=True)
+
     date_start = models.DateTimeField(auto_now_add=True)
     date_end = models.DateTimeField(null=True)
 

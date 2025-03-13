@@ -106,6 +106,35 @@ class SongFilterTransformer(app_commands.Transformer):
             if k.startswith(current)
         ]
 
+class UserListTransformer(app_commands.Transformer):
+    async def transform(self, ctx: discord.Interaction, argument: str) -> list[m.DiscordUser]:
+        print('transform', argument)
+        argument = argument.replace(' ', '')
+        names = argument.split(',')
+        users = ctx.user.voice.channel.members
+        res = [u for u in users if u.display_name in names]
+        return res
+
+    async def autocomplete(self, ctx: discord.Interaction, current: str):
+        if len(current) and not current.endswith(','):
+            return []
+        users = ctx.user.voice.channel.members
+        current = current.replace(' ', '')
+        prev = current.split(',')[:-1]
+        last = current.split(',')[-1]
+        return [
+            app_commands.Choice(
+                name=', '.join(prev + [u.display_name]),
+                value=','.join(prev + [u.display_name])
+            )
+            for u in users
+            if u.display_name.startswith(last) and u.display_name not in prev
+        ]
+        return [
+            app_commands.Choice(name=flt.user_order_descr[k], value=k) for k in flt.user_order_map.keys()
+            if k.startswith(current)
+        ]
+
 class IntRangeTransformer(app_commands.Transformer):
     def __init__(
             self, *args,

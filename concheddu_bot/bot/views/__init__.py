@@ -5,5 +5,5 @@ from .quiz_songs import QuizSongs, QuizSongsList
 __all__ = [
     'SongList',
     'CreatePlaylist', 'DeletePlaylist', 'EditPlaylist',
-    'QuizSongs', 'QuizSongsList'
+    'QuizSongs', 'QuizSongsList',
 ]

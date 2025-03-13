@@ -1,5 +1,4 @@
 """Run quizzes for the bot."""
-
 import discord
 import logging
 
@@ -11,6 +10,7 @@ from .utils import sanitize_ffmpeg_filter
 from ..utils import sense_check, safe_response, ensure_response, SenseCheckError
 from .. import views as v
 from .utils import call_command_register
+from . import transformers as tfs
 
 logger = logging.getLogger('bot')
 
@@ -20,6 +20,8 @@ SEGMENT_MODES_DESC = {
     'end': 'End of the song',
     'random': 'Random segment of the song'
 }
+
+current_quiz: v.QuizSongs = None
 
 class QuizSong(commands.GroupCog, group_name='quiz_song'):
     """Quiz commands"""
@@ -34,7 +36,8 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             num_choices: int = 5,
             segment_length: int = 20,
             segment_mode: str = 'start',
-            audio_filter: str = None
+            audio_filter: str = None,
+            multiple_choice: bool = True
         ):
         """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
@@ -45,7 +48,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             segment_length (int, optional): Length of the segment of the song to play. Defaults to 20.
             segment_mode (str, optional): start/end/random. Defaults to 'start'.
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
+            multiple_choice (bool, optional): Multiple choice or use command to answer. Defaults to True.
         """
+        global current_quiz
         if num_songs < 1:
             await safe_response(itc, 'Number of songs must be greater than 0', ephemeral=True)
             return
@@ -60,11 +65,12 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             return
         playlists = await m.Playlist.get_playlists(itc=itc)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
-        view = v.QuizSongs(
+        current_quiz = view = v.QuizSongs(
             itc, playlists=playlists,
             num_songs=num_songs, num_choices=num_choices,
             segment_length=segment_length, segment_mode=segment_mode,
-            audio_filter=audio_filter
+            audio_filter=audio_filter,
+            multiple_choice=multiple_choice
         )
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
     @start.autocomplete('segment_mode')
@@ -87,3 +93,27 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
         quizes = [quiz async for quiz in q.all()]
         view = v.QuizSongsList(itc, quizes)
         await safe_response(itc, 'Select a quiz to play', view=view, ephemeral=True)
+
+
+    @app_commands.command()
+    @ensure_response()
+    @call_command_register()
+    async def answer(
+            self, itc: discord.Interaction,
+            song: app_commands.Transform[m.YTSong, tfs.SongTransformer]
+            ):
+        """List the quizzes"""
+        if current_quiz is None:
+            await safe_response(itc, 'No quiz started', ephemeral=True)
+            return
+        await current_quiz.command_answer(itc, song)
+
+    @app_commands.command()
+    @ensure_response()
+    @call_command_register()
+    async def stop(self, itc: discord.Interaction):
+        """Stop the quiz"""
+        global current_quiz
+        await current_quiz.quiz_finish()
+        current_quiz = None
+        await safe_response(itc, 'Quiz stopped', ephemeral=True)
