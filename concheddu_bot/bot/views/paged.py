@@ -11,7 +11,7 @@ class SongOption(discord.SelectOption):
         super().__init__(
             label=elide(song.title),
             value=song.youtube_id,
-            description=f'[{song.duration} s] [{song.times_played_} plays]',
+            description=f'[{song.duration} s] [{song.times_played} plays]',
             # description=f'[{song.duration} s]',
             emoji='🎵',
             *args, **kwargs

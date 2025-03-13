@@ -7,7 +7,8 @@ logger = logging.getLogger('bot')
 
 def song_annotate_title(queryset: m.QuerySet) -> m.QuerySet:
     """Annotate the title"""
-    logger.debug('Annotating title')
+    if 'title' in queryset.query.annotations:
+        return queryset
     res = queryset
     res = res.annotate(title=m.Case(
         m.When(m.Q(manual_title__isnull=False), then=m.F('manual_title')),
@@ -18,7 +19,8 @@ def song_annotate_title(queryset: m.QuerySet) -> m.QuerySet:
 
 def song_annotate_times_played(queryset: m.QuerySet, server_id: int = None) -> m.QuerySet:
     """Annotate the times played"""
-    logger.debug('Annotating times played')
+    if 'times_played' in queryset.query.annotations:
+        return queryset
     res = queryset
     pv_query = m.Q(playevent__song=m.F('id'))
     if server_id:
@@ -139,7 +141,10 @@ async def get_all_songs(
     Returns:
         m.QuerySet: The filtered / ordered queryset
     """
-    res = query
+    if isinstance(query, m.QuerySet):
+        res = query
+    elif isinstance(query, m.Manager):
+        res = query.get_queryset()
     if filter_title:
         res = res.filter(
             m.Q(original_title__icontains=filter_title) |
@@ -152,10 +157,9 @@ async def get_all_songs(
     if limit:
         res = res[:limit]
 
-    res = [a async for a in res]
-
     if times_played:
-        for song in res:
-            song.times_played_ = await song.get_times_played(server_id=server_id)
+        res = song_annotate_times_played(res, server_id=server_id)
+
+    res = [a async for a in res]
 
     return res
