@@ -11,7 +11,8 @@ from .events import AddedSongEvent
 logger = logging.getLogger('bot')
 
 memo_server: dict[int, 'DiscordServer'] = {}
-memo_plater: dict[int, 'Player'] = defaultdict(Player)
+memo_player: dict[int, 'Player'] = defaultdict(Player)
+memo_user: dict[int, 'DiscordUser'] = {}
 
 class DiscordServer(models.Model):
     """Server model"""
@@ -50,7 +51,7 @@ class DiscordServer(models.Model):
     @property
     def player(self) -> Player:
         """Return the queue"""
-        return memo_plater[self.discord_id]
+        return memo_player[self.discord_id]
 
     @property
     def playing(self) -> bool:
@@ -97,10 +98,15 @@ class DiscordUser(models.Model):
     async def from_discord_user(cls, user: discord.User):
         """Return the discord user"""
         logger.debug(f'Getting user from {user.name}')
+        if user.id in memo_user:
+            return memo_user[user.id]
+
         user_obj, _ = await cls.objects.aget_or_create(discord_id=user.id)
         if hasattr(user, 'name') and user_obj.username != user.name:
             user_obj.username = user.name
             await user_obj.asave()
+
+        memo_user[user.id] = user_obj
         return user_obj
 
 class DiscordChannel(models.Model):
