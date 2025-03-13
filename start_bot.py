@@ -1,6 +1,8 @@
 """Start the bot."""
 import asyncio
 import os
+import signal
+import sys
 
 import discord
 import django
@@ -56,4 +58,5 @@ def main():
     bot.run(token)
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(0))
     main()
