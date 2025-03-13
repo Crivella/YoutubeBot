@@ -20,6 +20,8 @@ class PlaylistTransformer(app_commands.Transformer):
         super().__init__(*args, **kwargs)
         self.enforce_user = enforce_user
     async def transform(self, ctx: discord.Interaction, argument: str):
+        if argument is None:
+            return
         server = await m.DiscordServer.from_discord_guild(ctx.guild)
         user = await m.DiscordUser.from_discord_user(ctx.user)
         try:

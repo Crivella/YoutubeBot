@@ -21,7 +21,7 @@ class Music(commands.GroupCog, group_name='music'):
     async def play(
             self, itc: discord.Interaction,
             search: str,
-            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer],
+            playlist: app_commands.Transform[m.Playlist, PlaylistTransformer] = None,
             audio_filter: str = None
         ):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
@@ -34,18 +34,6 @@ class Music(commands.GroupCog, group_name='music'):
         logger.info(f'Command `play` called with search={search} by `{itc.user.name}` [{itc.guild.name}]')
         user = itc.user
         guild = user.voice.channel.guild
-
-        if playlist is not None:
-            server = await m.DiscordServer.from_discord_guild(guild)
-            try:
-                playlist = await m.Playlist.objects.aget(server=server, name=playlist)
-            except m.Playlist.DoesNotExist:
-                await itc.response.send_message(
-                    f'Playlist `{playlist}` not found',
-                    ephemeral=True,
-                    delete_after=10
-                )
-                return
 
         await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
 
