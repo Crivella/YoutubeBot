@@ -50,9 +50,10 @@ class UserList(discord.ui.Select):
 skip_titles = [
     'Minkia suko',
     'Shame!!',
-    'Ram lover',
+    'Ram\'s lover',
     'Concheddu',
-    'Scallonis'
+    'Is callonis',
+    'WTF is this?',
 ]
 
 class PlaylistList(discord.ui.Select):
