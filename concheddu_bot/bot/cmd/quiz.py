@@ -34,7 +34,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     async def start(
             self, itc: discord.Interaction,
             num_songs: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 5,
-            num_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=2, max=20)] = 5,
+            num_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=2)] = 5,
             segment_length: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 20,
             segment_mode: str = 'start',
             audio_filter: str = None,
@@ -58,6 +58,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
         if server_id in current_quiz:
             await safe_response(itc, 'Quiz already ongoing', ephemeral=True)
             return
+        if multiple_choice and num_choices > 20:
+            await safe_response(itc, 'Too many choices for multiple choice quiz (max 20)', ephemeral=True)
+            return
         playlists = await m.Playlist.get_playlists(itc=itc)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
         current_quiz[server_id] = view = v.QuizSongs(
@@ -73,12 +76,13 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
 
             multiple_choice=multiple_choice
         )
-        async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):
-            tfs.SongTransformer.register_server_playlist(server_id, all_songs)
+        if not multiple_choice:
+            async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):
+                tfs.SongTransformer.register_server_playlist(server_id, all_songs)
+            view.on_start.append(start_callback)
         async def finish_callback():
-            current_quiz.pop(server_id, None)
             tfs.SongTransformer.remove_server_playlist(server_id)
-        view.on_start.append(start_callback)
+            current_quiz.pop(server_id, None)
         view.on_finish.append(finish_callback)
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
     @start.autocomplete('segment_mode')
