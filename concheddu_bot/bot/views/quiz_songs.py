@@ -1,6 +1,7 @@
 import random
 import time
 from collections import defaultdict
+from typing import Awaitable
 
 import discord
 
@@ -165,7 +166,8 @@ class QuizSongs(discord.ui.View):
 
         self.answer_callback = None
 
-        self.on_finish = []
+        self.on_start: list[Awaitable] = []
+        self.on_finish: list[Awaitable] = []
 
     async def quiz_step(self):
         if self.idx >= len(self.songs):
@@ -177,7 +179,7 @@ class QuizSongs(discord.ui.View):
 
         view = discord.ui.View()
 
-        server = await m.DiscordServer.from_discord_guild(self.itc.guild)
+        server = self.server
         message = None
         answered = False
 
@@ -422,7 +424,7 @@ class QuizSongs(discord.ui.View):
         for song in songs:
             logger.info(f' - {song.title}')
 
-        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        self.server = server = await m.DiscordServer.from_discord_guild(itc.guild)
         self.quiz_obj = await m.QuizSong.objects.acreate(
             server=server,
             num_songs=self.num_songs,
@@ -442,6 +444,8 @@ class QuizSongs(discord.ui.View):
             await self.quiz_obj.players.aadd(await m.DiscordUser.from_discord_user(user))
 
         self.clear_items()
+        for callback in self.on_start:
+            await callback(self.quiz_obj)
         embed = discord.Embed(
             title='Quiz started',
             color=0x00ff00
@@ -466,7 +470,7 @@ class QuizSongs(discord.ui.View):
             f'- Audio filter: "{self.audio_filter}"',
             f'- Multiple choice: {self.multiple_choice}'
         ]
-    
+
     def embed_details(self, embed: discord.Embed):
         msg = self.quiz_header()
         embed.add_field(

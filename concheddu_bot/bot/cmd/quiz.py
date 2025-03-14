@@ -73,8 +73,12 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
 
             multiple_choice=multiple_choice
         )
+        async def start_callback(quiz: m.QuizSong):
+            tfs.SongTransformer.register_server_playlist(server_id, quiz.playlist)
         async def finish_callback():
             current_quiz.pop(server_id, None)
+            tfs.SongTransformer.remove_server_playlist(server_id)
+        view.on_start.append(start_callback)
         view.on_finish.append(finish_callback)
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
     @start.autocomplete('segment_mode')
@@ -104,7 +108,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     @call_command_register()
     async def answer(
             self, itc: discord.Interaction,
-            song: app_commands.Transform[m.YTSong, tfs.SongTransformer]
+            song: app_commands.Transform[m.YTSong, tfs.SongTransformer(from_server_playlist=True)]
             ):
         """List the quizzes"""
         quiz = current_quiz.get(itc.guild.id, None)

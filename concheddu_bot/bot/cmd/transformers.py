@@ -52,17 +52,20 @@ class PlaylistTransformer(app_commands.Transformer):
         playlists = [p async for p in q.all()]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
 
+server_playlist_cache: dict[int, m.Playlist] = {}
 class SongTransformer(app_commands.Transformer):
     def __init__(
             self, *args,
             allow_new: bool = False,
             nullable: bool = False,
+            from_server_playlist: bool = False,
             **kwargs
         ):
         super().__init__(*args, **kwargs)
         self.song_map = {}
         self.allow_new = allow_new
         self.nullable = nullable
+        self.from_server_playlist = from_server_playlist
 
     async def transform(self, ctx: discord.Interaction, argument: str):
         if argument is None or argument == NONE_STR:
@@ -80,7 +83,14 @@ class SongTransformer(app_commands.Transformer):
 
     async def autocomplete(self, ctx: discord.Interaction, current: str):
         await safe_defer(ctx)
-        q = m.YTSong.objects
+
+        playlist = None
+        if self.from_server_playlist:
+            playlist = server_playlist_cache.get(ctx.guild.id, None)
+        if playlist is None:
+            q = m.YTSong.objects
+        else:
+            q = playlist.songs
         q = flt.song_annotate_title(q)
         q = q.filter(title__icontains=current)
         cnt = await q.acount()
@@ -95,6 +105,14 @@ class SongTransformer(app_commands.Transformer):
             )
             for s in songs
         ]
+
+    @staticmethod
+    def register_server_playlist(server_id: int, playlist: m.Playlist):
+        server_playlist_cache[server_id] = playlist
+
+    @staticmethod
+    def remove_server_playlist(server_id: int):
+        server_playlist_cache.pop(server_id, None)
 
 class SongFilterTransformer(app_commands.Transformer):
     async def transform(self, ctx: discord.Interaction, argument: str):
