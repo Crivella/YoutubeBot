@@ -18,18 +18,40 @@ class PlayEvent(models.Model):
 class GuessSongEvent(models.Model):
     """Guess song event model"""
     real_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')
-    guessed_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+', null=True)
+    guessed_song = models.ForeignKey(
+        'YTSong', on_delete=models.CASCADE, related_name='+',
+        # Use non to denote a skip (go on without guessing)
+        null=True
+        )
 
+    # Guesses on songs are done on segments
     start = models.IntegerField(null=True)
     end = models.IntegerField(null=True)
+    # Value of choices in a multiple choice quiz or all songs in a free quiz
     num_choices = models.IntegerField(null=True)
 
+    # Time to answer in seconds
+    # - from the first time play was called or
+    # - from the first time the question was generated otherwise
     time_to_answer = models.FloatField(null=True)
 
-    user = models.ForeignKey('DiscordUser', on_delete=models.CASCADE, null=True, default=None, related_name='song_guesses')
+    user = models.ForeignKey(
+        'DiscordUser', on_delete=models.CASCADE,
+        null=True,  # Allow null to accomodate previous guesses without user
+        default=None,
+        related_name='song_guesses'
+        )
     date = models.DateTimeField(auto_now_add=True)
 
-    quiz = models.ForeignKey('QuizSong', on_delete=models.CASCADE, null=True, default=None, related_name='guesses')
+    # The quiz this guess is part of
+
+    quiz = models.ForeignKey(
+        'QuizSong', on_delete=models.CASCADE,
+        null=True,  # QuizSong is nullable to accomodate previous guesses without quiz
+        default=None,
+        related_name='guesses'
+        )
+    # The number of time the song was played before the guess
     num_plays = models.IntegerField(default=0)
 
     def __bool__(self):

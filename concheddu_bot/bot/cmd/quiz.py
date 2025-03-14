@@ -61,10 +61,16 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
         playlists = await m.Playlist.get_playlists(itc=itc)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
         current_quiz[server_id] = view = v.QuizSongs(
-            itc, playlists=playlists,
-            num_songs=num_songs, num_choices=num_choices,
-            segment_length=segment_length, segment_mode=segment_mode,
+            itc,
+
+            playlists=playlists,
+            num_songs=num_songs,
+            num_choices=num_choices,
+
+            segment_length=segment_length,
+            segment_mode=segment_mode,
             audio_filter=audio_filter,
+
             multiple_choice=multiple_choice
         )
         async def finish_callback():
