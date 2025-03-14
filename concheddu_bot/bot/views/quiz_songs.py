@@ -57,6 +57,8 @@ skip_titles = [
     'WTF is this?',
 ]
 
+NONE_STR = '__NO__NE__'
+
 class PlaylistList(discord.ui.Select):
     def __init__(self, playlists: list[m.Playlist], *args, **kwargs):
         if not playlists:
@@ -65,7 +67,7 @@ class PlaylistList(discord.ui.Select):
                 options=[
                     discord.SelectOption(
                         label='No playlists found',
-                        value='__NO__NE__',
+                        value=NONE_STR,
                     )
                 ],
                 *args, **kwargs
@@ -383,7 +385,7 @@ class QuizSongs(discord.ui.View):
         playlist = self.select_playlists.values
         if playlist:
             playlist = playlist[0]
-        if playlist is None or playlist == '__NO__NE__':
+        if playlist is None or playlist == NONE_STR:
             playlist = None
         else:
             playlist = await m.Playlist.objects.aget(id=playlist) if playlist else None
