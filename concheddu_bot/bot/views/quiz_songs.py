@@ -306,7 +306,7 @@ class QuizSongs(discord.ui.View):
             )
 
             self.answers.append(result)
-            self.user_answers[user.id].append(result)
+            self.user_answers[user.id].append(result if answer is not None else None)
             self.score[user.id] += result
 
             view.clear_items()
@@ -456,12 +456,12 @@ class QuizSongs(discord.ui.View):
             list[str]: List of strings
         """
         return [
-            f'Each user will have to guess {self.num_songs} songs',
-            f'Each song will have {self.nmc} choices',
-            f'Segment length: {self.segment_length} s',
-            f'Segment mode: {self.segment_mode}',
-            f'Audio filter: "{self.audio_filter}"',
-            f'Multiple choice: {self.multiple_choice}'
+            f'- Each user will have to guess {self.num_songs} songs',
+            f'- Each song will have {self.nmc} choices',
+            f'- Segment length: {self.segment_length} s',
+            f'- Segment mode: {self.segment_mode}',
+            f'- Audio filter: "{self.audio_filter}"',
+            f'- Multiple choice: {self.multiple_choice}'
         ]
 
     def embed_score(self, embed: discord.Embed, sort: bool = True):
@@ -470,10 +470,16 @@ class QuizSongs(discord.ui.View):
         else:
             lst = self.users
 
+        emoji_map = {
+            None: '❔',
+            False: '❌',
+            True: '✅'
+        }
+
         for user in lst:
             val = ''
             for ans in self.user_answers[user.id]:
-                val += '✅' if ans else '❌'
+                val += emoji_map[ans]
             embed.add_field(
                 name=f'{user.name}  ({self.score[user.id]})',
                 value=val,
