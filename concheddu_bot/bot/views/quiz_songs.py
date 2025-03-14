@@ -354,11 +354,7 @@ class QuizSongs(discord.ui.View):
             color=0x00ff00
         )
         msg = ['Quiz finished!!!']
-        msg.append(f'- Each user will have to guess {self.num_songs} songs')
-        msg.append(f'- Each song will have {self.nmc} choices')
-        msg.append(f'- Segment length: {self.segment_length} s')
-        msg.append(f'- Segment mode: {self.segment_mode}')
-        msg.append(f'- Audio filter: "{self.audio_filter}"')
+        msg += self.quiz_header()
         embed.add_field(
             name='Quiz details',
             value='\n'.join(msg),
@@ -447,15 +443,25 @@ class QuizSongs(discord.ui.View):
 
         self.clear_items()
         msg = []
-        msg.append(f'Quiz started with {len(users)} users and {len(songs)} songs')
-        msg.append(f'- Each user will have to guess {self.num_songs} songs')
-        msg.append(f'- Each song will have {self.nmc} choices')
-        msg.append(f'- Segment length: {self.segment_length} s')
-        msg.append(f'- Segment mode: {self.segment_mode}')
-        msg.append(f'- Audio filter: "{self.audio_filter}"')
+        msg += self.quiz_header()
         await safe_response(self.itc, '\n'.join(msg), ephemeral=True, view=None)
         await self.display_score()
         await self.quiz_step()
+
+    def quiz_header(self) -> list[str]:
+        """Return the quiz header
+
+        Returns:
+            list[str]: List of strings
+        """
+        return [
+            f'Each user will have to guess {self.num_songs} songs',
+            f'Each song will have {self.nmc} choices',
+            f'Segment length: {self.segment_length} s',
+            f'Segment mode: {self.segment_mode}',
+            f'Audio filter: "{self.audio_filter}"',
+            f'Multiple choice: {self.multiple_choice}'
+        ]
 
     def embed_score(self, embed: discord.Embed, sort: bool = True):
         if sort:
