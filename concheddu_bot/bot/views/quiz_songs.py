@@ -323,9 +323,9 @@ class QuizSongs(discord.ui.View):
         else:
             self.answer_callback = answer_callback
 
+        view.add_item(self.answer_btn)
         view.add_item(self.play_stop)
         view.add_item(self.play_start)
-        view.add_item(self.answer_btn)
         msg = f'<@{user.id}> \'s turn'
         message = await self.channel.send(content=msg, view=view)
 
