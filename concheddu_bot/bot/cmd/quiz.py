@@ -73,6 +73,10 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             audio_filter=audio_filter,
             multiple_choice=multiple_choice
         )
+        async def finish_callback():
+            global current_quiz
+            current_quiz = None
+        current_quiz.on_finish.append(finish_callback)
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
     @start.autocomplete('segment_mode')
     async def _autocomplete_segment_mode(self, itc: discord.Interaction, current: str):
@@ -117,7 +121,5 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     @call_command_register()
     async def stop(self, itc: discord.Interaction):
         """Stop the quiz"""
-        global current_quiz
         await current_quiz.quiz_finish()
-        current_quiz = None
         await safe_response(itc, 'Quiz stopped', ephemeral=True)

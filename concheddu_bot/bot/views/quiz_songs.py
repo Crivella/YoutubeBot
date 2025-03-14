@@ -165,6 +165,8 @@ class QuizSongs(discord.ui.View):
 
         self.answer_callback = None
 
+        self.on_finish = []
+
     async def quiz_step(self):
         if self.idx >= len(self.songs):
             await self.quiz_finish()
@@ -354,15 +356,12 @@ class QuizSongs(discord.ui.View):
             description=f'{sum(self.answers)} / {len(self.answers)} correct answers',
             color=0x00ff00
         )
-        msg = ['Quiz finished!!!']
-        msg += self.quiz_header()
-        embed.add_field(
-            name='Quiz details',
-            value='\n'.join(msg),
-            inline=False
-        )
+        self.embed_details(embed)
         self.embed_score(embed, sort=True)
         await self.channel.send(embed=embed)
+
+        for callback in self.on_finish:
+            await callback()
         await safe_response(self.itc, 'Quiz finished!!!')
         # await self.itc.delete_original_response()
 
@@ -443,9 +442,13 @@ class QuizSongs(discord.ui.View):
             await self.quiz_obj.players.aadd(await m.DiscordUser.from_discord_user(user))
 
         self.clear_items()
-        msg = []
-        msg += self.quiz_header()
-        await safe_response(self.itc, '\n'.join(msg), ephemeral=True, view=None)
+        embed = discord.Embed(
+            title='Quiz started',
+            color=0x00ff00
+        )
+        self.embed_details(embed)
+        await self.itc.delete_original_response()
+        await itc.channel.send(embed=embed, view=self)
         await self.display_score()
         await self.quiz_step()
 
@@ -463,6 +466,14 @@ class QuizSongs(discord.ui.View):
             f'- Audio filter: "{self.audio_filter}"',
             f'- Multiple choice: {self.multiple_choice}'
         ]
+    
+    def embed_details(self, embed: discord.Embed):
+        msg = self.quiz_header()
+        embed.add_field(
+            name='Quiz details',
+            value='\n'.join(msg),
+            inline=False
+        )
 
     def embed_score(self, embed: discord.Embed, sort: bool = True):
         if sort:
