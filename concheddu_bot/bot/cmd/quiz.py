@@ -22,7 +22,7 @@ SEGMENT_MODES_DESC = {
     'random': 'Random segment of the song'
 }
 
-current_quiz: v.QuizSongs = None
+current_quiz: dict[int, v.QuizSongs] = {}
 
 class QuizSong(commands.GroupCog, group_name='quiz_song'):
     """Quiz commands"""
@@ -33,9 +33,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     @sense_check
     async def start(
             self, itc: discord.Interaction,
-            num_songs: int = 5,
-            num_choices: int = 5,
-            segment_length: int = 20,
+            num_songs: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 5,
+            num_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=2, max=20)] = 5,
+            segment_length: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 20,
             segment_mode: str = 'start',
             audio_filter: str = None,
             multiple_choice: bool = True
@@ -51,22 +51,16 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
             multiple_choice (bool, optional): Multiple choice or use command to answer. Defaults to True.
         """
-        global current_quiz
-        if num_songs < 1:
-            await safe_response(itc, 'Number of songs must be greater than 0', ephemeral=True)
-            return
-        if num_choices < 2:
-            await safe_response(itc, 'Number of choices must be greater than 1', ephemeral=True)
-            return
-        if segment_length < 1:
-            await safe_response(itc, 'Segment length must be greater than 0', ephemeral=True)
-            return
         if segment_mode not in ALLOWED_SEGMENT_MODES:
             await safe_response(itc, f'Segment mode invalid', ephemeral=True)
             return
+        server_id = itc.guild.id
+        if server_id in current_quiz:
+            await safe_response(itc, 'Quiz already ongoing', ephemeral=True)
+            return
         playlists = await m.Playlist.get_playlists(itc=itc)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
-        current_quiz = view = v.QuizSongs(
+        current_quiz[server_id] = view = v.QuizSongs(
             itc, playlists=playlists,
             num_songs=num_songs, num_choices=num_choices,
             segment_length=segment_length, segment_mode=segment_mode,
@@ -74,9 +68,8 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             multiple_choice=multiple_choice
         )
         async def finish_callback():
-            global current_quiz
-            current_quiz = None
-        current_quiz.on_finish.append(finish_callback)
+            current_quiz.pop(server_id, None)
+        view.on_finish.append(finish_callback)
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
     @start.autocomplete('segment_mode')
     async def _autocomplete_segment_mode(self, itc: discord.Interaction, current: str):
@@ -108,10 +101,11 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             song: app_commands.Transform[m.YTSong, tfs.SongTransformer]
             ):
         """List the quizzes"""
-        if current_quiz is None:
+        quiz = current_quiz.get(itc.guild.id, None)
+        if quiz is None:
             await safe_response(itc, 'No quiz started', ephemeral=True)
             return
-        await current_quiz.command_answer(itc, song)
+        await quiz.command_answer(itc, song)
         await safe_response(itc, 'Answered', ephemeral=True)
         await asyncio.sleep(1)
         await itc.delete_original_response()
@@ -121,5 +115,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     @call_command_register()
     async def stop(self, itc: discord.Interaction):
         """Stop the quiz"""
-        await current_quiz.quiz_finish()
+        quiz = current_quiz.get(itc.guild.id, None)
+        if quiz is None:
+            await safe_response(itc, 'No quiz started', ephemeral=True)
+            return
+        await quiz.quiz_finish()
         await safe_response(itc, 'Quiz stopped', ephemeral=True)
