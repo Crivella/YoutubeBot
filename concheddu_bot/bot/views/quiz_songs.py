@@ -408,10 +408,24 @@ class QuizSongs(discord.ui.View):
             return
         logger.info(f'Found {found_songs} songs')
 
-        self.all_song = songs
-        if self.multiple_choice:
-            self.nmc = len(songs)
-        songs = random.sample(songs, needed_songs)
+        if not self.multiple_choice:
+            if self.nmc > len(songs):
+                await safe_response(
+                    itc, f'Not enough songs found in global/playlist ({found_songs}/{self.nmc})',
+                    ephemeral=True, delete_after=10
+                )
+                return
+            if self.nmc < needed_songs:
+                await safe_response(
+                    itc, f'songs * user is greater than the number of choices',
+                    ephemeral=True, delete_after=10
+                )
+                return
+            self.all_song = random.sample(songs, self.nmc)
+            songs = random.sample(self.all_song, needed_songs)
+        else:
+            self.all_song = songs
+            songs = random.sample(songs, needed_songs)
 
         self.users = users
         self.user_map = {user.id: user for user in users}
@@ -443,16 +457,15 @@ class QuizSongs(discord.ui.View):
         for user in users:
             await self.quiz_obj.players.aadd(await m.DiscordUser.from_discord_user(user))
 
-        self.clear_items()
         for callback in self.on_start:
-            await callback(self.quiz_obj)
+            await callback(self.songs, self.all_song, self.quiz_obj)
         embed = discord.Embed(
             title='Quiz started',
             color=0x00ff00
         )
         self.embed_details(embed)
         await self.itc.delete_original_response()
-        await itc.channel.send(embed=embed, view=self)
+        await itc.channel.send(embed=embed)
         await self.display_score()
         await self.quiz_step()
 

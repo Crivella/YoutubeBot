@@ -1,5 +1,6 @@
 """Music commands for the bot"""
 import logging
+import os
 
 import discord
 from discord import app_commands
@@ -11,7 +12,7 @@ from ..views.utils import elide
 
 logger = logging.getLogger('bot')
 
-MAX_AUTO_COMPLETE = 10
+MAX_AUTO_COMPLETE = int(os.getenv('BOT_MAX_AUTO_COMPLETE', 20))
 
 # TODO: need to add proper invalidation before using this
 #  probably based on django signals on when playlists are updated
@@ -52,7 +53,7 @@ class PlaylistTransformer(app_commands.Transformer):
         playlists = [p async for p in q.all()]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
 
-server_playlist_cache: dict[int, m.Playlist] = {}
+server_playlist_cache: dict[int, list[m.YTSong]] = {}
 class SongTransformer(app_commands.Transformer):
     def __init__(
             self, *args,
@@ -84,19 +85,20 @@ class SongTransformer(app_commands.Transformer):
     async def autocomplete(self, ctx: discord.Interaction, current: str):
         await safe_defer(ctx)
 
-        playlist = None
         if self.from_server_playlist:
-            playlist = server_playlist_cache.get(ctx.guild.id, None)
-        if playlist is None:
-            q = m.YTSong.objects
+            songs = server_playlist_cache.get(ctx.guild.id, [])
+            songs = [s for s in songs if current.lower() in s.title.lower()]
+            if len(songs) > MAX_AUTO_COMPLETE:
+                return [app_commands.Choice(name=f'{len(songs)} songs found', value=NONE_STR)]
         else:
-            q = playlist.songs
-        q = flt.song_annotate_title(q)
-        q = q.filter(title__icontains=current)
-        cnt = await q.acount()
-        if cnt > MAX_AUTO_COMPLETE:
-            return [app_commands.Choice(name=f'{cnt} songs found', value=NONE_STR)]
-        songs = [s async for s in q.all()]
+            q = m.YTSong.objects
+            q = flt.song_annotate_title(q)
+            q = q.filter(title__icontains=current)
+            cnt = await q.acount()
+            if cnt > MAX_AUTO_COMPLETE:
+                return [app_commands.Choice(name=f'{cnt} songs found', value=NONE_STR)]
+            songs = [s async for s in q.all()]
+
         self.song_map = {s.youtube_id: s for s in songs}
         return [
             app_commands.Choice(
@@ -107,8 +109,8 @@ class SongTransformer(app_commands.Transformer):
         ]
 
     @staticmethod
-    def register_server_playlist(server_id: int, playlist: m.Playlist):
-        server_playlist_cache[server_id] = playlist
+    def register_server_playlist(server_id: int, songs: list[m.YTSong]):
+        server_playlist_cache[server_id] = songs.copy()
 
     @staticmethod
     def remove_server_playlist(server_id: int):
