@@ -1,11 +1,13 @@
 """Global runtime server variables."""
 import asyncio
 import logging
+from dataclasses import dataclass
 from functools import wraps
 from typing import Callable
 
 import discord
 
+from ..models.yt_song import YTSong
 from ..semaphores import SEMAPHORE_FFMPEG
 from .utils import safe_disconnect
 
@@ -21,6 +23,13 @@ def with_monitor(func):
         cls.channel = channel
         return await func(cls, *args, **kwargs)
     return wrapper
+
+@dataclass
+class QueueObject:
+    song: 'YTSong' = None
+    user: discord.Member = None
+    on_play: Callable = None
+    afilt: str = None
 
 class Queue(list):
     def __init__(self):
@@ -43,8 +52,8 @@ class Queue(list):
             res.append(f'... ({start} songs) ...')
         for i in range(max(0, idx-pre), min(len(self), idx + post)):
             pre = '` ‣‣‣`' if idx == i else f'`{i - idx:>4d}`'
-            song, user, _, _ = self[i]
-            res.append(f'{pre} [{song.duration:>4d} s] ({user.name:>10s}) - {song.title:>40s}')
+            obj = self[i]
+            res.append(f'{pre} [{obj.song.duration:>4d} s] ({obj.user.name:>10s}) - {obj.song.title:>40s}')
         if after > 0:
             res.append(f'... ({after} songs) ...')
         return '\n'.join(res)
@@ -54,7 +63,7 @@ class Queue(list):
 
     def get_current(self):
         if self.idx >= len(self):
-            return (None, None, None, None)
+            return QueueObject()
         return self[self.idx]
 
     def go_next(self, val = 1):
@@ -119,7 +128,12 @@ class Player:
     @with_monitor
     async def add_source(self, song, user: discord.Member, on_play: Callable = None, audio_filter: str = None):
         """Add a song to the queue"""
-        self.queue.append((song, user, on_play, audio_filter))
+        self.queue.append(QueueObject(
+            song=song,
+            user=user,
+            on_play=on_play,
+            afilt=audio_filter
+         ))
 
     @with_monitor
     async def jump(self, pos: int):
@@ -164,9 +178,10 @@ class Player:
                 return
             self.client.stop()
 
-        song, user, on_play, afilt = self.queue.get_current()
-        logger.debug(f'Playing {song} from `{user}`')
-        if not song:
+        # song, user, on_play, afilt = self.queue.get_current()
+        obj = self.queue.get_current()
+        logger.debug(f'Playing {obj.song} from `{obj.user}`')
+        if not obj.song:
             await self.stop()
             return
         # logger.debug(f'Playing {song.title} from `{user.name}`')
@@ -177,13 +192,13 @@ class Player:
             self.client = await self.channel.connect()
 
         try:
-            source = await song.get_source(audio_filter=afilt)
+            source = await obj.song.get_source(audio_filter=obj.afilt)
             self.client.play(source)
         except Exception as e:
             logger.error(e, exc_info=True)
             await self.stop()
         else:
-            await on_play()
+            await obj.on_play()
 
     @with_monitor
     async def resume(self):
