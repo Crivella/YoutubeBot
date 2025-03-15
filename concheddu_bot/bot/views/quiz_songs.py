@@ -1,9 +1,11 @@
+import io
 import random
 import time
 from collections import defaultdict
 from typing import Awaitable
 
 import discord
+from PIL import Image, ImageFilter
 
 from ... import models as m
 from ..utils import ensure_response, ensure_user, safe_response
@@ -351,7 +353,14 @@ class QuizSongs(discord.ui.View):
             else:
                 thumb_path = random.choice(thumbnails_paths)
                 thumb_url = f'attachment://thumbnail.webp'
-                file = discord.File(thumb_path, filename='thumbnail.webp')
+                # Apply a 2 radius box filter
+                img = Image.open(thumb_path)
+                img = img.filter(ImageFilter.BoxBlur(2))
+                tmp = io.BytesIO()
+                img.save(tmp, 'webp')
+                tmp.seek(0)
+                file = discord.File(tmp, filename='thumbnail.webp')
+                # file = discord.File(thumb_path, filename='thumbnail.webp')
 
             if thumb_url:
                 embed = discord.Embed(
