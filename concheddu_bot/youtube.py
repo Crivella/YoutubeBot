@@ -3,6 +3,7 @@ import asyncio
 import logging
 import os
 import urllib
+from typing import Awaitable, Optional
 
 import discord
 import yt_dlp
@@ -90,7 +91,7 @@ class YTDLSource():
         res = cls(path=filename, data=metadata)
         return res
 
-    def download(self):
+    def download(self) -> Optional[Awaitable]:
         """Download the audio"""
         if self.path is None:
             raise ValueError('No path')
@@ -113,7 +114,7 @@ class YTDLSource():
             self.path_norm = os.path.join(AUDIO_DIR, f'{fname}.norm.{NORMALIZE_EXT}')
         return self.path_norm
 
-    def normalize(self, *, loop = None):
+    def normalize(self, *, loop = None) -> Optional[Awaitable]:
         """Normalize the audio"""
         if not NORMALIZE:
             logger.debug(f'Normalization disabled {self.path}')
@@ -142,7 +143,7 @@ class YTDLSource():
                 self.path_norm = dst
 
     async def set_segment(self, start: int, end: int):
-        """Get a segment of the audio"""
+        """Set the ffmpeg options to play a segment of the audio"""
         if end > self.duration:
             raise ValueError(f'End time {end} is greater than duration {self.duration}')
         if start < 0:
@@ -151,14 +152,14 @@ class YTDLSource():
             raise ValueError(f'Start time {start} is greater than end time {end}')
         self.ff_opts['options'] += f' -ss {start} -to {end}'
 
-    async def get_info(self) -> dict:
+    async def get_info(self, *, loop = None) -> dict:
         """Get the Youtube info from a URL"""
         logger.debug(f'YTDLSource.get_info: {self.url}')
         if not self.data:
             if self.url is None:
                 raise ValueError('No URL')
             async with SEMAPHORE_DOWNLOAD:
-                loop = asyncio.get_event_loop()
+                loop = loop or asyncio.get_event_loop()
                 data = await loop.run_in_executor(None, lambda: ytdl.extract_info(self.url, download=False))
             if 'entries' in data:
                 # take first item from a playlist
