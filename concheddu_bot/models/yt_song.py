@@ -262,7 +262,7 @@ class YTSong(models.Model):
         urls = await self.get_thumbnails_urls()
         res = []
         for url in urls:
-            path = await YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
+            path = YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
             try:
                 async with SEMAPHORE_DOWNLOAD:
                     logger.info(f'Downloading thumbnail {url} -> {path}')
