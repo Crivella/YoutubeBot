@@ -28,6 +28,7 @@ class QuizSong(models.Model):
 
     multiple_choice = models.BooleanField(default=True)
     show_thumbnail = models.BooleanField(default=False)
+    thumbnail_blur = models.IntegerField(default=0)
 
     date_start = models.DateTimeField(auto_now_add=True)
     date_end = models.DateTimeField(null=True)

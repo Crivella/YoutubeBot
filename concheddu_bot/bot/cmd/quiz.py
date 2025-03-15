@@ -39,7 +39,8 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             segment_mode: str = 'start',
             audio_filter: str = None,
             multiple_choice: bool = True,
-            show_thumbnail: bool = False
+            show_thumbnail: bool = False,
+            thumbnail_blur: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=100)] = 0
         ):
         """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
@@ -77,7 +78,8 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             audio_filter=audio_filter,
 
             multiple_choice=multiple_choice,
-            show_thumbnail=show_thumbnail
+            show_thumbnail=show_thumbnail,
+            thumbnail_blur=thumbnail_blur
         )
         if not multiple_choice:
             async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):

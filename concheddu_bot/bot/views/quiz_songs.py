@@ -130,6 +130,7 @@ class QuizSongs(discord.ui.View):
             audio_filter: str = None,
             multiple_choice: bool = True,
             show_thumbnail: bool = False,
+            thumbnail_blur: int = 0,
         ):
         super().__init__()
         self.itc = itc
@@ -142,6 +143,7 @@ class QuizSongs(discord.ui.View):
         # self.quiz = quiz
         self.multiple_choice = multiple_choice
         self.show_thumbnail = show_thumbnail
+        self.thumbnail_blur = thumbnail_blur
 
         users = self.itc.user.voice.channel.members
 
@@ -174,6 +176,45 @@ class QuizSongs(discord.ui.View):
 
         self.on_start: list[Awaitable] = []
         self.on_finish: list[Awaitable] = []
+
+    async def get_thumbnail_embed(
+            self, song: m.YTSong, user: discord.Member
+        ) -> tuple[discord.Embed, discord.File]:
+        """Get the thumbnail embed"""
+        if not self.show_thumbnail:
+            return None
+        thumbnails_paths = song.get_thumbnails_paths()
+        thumb_url = None
+        file = None
+        if not thumbnails_paths:
+            thumbnails_urls = await song.get_thumbnails_urls()
+            if thumbnails_urls:
+                logger.info(f'Using online thumbnail for {song.title}')
+                thumb_url = random.choice(thumbnails_urls)
+            else:
+                logger.warning(f'No thumbnail found for {song.title}')
+        else:
+            attach_name = 'thumbnail.webp'
+            thumb_path = random.choice(thumbnails_paths)
+            thumb_url = f'attachment://{attach_name}'
+            # Apply a 2 radius box filter
+            if self.thumbnail_blur:
+                img = Image.open(thumb_path)
+                img = img.filter(ImageFilter.BoxBlur(self.thumbnail_blur))
+                tmp = io.BytesIO()
+                img.save(tmp, 'webp')
+                tmp.seek(0)
+                file = discord.File(tmp, filename=attach_name)
+            else:
+                file = discord.File(thumb_path, filename=attach_name)
+
+        if thumb_url:
+            embed = discord.Embed(
+                title='THUMBNAIL',
+                color=self.user_colors[user.id],
+            )
+            embed.set_image(url=f'{thumb_url}')
+        return embed, file
 
     async def quiz_step(self):
         if self.idx >= len(self.songs):
@@ -338,37 +379,13 @@ class QuizSongs(discord.ui.View):
         view.add_item(self.play_stop)
         view.add_item(self.play_start)
         msg = f'<@{user.id}> \'s turn'
-        embed = None
-        if self.show_thumbnail:
-            thumbnails_paths = song.get_thumbnails_paths()
-            thumb_url = None
-            file = None
-            if not thumbnails_paths:
-                thumbnails_urls = await song.get_thumbnails_urls()
-                if thumbnails_urls:
-                    logger.info(f'Using online thumbnail for {song.title}')
-                    thumb_url = random.choice(thumbnails_urls)
-                else:
-                    logger.warning(f'No thumbnail found for {song.title}')
-            else:
-                thumb_path = random.choice(thumbnails_paths)
-                thumb_url = f'attachment://thumbnail.webp'
-                # Apply a 2 radius box filter
-                img = Image.open(thumb_path)
-                img = img.filter(ImageFilter.BoxBlur(2))
-                tmp = io.BytesIO()
-                img.save(tmp, 'webp')
-                tmp.seek(0)
-                file = discord.File(tmp, filename='thumbnail.webp')
-                # file = discord.File(thumb_path, filename='thumbnail.webp')
 
-            if thumb_url:
-                embed = discord.Embed(
-                    title='THUMBNAIL',
-                    color=self.user_colors[user.id],
-                )
-                embed.set_image(url=f'{thumb_url}')
-        message = await self.channel.send(content=msg, view=view, embed=embed, file=file)
+        embed, file = await self.get_thumbnail_embed(song, user)
+
+        message = await self.channel.send(
+            content=msg, view=view,
+            embed=embed, file=file
+        )
 
     async def command_answer(self, itc: discord.Interaction, song: m.YTSong):
         if self.answer_callback:
