@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import re
 import urllib
 
@@ -277,7 +278,10 @@ class YTSong(models.Model):
 
     def get_thumbnails_paths(self) -> list[str]:
         """Return the thumbnails paths"""
-        return [YTDLSource.get_thumbnail_path(self.youtube_id, i) for i in range(self.num_thumbnails)]
+        if self.thumbnail_urls is None:
+            return []
+        res = [YTDLSource.get_thumbnail_path(self.youtube_id, i) for i in range(len(self.thumbnail_urls))]
+        return list(filter(lambda _: os.path.exists(_), res))
 
     @classmethod
     async def get_all_songs(

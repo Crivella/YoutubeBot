@@ -338,9 +338,20 @@ class QuizSongs(discord.ui.View):
         msg = f'<@{user.id}> \'s turn'
         embed = None
         if self.show_thumbnail:
-            thumbnails_urls = await song.get_thumbnails_urls()
-            if thumbnails_urls:
-                thumb_url = random.choice(thumbnails_urls)
+            thumbnails_paths = await song.get_thumbnails_paths()
+            thumb_url = None
+            if not thumbnails_paths:
+                thumbnails_urls = await song.get_thumbnails_urls()
+                if thumbnails_urls:
+                    logger.info(f'Using online thumbnail for {song.title}')
+                    thumb_url = random.choice(thumbnails_urls)
+                else:
+                    logger.warning(f'No thumbnail found for {song.title}')
+            else:
+                thumb_path = random.choice(thumbnails_paths)
+                thumb_url = f'attachment://{thumb_path}'
+
+            if thumb_url:
                 embed = discord.Embed(
                     title='THUMBNAIL',
                     color=self.user_colors[user.id],
