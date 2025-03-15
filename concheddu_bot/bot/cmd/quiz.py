@@ -38,7 +38,8 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             segment_length: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 20,
             segment_mode: str = 'start',
             audio_filter: str = None,
-            multiple_choice: bool = True
+            multiple_choice: bool = True,
+            show_thumbnail: bool = False
         ):
         """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
@@ -50,6 +51,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             segment_mode (str, optional): start/end/random. Defaults to 'start'.
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
             multiple_choice (bool, optional): Multiple choice or use command to answer. Defaults to True.
+            show_thumbnail (bool, optional): Show thumbnail in the quiz. Defaults to False.
         """
         if segment_mode not in ALLOWED_SEGMENT_MODES:
             await safe_response(itc, f'Segment mode invalid', ephemeral=True)
@@ -74,7 +76,8 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             segment_mode=segment_mode,
             audio_filter=audio_filter,
 
-            multiple_choice=multiple_choice
+            multiple_choice=multiple_choice,
+            show_thumbnail=show_thumbnail
         )
         if not multiple_choice:
             async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):

@@ -126,7 +126,8 @@ class QuizSongs(discord.ui.View):
             segment_length: int = 20,
             segment_mode: str = 'start',
             audio_filter: str = None,
-            multiple_choice: bool = True
+            multiple_choice: bool = True,
+            show_thumbnail: bool = False,
         ):
         super().__init__()
         self.itc = itc
@@ -137,6 +138,8 @@ class QuizSongs(discord.ui.View):
         self.segment_mode = segment_mode
         self.audio_filter = audio_filter
         # self.quiz = quiz
+        self.multiple_choice = multiple_choice
+        self.show_thumbnail = show_thumbnail
 
         users = self.itc.user.voice.channel.members
 
@@ -164,7 +167,6 @@ class QuizSongs(discord.ui.View):
 
         self.scoreboard: discord.Message = None
 
-        self.multiple_choice = multiple_choice
 
         self.answer_callback = None
 
@@ -334,7 +336,17 @@ class QuizSongs(discord.ui.View):
         view.add_item(self.play_stop)
         view.add_item(self.play_start)
         msg = f'<@{user.id}> \'s turn'
-        message = await self.channel.send(content=msg, view=view)
+        embed = None
+        if self.show_thumbnail:
+            thumbnails_urls = await song.get_thumbnails_urls()
+            if thumbnails_urls:
+                thumb_url = random.choice(thumbnails_urls)
+                embed = discord.Embed(
+                    title='THUMBNAIL',
+                    color=self.user_colors[user.id],
+                )
+                embed.set_image(url=f'{thumb_url}')
+        message = await self.channel.send(content=msg, view=view, embed=embed)
 
     async def command_answer(self, itc: discord.Interaction, song: m.YTSong):
         if self.answer_callback:
@@ -451,6 +463,9 @@ class QuizSongs(discord.ui.View):
             segment_length=self.segment_length,
             segment_mode=self.segment_mode,
             audio_filter=self.audio_filter,
+
+            multiple_choice=self.multiple_choice,
+            show_thumbnail=self.show_thumbnail,
 
             playlist=playlist,
             creator=await m.DiscordUser.from_discord_user(itc.user),
