@@ -17,6 +17,17 @@ logger = logging.getLogger('bot')
 
 ADMIN_ID = int(os.getenv('BOT_ADMIN_ID', -1))
 
+async def loop_process(itc: discord.Interaction, aiter, get_coro, delay: int = None):
+    """Run a coroutine on an async iterator"""
+    cnt = 0
+    async for item in aiter:
+        await get_coro(itc, item)
+        if delay:
+            await asyncio.sleep(delay)
+        cnt += 1
+        if cnt % 10 == 0:
+            await safe_response(itc, f'Processed {cnt} items', ephemeral=True)
+
 class Admin(commands.GroupCog, group_name='admin'):
     """Play command"""
     def __init__(self, *args, bot, **kwargs):
@@ -43,13 +54,12 @@ class Admin(commands.GroupCog, group_name='admin'):
     async def download_all_thumbnails(self, itc: discord.Interaction):
         """Download all thumbnails"""
         await safe_response(itc, f'Downloading all thumbnails', ephemeral=True)
-        awaitables = []
-        async for song in m.YTSong.objects.all():
-            awaitables.append(song.download_thumbnails())
-            if len(awaitables) > 10:
-                await asyncio.gather(*awaitables)
-                awaitables = []
-        await asyncio.gather(*awaitables)
+        await loop_process(
+            itc,
+            m.YTSong.objects.all(),
+            lambda _, song: song.download_thumbnails(),
+            delay=1
+            )
 
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
@@ -58,13 +68,12 @@ class Admin(commands.GroupCog, group_name='admin'):
     async def get_thumb_urls(self, itc: discord.Interaction):
         """Download all thumbnails"""
         await safe_response(itc, f'Getting all thumbnail urls', ephemeral=True)
-        awaitables = []
-        async for song in m.YTSong.objects.all():
-            awaitables.append(song.get_thumbnails_urls())
-            if len(awaitables) > 10:
-                await asyncio.gather(*awaitables)
-                awaitables = []
-        await asyncio.gather(*awaitables)
+        await loop_process(
+            itc,
+            m.YTSong.objects.all(),
+            lambda _, song: song.get_thumbnails_urls(),
+            delay=1
+            )
 
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
