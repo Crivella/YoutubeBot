@@ -338,7 +338,7 @@ class QuizSongs(discord.ui.View):
         msg = f'<@{user.id}> \'s turn'
         embed = None
         if self.show_thumbnail:
-            thumbnails_paths = await song.get_thumbnails_paths()
+            thumbnails_paths = song.get_thumbnails_paths()
             thumb_url = None
             if not thumbnails_paths:
                 thumbnails_urls = await song.get_thumbnails_urls()
