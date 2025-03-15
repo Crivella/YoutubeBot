@@ -46,6 +46,9 @@ class Admin(commands.GroupCog, group_name='admin'):
         awaitables = []
         async for song in m.YTSong.objects.all():
             awaitables.append(song.download_thumbnails())
+            if len(awaitables) > 10:
+                await asyncio.gather(*awaitables)
+                awaitables = []
         await asyncio.gather(*awaitables)
 
     @app_commands.command()
@@ -58,6 +61,9 @@ class Admin(commands.GroupCog, group_name='admin'):
         awaitables = []
         async for song in m.YTSong.objects.all():
             awaitables.append(song.get_thumbnails_urls())
+            if len(awaitables) > 10:
+                await asyncio.gather(*awaitables)
+                awaitables = []
         await asyncio.gather(*awaitables)
 
     @app_commands.command()
