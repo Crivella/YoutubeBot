@@ -538,7 +538,7 @@ class QuizSongs(discord.ui.View):
             f'- Segment mode: {self.segment_mode}',
             f'- Audio filter: "{self.audio_filter}"',
             f'- Multiple choice: {self.multiple_choice}',
-            f'- Show thumbnail: {self.show_thumbnail}',
+            f'- Show thumbnail: {self.show_thumbnail} (blur={self.thumbnail_blur})',
         ]
 
     def embed_details(self, embed: discord.Embed):
