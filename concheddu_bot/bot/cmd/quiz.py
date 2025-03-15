@@ -136,5 +136,9 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
         if quiz is None:
             await safe_response(itc, 'No quiz started', ephemeral=True)
             return
-        await quiz.quiz_finish()
+        try:
+            await quiz.quiz_finish()
+        except Exception as e:
+            logger.exception('Error stopping quiz', exc_info=e)
+            current_quiz.pop(itc.guild.id, None)
         await safe_response(itc, 'Quiz stopped', ephemeral=True)
