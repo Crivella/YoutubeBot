@@ -196,7 +196,7 @@ class YTSong(models.Model):
 
             await safe_response(itc, f'Loaded {self.title}', ephemeral=True, append=True)
 
-            res = await src.get_source(audio_filter=audio_filter)
+            res = src.get_source(audio_filter=audio_filter)
         finally:
             fetch_source_mem.remove(self.youtube_id)
 

@@ -115,12 +115,7 @@ class Player:
                 self.queue.go_next()
             self.first = False
             try:
-                async with SEMAPHORE_FFMPEG:
-                    await self.play()
-                    await asyncio.sleep(0.1)
-                    # Also wait here to keep the semaphore locked while playing
-                    while self.playing:
-                        await asyncio.sleep(delay)
+                await self.play()
             except Exception as e:
                 logger.error(e, exc_info=True)
 
@@ -190,14 +185,19 @@ class Player:
                 return
             self.client = await self.channel.connect()
 
-        try:
-            source = await obj.song.get_source(audio_filter=obj.afilt)
-            self.client.play(source)
-        except Exception as e:
-            logger.error(e, exc_info=True)
-            await self.stop()
-        else:
-            await obj.on_play()
+        source = await obj.song.get_source(audio_filter=obj.afilt)
+        async with SEMAPHORE_FFMPEG:
+            try:
+                self.client.play(source)
+            except Exception as e:
+                logger.error(e, exc_info=True)
+                await self.stop()
+            else:
+                await obj.on_play()
+                # Keep the semaphore locked until the song is finished
+                asyncio.sleep(0.1)
+                while self.playing:
+                    await asyncio.sleep(0.5)
 
     @with_monitor
     async def resume(self):
