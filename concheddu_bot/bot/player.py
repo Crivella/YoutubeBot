@@ -195,7 +195,7 @@ class Player:
             else:
                 await obj.on_play()
                 # Keep the semaphore locked until the song is finished
-                asyncio.sleep(0.1)
+                await asyncio.sleep(0.1)
                 while self.playing:
                     await asyncio.sleep(0.5)
 

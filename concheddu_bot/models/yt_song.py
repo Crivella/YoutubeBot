@@ -164,7 +164,7 @@ class YTSong(models.Model):
 
         Show the progress in the interaction if provided
         """
-        asyncio.sleep(0.1)
+        await asyncio.sleep(0.1)
         while self.youtube_id in fetch_source_mem:
             await asyncio.sleep(0.5)
 
