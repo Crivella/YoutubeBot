@@ -340,6 +340,7 @@ class QuizSongs(discord.ui.View):
         if self.show_thumbnail:
             thumbnails_paths = song.get_thumbnails_paths()
             thumb_url = None
+            file = None
             if not thumbnails_paths:
                 thumbnails_urls = await song.get_thumbnails_urls()
                 if thumbnails_urls:
@@ -349,7 +350,8 @@ class QuizSongs(discord.ui.View):
                     logger.warning(f'No thumbnail found for {song.title}')
             else:
                 thumb_path = random.choice(thumbnails_paths)
-                thumb_url = f'attachment://{thumb_path}'
+                thumb_url = f'attachment://thumbnail.webp'
+                file = discord.File(thumb_path, filename='thumbnail.webp')
 
             if thumb_url:
                 embed = discord.Embed(
@@ -357,7 +359,7 @@ class QuizSongs(discord.ui.View):
                     color=self.user_colors[user.id],
                 )
                 embed.set_image(url=f'{thumb_url}')
-        message = await self.channel.send(content=msg, view=view, embed=embed)
+        message = await self.channel.send(content=msg, view=view, embed=embed, file=file)
 
     async def command_answer(self, itc: discord.Interaction, song: m.YTSong):
         if self.answer_callback:
@@ -509,7 +511,8 @@ class QuizSongs(discord.ui.View):
             f'- Segment length: {self.segment_length} s',
             f'- Segment mode: {self.segment_mode}',
             f'- Audio filter: "{self.audio_filter}"',
-            f'- Multiple choice: {self.multiple_choice}'
+            f'- Multiple choice: {self.multiple_choice}',
+            f'- Show thumbnail: {self.show_thumbnail}',
         ]
 
     def embed_details(self, embed: discord.Embed):
