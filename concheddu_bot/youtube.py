@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import re
 import urllib
 from typing import Awaitable, Optional
 
@@ -20,6 +21,13 @@ NORMALIZE_CODEC = os.getenv('BOT_NORMALIZE_CODEC', 'aac')
 NORMALIZE_EXT = os.getenv('BOT_NORMALIZE_EXT', 'mkv')
 
 logger = logging.getLogger('bot')
+
+thumbnail_rgx = re.compile(r'/sd[0-9a-z]+\.webp$')
+
+THUMB_DIR = os.path.join(AUDIO_DIR, 'thumbs')
+
+if not os.path.exists(THUMB_DIR):
+    os.makedirs(THUMB_DIR)
 
 ytdl = yt_dlp.YoutubeDL({
     'format': FORMAT,
@@ -152,10 +160,10 @@ class YTDLSource():
             raise ValueError(f'Start time {start} is greater than end time {end}')
         self.ff_opts['options'] += f' -ss {start} -to {end}'
 
-    async def get_info(self, *, loop = None) -> dict:
+    async def get_info(self, *, force: bool = False, loop = None) -> dict:
         """Get the Youtube info from a URL"""
         logger.debug(f'YTDLSource.get_info: {self.url}')
-        if not self.data:
+        if not self.data or force:
             if self.url is None:
                 raise ValueError('No URL')
             async with SEMAPHORE_DOWNLOAD:
@@ -164,6 +172,7 @@ class YTDLSource():
             if 'entries' in data:
                 # take first item from a playlist
                 data = data['entries'][0]
+            data['thumbnails'] = [_['url'] for _ in data['thumbnails'] if thumbnail_rgx.search(_['url'])]
             self.data = data
 
         self.path = ytdl.prepare_filename(self.data)
@@ -178,6 +187,11 @@ class YTDLSource():
                 raise ValueError('No path')
             self.source = audio_class(path, **self.ff_opts)
         return self.source
+
+    @staticmethod
+    def get_thumbnail_path(yt_id: str, idx: int) -> str:
+        """Get the thumbnail path"""
+        return os.path.join(THUMB_DIR, f'{yt_id}.{idx}.webp')
 
     async def delete_files(self):
         """Delete the files"""

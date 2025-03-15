@@ -7,6 +7,7 @@ import discord
 from django.db import models
 
 from ..bot.utils import safe_response
+from ..semaphores import SEMAPHORE_DOWNLOAD
 from ..youtube import MAX_DURATION, YTDLSource
 from . import filters as flt
 from .discord import DiscordServer, DiscordUser
@@ -43,6 +44,8 @@ class YTSong(models.Model):
 
     times_answered = models.IntegerField(default=0)
     times_guessed = models.IntegerField(default=0)
+
+    thumbnail_urls = models.JSONField(null=True)
 
     @property
     def title(self):
@@ -142,6 +145,7 @@ class YTSong(models.Model):
             'title': self.title,
             'duration': self.duration,
             'ext': self.extension,
+            'thumbnails': self.thumbnail_urls,
             'id': self.youtube_id,
         }
 
@@ -237,6 +241,43 @@ class YTSong(models.Model):
 
         await server.add_source(self, itc.user, on_play, audio_filter, channel=channel)
         asyncio.create_task(self.get_source(itc=itc_))
+
+    async def get_thumbnails_urls(self) -> list[str]:
+        """Get the thumbnails urls"""
+        logger.debug(f'Getting thumbnails urls for {self.title}')
+
+        # If the thumbnails are not already fetched, force a refresh of the info
+        if self.thumbnail_urls is None:
+            src = YTDLSource.from_url(self.url)
+            data = await src.get_info(force=True)
+            self.thumbnail_urls = data['thumbnails']
+            await self.asave()
+
+        return self.thumbnail_urls
+
+    async def download_thumbnails(self, *, loop = None) -> list[str]:
+        """Download the thumbnails"""
+        logger.debug(f'Downloading thumbnails for {self.title}')
+
+        urls = await self.get_thumbnails_urls()
+        res = []
+        for url in urls:
+            path = await YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
+            try:
+                async with SEMAPHORE_DOWNLOAD:
+                    logger.info(f'Downloading thumbnail {url} -> {path}')
+                    loop = loop or asyncio.get_event_loop()
+                    await loop.run_in_executor(None, lambda: urllib.request.urlretrieve(url, path))
+            except Exception as e:
+                logger.error(f'Error downloading thumbnail {url}: {e}', exc_info=True)
+            else:
+                res.append(path)
+
+        return res
+
+    def get_thumbnails_paths(self) -> list[str]:
+        """Return the thumbnails paths"""
+        return [YTDLSource.get_thumbnail_path(self.youtube_id, i) for i in range(self.num_thumbnails)]
 
     @classmethod
     async def get_all_songs(

@@ -1,4 +1,5 @@
 """Music commands for the bot"""
+import asyncio
 import logging
 import os
 
@@ -28,13 +29,36 @@ class Admin(commands.GroupCog, group_name='admin'):
     @call_command_register()
     async def sync(self, itc: discord.Interaction):
         """Sync the bot commands"""
-        raise ValueError('Not implemented')
         fmt = await self.bot.tree.sync(guild=itc.guild)
 
         for cmd in fmt:
             logger.debug(f'Synced {cmd} commands')
 
         await itc.response.send_message(f'Synced {fmt} commands', ephemeral=True)
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response()
+    @call_command_register()
+    async def download_all_thumbnails(self, itc: discord.Interaction):
+        """Download all thumbnails"""
+        await safe_response(itc, f'Downloading all thumbnails', ephemeral=True)
+        awaitables = []
+        async for song in m.YTSong.objects.all():
+            awaitables.append(song.download_thumbnails())
+        await asyncio.gather(*awaitables)
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response()
+    @call_command_register()
+    async def get_thumb_urls(self, itc: discord.Interaction):
+        """Download all thumbnails"""
+        await safe_response(itc, f'Getting all thumbnail urls', ephemeral=True)
+        awaitables = []
+        async for song in m.YTSong.objects.all():
+            awaitables.append(song.get_thumbnails_urls())
+        await asyncio.gather(*awaitables)
 
     @app_commands.command()
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
