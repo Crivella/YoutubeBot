@@ -7,7 +7,6 @@ from typing import Callable
 
 import discord
 
-from ..models.yt_song import YTSong
 from ..semaphores import SEMAPHORE_FFMPEG
 from .utils import safe_disconnect
 

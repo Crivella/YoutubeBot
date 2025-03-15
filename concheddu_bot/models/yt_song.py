@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 import urllib
@@ -28,6 +29,8 @@ def title_cleaner(title: str) -> str:
     return res.strip()
 
 logger = logging.getLogger('bot')
+
+fetch_source_mem: set[str] = set()
 
 class YTSong(models.Model):
     """Youtube song model"""
@@ -161,36 +164,43 @@ class YTSong(models.Model):
 
         Show the progress in the interaction if provided
         """
-        if hasattr(self, 'source') and self.source:
-            return self.source
+        asyncio.sleep(0.1)
+        while self.youtube_id in fetch_source_mem:
+            await asyncio.sleep(0.5)
 
-        path = f'{self.youtube_id}.{self.extension}'
-        src = YTDLSource.from_path(path, self.metadata)
-        src = src or YTDLSource.from_url(self.url, self.metadata)
+        fetch_source_mem.add(self.youtube_id)
+        try:
+            path = f'{self.youtube_id}.{self.extension}'
+            src = YTDLSource.from_path(path, self.metadata)
+            src = src or YTDLSource.from_url(self.url, self.metadata)
 
-        await src.get_info()
+            await src.get_info()
 
-        download = src.download()
-        if download:
-            msg = f'Downloading {self.title}'
-            await safe_response(itc, msg, ephemeral=True, append=True)
-            await download
+            download = src.download()
+            if download:
+                msg = f'Downloading {self.title}'
+                await safe_response(itc, msg, ephemeral=True, append=True)
+                await download
 
-        normalize = src.normalize()
-        if normalize:
-            msg = f'Normalizing {self.title}'
-            await safe_response(itc, msg, ephemeral=True, append=True)
-            await normalize
+            normalize = src.normalize()
+            if normalize:
+                msg = f'Normalizing {self.title}'
+                await safe_response(itc, msg, ephemeral=True, append=True)
+                await normalize
 
-        if hasattr(self, 'start') and hasattr(self, 'end') and self.start is not None and self.end is not None:
-            start = self.start
-            end = self.end
-            logger.debug(f'Setting segment {start} -> {end}')
-            await src.set_segment(start, end)
+            if hasattr(self, 'start') and hasattr(self, 'end') and self.start is not None and self.end is not None:
+                start = self.start
+                end = self.end
+                logger.debug(f'Setting segment {start} -> {end}')
+                await src.set_segment(start, end)
 
-        await safe_response(itc, f'Loaded {self.title}', ephemeral=True, append=True)
+            await safe_response(itc, f'Loaded {self.title}', ephemeral=True, append=True)
 
-        return src.get_source(audio_filter=audio_filter)
+            res = await src.get_source(audio_filter=audio_filter)
+        finally:
+            fetch_source_mem.remove(self.youtube_id)
+
+        return res
 
     async def play(
             self,
@@ -225,8 +235,8 @@ class YTSong(models.Model):
 
         itc_ = itc if update_msg else None
 
-        await self.get_source(itc=itc_)
         await server.add_source(self, itc.user, on_play, audio_filter, channel=channel)
+        asyncio.create_task(self.get_source(itc=itc_))
 
     @classmethod
     async def get_all_songs(
