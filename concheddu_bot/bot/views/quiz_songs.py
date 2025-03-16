@@ -184,31 +184,25 @@ class QuizSongs(discord.ui.View):
         """Get the thumbnail embed"""
         if not self.show_thumbnail:
             return None
-        thumbnails_paths = song.get_thumbnails_paths()
-        thumb_url = None
-        file = None
+        thumbnails_paths = song.get_thumbnails_paths() or await song.download_thumbnails()
         if not thumbnails_paths:
-            thumbnails_urls = await song.get_thumbnails_urls()
-            if thumbnails_urls:
-                logger.info(f'Using online thumbnail for {song.title}')
-                thumb_url = random.choice(thumbnails_urls)
-            else:
-                logger.warning(f'No thumbnail found for {song.title}')
+            logger.warning(f'No thumbnail found for {song.title}')
+            return None, None, None
+
+        attach_name = 'thumbnail.webp'
+        thumb_path = random.choice(thumbnails_paths)
+        thumb_url = f'attachment://{attach_name}'
+        unblurred = discord.File(thumb_path, filename=attach_name)
+        # Apply a radius box filter
+        if self.thumbnail_blur and blur:
+            img = Image.open(thumb_path)
+            img = img.filter(ImageFilter.BoxBlur(self.thumbnail_blur))
+            tmp = io.BytesIO()
+            img.save(tmp, 'webp')
+            tmp.seek(0)
+            file = discord.File(tmp, filename=attach_name)
         else:
-            attach_name = 'thumbnail.webp'
-            thumb_path = random.choice(thumbnails_paths)
-            thumb_url = f'attachment://{attach_name}'
-            unblurred = discord.File(thumb_path, filename=attach_name)
-            # Apply a 2 radius box filter
-            if self.thumbnail_blur and blur:
-                img = Image.open(thumb_path)
-                img = img.filter(ImageFilter.BoxBlur(self.thumbnail_blur))
-                tmp = io.BytesIO()
-                img.save(tmp, 'webp')
-                tmp.seek(0)
-                file = discord.File(tmp, filename=attach_name)
-            else:
-                file = unblurred
+            file = unblurred
 
         if thumb_url:
             embed = discord.Embed(
@@ -385,6 +379,7 @@ class QuizSongs(discord.ui.View):
 
         if self.multiple_choice:
             view.add_item(self.answer_list)
+            self.answer_callback = None
         else:
             self.answer_callback = answer_callback
 
