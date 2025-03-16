@@ -512,6 +512,8 @@ class QuizSongs(discord.ui.View):
                 ephemeral=True, delete_after=10
             )
             return
+        if self.show_thumbnail:
+            songs = [s for s in songs if await s.thumbnails.acount() > 0]
         logger.info(f'Found {found_songs} songs')
 
         if not self.multiple_choice:
@@ -530,6 +532,7 @@ class QuizSongs(discord.ui.View):
                     ephemeral=True, delete_after=10
                 )
                 return
+
             self.all_song = random.sample(songs, self.nmc)
             songs = random.sample(self.all_song, needed_songs)
         else:
