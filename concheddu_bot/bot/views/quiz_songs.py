@@ -178,7 +178,8 @@ class QuizSongs(discord.ui.View):
         self.on_finish: list[Awaitable] = []
 
     async def get_thumbnail_embed(
-            self, song: m.YTSong, user: discord.Member
+            self, song: m.YTSong, user: discord.Member,
+            blur: bool = True
         ) -> tuple[discord.Embed, discord.File]:
         """Get the thumbnail embed"""
         if not self.show_thumbnail:
@@ -198,7 +199,7 @@ class QuizSongs(discord.ui.View):
             thumb_path = random.choice(thumbnails_paths)
             thumb_url = f'attachment://{attach_name}'
             # Apply a 2 radius box filter
-            if self.thumbnail_blur:
+            if self.thumbnail_blur and blur:
                 img = Image.open(thumb_path)
                 img = img.filter(ImageFilter.BoxBlur(self.thumbnail_blur))
                 tmp = io.BytesIO()
@@ -356,12 +357,16 @@ class QuizSongs(discord.ui.View):
                 color=self.user_colors[user.id]
             )
 
+            embed_img, file = await self.get_thumbnail_embed(song, user, blur=False)
+            if embed_img:
+                embed.set_image(url=embed_img.image.url)
+
             self.answers.append(result)
             self.user_answers[user.id].append(result if answer is not None else None)
             self.score[user.id] += result
 
             view.clear_items()
-            await message.edit(embed=embed, view=None)
+            await message.edit(embed=embed, view=None, file=file)
             await self.display_score()
             self.idx += 1
             await self.quiz_step()
