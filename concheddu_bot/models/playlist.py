@@ -20,10 +20,10 @@ class Playlist(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     @classmethod
-    async def create_playlist(cls, name: str, *, server: discord.Guild, user: discord.User | discord.Member):
+    async def create_playlist(cls, name: str, *, server: DiscordServer, user: DiscordUser):
         """Create a playlist"""
-        user = await DiscordUser.from_discord_user(user)
-        server = await DiscordServer.from_discord_guild(server)
+        # user = await DiscordUser.from_discord_user(user)
+        # server = await DiscordServer.from_discord_guild(server)
         q = cls.objects
         q = q.filter(server=server, owner=user, name=name)
         if await q.aexists():
