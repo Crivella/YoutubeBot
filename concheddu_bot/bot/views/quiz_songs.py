@@ -180,7 +180,7 @@ class QuizSongs(discord.ui.View):
     async def get_thumbnail_embed(
             self, song: m.YTSong, user: discord.Member,
             blur: bool = True
-        ) -> tuple[discord.Embed, discord.File]:
+        ) -> tuple[discord.Embed, discord.File, discord.File]:
         """Get the thumbnail embed"""
         if not self.show_thumbnail:
             return None
@@ -198,6 +198,7 @@ class QuizSongs(discord.ui.View):
             attach_name = 'thumbnail.webp'
             thumb_path = random.choice(thumbnails_paths)
             thumb_url = f'attachment://{attach_name}'
+            unblurred = discord.File(thumb_path, filename=attach_name)
             # Apply a 2 radius box filter
             if self.thumbnail_blur and blur:
                 img = Image.open(thumb_path)
@@ -207,7 +208,7 @@ class QuizSongs(discord.ui.View):
                 tmp.seek(0)
                 file = discord.File(tmp, filename=attach_name)
             else:
-                file = discord.File(thumb_path, filename=attach_name)
+                file = unblurred
 
         if thumb_url:
             embed = discord.Embed(
@@ -215,7 +216,7 @@ class QuizSongs(discord.ui.View):
                 color=self.user_colors[user.id],
             )
             embed.set_image(url=f'{thumb_url}')
-        return embed, file
+        return embed, file, unblurred
 
     async def quiz_step(self):
         if self.idx >= len(self.songs):
@@ -230,6 +231,8 @@ class QuizSongs(discord.ui.View):
         server = self.server
         message = None
         answered = False
+        unblurred: discord.File = None
+        embed_url = None
 
         time_first_play = None
         time_blind_guess = time.time()
@@ -357,9 +360,10 @@ class QuizSongs(discord.ui.View):
                 color=self.user_colors[user.id]
             )
 
-            embed_img, file = await self.get_thumbnail_embed(song, user, blur=False)
-            if embed_img:
-                embed.set_image(url=embed_img.image.url)
+            attach = []
+            if unblurred is not None:
+                attach = [unblurred,]
+                embed.set_image(url=embed_url)
 
             self.answers.append(result)
             self.user_answers[user.id].append(result if answer is not None else None)
@@ -369,7 +373,7 @@ class QuizSongs(discord.ui.View):
             await message.edit(
                 embed=embed,
                 view=None,
-                attachments=[file,],
+                attachments=attach,
                 )
             await self.display_score()
             self.idx += 1
@@ -390,6 +394,7 @@ class QuizSongs(discord.ui.View):
         msg = f'<@{user.id}> \'s turn'
 
         embed, file = await self.get_thumbnail_embed(song, user)
+        embed_url = embed.image.url if embed else None
 
         message = await self.channel.send(
             content=msg, view=view,
