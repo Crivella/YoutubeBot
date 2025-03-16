@@ -67,7 +67,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             return
         playlists = await m.Playlist.get_playlists(itc=itc)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
-        current_quiz[server_id] = view = v.QuizSongs(
+        view = v.QuizSongs(
             itc,
 
             playlists=playlists,
@@ -82,10 +82,13 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             show_thumbnail=show_thumbnail,
             thumbnail_blur=thumbnail_blur
         )
-        if not multiple_choice:
-            async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):
+
+        async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):
+            if not multiple_choice:
                 tfs.SongTransformer.register_server_playlist(server_id, all_songs)
-            view.on_start.append(start_callback)
+            current_quiz[server_id] = view
+        view.on_start.append(start_callback)
+
         async def finish_callback():
             tfs.SongTransformer.remove_server_playlist(server_id)
             current_quiz.pop(server_id, None)
