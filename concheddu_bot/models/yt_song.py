@@ -147,7 +147,7 @@ class YTSong(models.Model):
             'title': self.title,
             'duration': self.duration,
             'ext': self.extension,
-            'thumbnails': self.thumbnail_urls,
+            # 'thumbnails': self.thumbnail_urls,
             'id': self.youtube_id,
         }
 
@@ -278,8 +278,8 @@ class YTSong(models.Model):
 
     def get_thumbnails_paths(self) -> list[str]:
         """Return the thumbnails paths"""
-        if self.thumbnail_urls is None:
-            return []
+        # if self.thumbnail_urls is None:
+        #     return []
         res = []
         for i in range(self.num_thumbnails):
             path = YTDLSource.get_thumbnail_path(self.youtube_id, i)
