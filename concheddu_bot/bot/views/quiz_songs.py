@@ -186,7 +186,7 @@ class QuizSongs(discord.ui.View):
         """Get the thumbnail embed"""
         if not self.show_thumbnail:
             return None
-        thumbnails = [_ async for _ in song.thumbnails.all()]
+        thumbnails = await song.get_thumbnails()
         if not thumbnails:
             logger.warning(f'No thumbnail found for {song.title}')
             return None, None, None, None
@@ -596,6 +596,7 @@ class QuizSongs(discord.ui.View):
             f'- Audio filter: "{self.audio_filter}"',
             f'- Multiple choice: {self.multiple_choice}',
             f'- Show thumbnail: {self.show_thumbnail} (blur={self.thumbnail_blur})',
+            f'- Progressive blur: {self.progressive_blur}',
         ]
 
     def embed_details(self, embed: discord.Embed):
