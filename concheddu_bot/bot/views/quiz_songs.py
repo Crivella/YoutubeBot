@@ -366,7 +366,11 @@ class QuizSongs(discord.ui.View):
             self.score[user.id] += result
 
             view.clear_items()
-            await message.edit(embed=embed, view=None, file=file)
+            await message.edit(
+                embed=embed,
+                view=None,
+                attachments=[file,],
+                )
             await self.display_score()
             self.idx += 1
             await self.quiz_step()
