@@ -184,23 +184,23 @@ class QuizSongs(discord.ui.View):
         """Get the thumbnail embed"""
         if not self.show_thumbnail:
             return None
-        thumbnails_paths = song.get_thumbnails_paths() or await song.download_thumbnails()
-        if not thumbnails_paths:
+        thumbnails = [_ async for _ in song.thumbnails.all()]
+        # thumbnails_paths = song.get_thumbnails_paths() or await song.download_thumbnails()
+        if not thumbnails:
             logger.warning(f'No thumbnail found for {song.title}')
-            return None, None, None
+            return None, None, None, None
 
+        thumb = random.choice(thumbnails)
         attach_name = 'thumbnail.webp'
-        thumb_path = random.choice(thumbnails_paths)
+        # thumb_path = random.choice(thumbnails_paths)
         thumb_url = f'attachment://{attach_name}'
-        unblurred = discord.File(thumb_path, filename=attach_name)
+        unblurred = discord.File(await thumb.get_image(), filename=attach_name)
         # Apply a radius box filter
         if self.thumbnail_blur and blur:
-            img = Image.open(thumb_path)
-            img = img.filter(ImageFilter.BoxBlur(self.thumbnail_blur))
-            tmp = io.BytesIO()
-            img.save(tmp, 'webp')
-            tmp.seek(0)
-            file = discord.File(tmp, filename=attach_name)
+            file = discord.File(
+                await thumb.get_image(blur_radius = self.thumbnail_blur),
+                filename=attach_name
+            )
         else:
             file = unblurred
 
@@ -210,7 +210,7 @@ class QuizSongs(discord.ui.View):
                 color=self.user_colors[user.id],
             )
             embed.set_image(url=f'{thumb_url}')
-        return embed, thumb_path, file, unblurred
+        return embed, thumb, file, unblurred
 
     async def quiz_step(self):
         if self.idx >= len(self.songs):
@@ -227,7 +227,7 @@ class QuizSongs(discord.ui.View):
         answered = False
         unblurred: discord.File = None
         embed_url = None
-        thumb_path = None
+        thumb = None
 
         time_first_play = None
         time_blind_guess = time.time()
@@ -343,7 +343,7 @@ class QuizSongs(discord.ui.View):
                 num_choices=self.nmc,
                 num_plays=num_plays,
                 time=time_end - time_start,
-                thumbnail=thumb_path
+                thumbnail=thumb
                 )
 
             msg = []
@@ -390,7 +390,7 @@ class QuizSongs(discord.ui.View):
         view.add_item(self.play_start)
         msg = f'<@{user.id}> \'s turn'
 
-        embed, thumb_path, file, unblurred = await self.get_thumbnail_embed(song, user)
+        embed, thumb, file, unblurred = await self.get_thumbnail_embed(song, user)
         embed_url = embed.image.url if embed else None
 
         message = await self.channel.send(

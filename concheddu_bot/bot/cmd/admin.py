@@ -58,7 +58,21 @@ class Admin(commands.GroupCog, group_name='admin'):
             itc,
             m.YTSong.objects.all(),
             lambda _, song: song.download_thumbnails(),
-            delay=1
+            delay=.2
+            )
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response()
+    @call_command_register()
+    async def convert_to_using_imageobjs(self, itc: discord.Interaction):
+        """Download all thumbnails"""
+        await safe_response(itc, f'Downloading all thumbnails', ephemeral=True)
+        await loop_process(
+            itc,
+            m.YTSong.objects.all(),
+            lambda _, song: song.convert_to_using_imageobjs(),
+            delay=.2
             )
 
     @app_commands.command()

@@ -13,6 +13,7 @@ from ..youtube import MAX_DURATION, YTDLSource
 from . import filters as flt
 from .discord import DiscordServer, DiscordUser
 from .events import PlayEvent
+from .image import ImageObj
 
 
 def title_cleaner(title: str) -> str:
@@ -47,6 +48,7 @@ class YTSong(models.Model):
     times_guessed = models.IntegerField(default=0)
 
     # thumbnail_urls = models.JSONField(null=True)
+    thumbnails = models.ManyToManyField('ImageObj', related_name='yt_songs')
     num_thumbnails = models.IntegerField(default=0)
 
     @property
@@ -269,6 +271,39 @@ class YTSong(models.Model):
                 logger.error(f'Error downloading thumbnail {url}: {e}', exc_info=True)
             else:
                 res.append(path)
+
+        if len(res) != self.num_thumbnails:
+            self.num_thumbnails = len(res)
+            await self.asave()
+
+        return res
+
+    async def convert_to_using_imageobjs(self, *, loop = None) -> list[ImageObj]:
+        """Convert the thumbnails to using ImageObj"""
+        import io
+        logger.debug(f'Converting {self.title} thumbnails to ImageObj')
+        urls = self.get_thumbnails_urls()
+        res = []
+        for url in urls:
+            path = YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
+            if not os.path.exists(path):
+                try:
+                    async with SEMAPHORE_DOWNLOAD:
+                        logger.info(f'Downloading thumbnail {url} -> {path}')
+                        loop = loop or asyncio.get_event_loop()
+                        await loop.run_in_executor(None, lambda: urllib.request.urlretrieve(url, path))
+                except Exception as e:
+                    logger.error(f'Error downloading thumbnail {url}: {e}', exc_info=True)
+                    continue
+            new = ImageObj(url=url)
+            fp = io.BytesIO()
+            with open(path, 'rb') as file:
+                fp.write(file.read())
+            fp.seek(0)
+            await new.save_local(fp, ext='.webp')
+            await self.thumbnails.aadd(new)
+
+            res.append(new)
 
         if len(res) != self.num_thumbnails:
             self.num_thumbnails = len(res)

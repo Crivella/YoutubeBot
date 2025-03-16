@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .discord import DiscordUser
 from .events import GuessSongEvent
+from .image import ImageObj
 from .playlist import Playlist
 from .yt_song import YTSong
 
@@ -82,7 +83,7 @@ class QuizSong(models.Model):
             start: int, end: int, num_choices: int,
             num_plays: int = 0,
             time: int = None,
-            thumbnail: str = None
+            thumbnail: 'ImageObj' = None
         ) -> bool:
         """Guess a song"""
         song = await YTSong.objects.aget(youtube_id=song_id)

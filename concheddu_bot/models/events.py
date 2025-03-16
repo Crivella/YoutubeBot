@@ -36,7 +36,7 @@ class GuessSongEvent(models.Model):
     time_to_answer = models.FloatField(null=True)
 
     # The thumbnail used for the song
-    thumbnail = models.CharField(max_length=512, null=True)
+    thumbnail = models.ForeignKey('ImageObj', on_delete=models.SET_NULL, null=True)
 
     user = models.ForeignKey(
         'DiscordUser', on_delete=models.CASCADE,
