@@ -393,7 +393,7 @@ class QuizSongs(discord.ui.View):
         view.add_item(self.play_start)
         msg = f'<@{user.id}> \'s turn'
 
-        embed, file = await self.get_thumbnail_embed(song, user)
+        embed, file, unblurred = await self.get_thumbnail_embed(song, user)
         embed_url = embed.image.url if embed else None
 
         message = await self.channel.send(
