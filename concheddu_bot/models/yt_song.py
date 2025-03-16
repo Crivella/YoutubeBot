@@ -268,6 +268,13 @@ class YTSong(models.Model):
 
         return res
 
+    async def get_thumbnails(self) -> list[ImageObj]:
+        """Get the thumbnails"""
+        res = [_ async for _ in self.thumbnails.all()]
+        if not res:
+            res = await self.download_thumbnails()
+        return res
+
     @classmethod
     async def get_all_songs(
             cls,
