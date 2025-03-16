@@ -247,7 +247,7 @@ class YTSong(models.Model):
     def get_thumbnails_urls(self) -> list[str]:
         """Get the thumbnails urls"""
         base = f'https://i.ytimg.com/vi_webp/{self.youtube_id}/'
-        return [base * f'{name}.webp' for name in ('sd1', 'sd2', 'sd3', 'sddefault')]
+        return [base + f'{name}.webp' for name in ('sd1', 'sd2', 'sd3', 'sddefault')]
 
     async def download_thumbnails(self, *, loop = None) -> list[str]:
         """Download the thumbnails"""
