@@ -79,7 +79,11 @@ class SongTransformer(app_commands.Transformer):
                 await safe_response(ctx, f'Song `{argument}` not found', ephemeral=True)
                 raise ValueError(f'Song `{argument}` not found')
             await safe_response(ctx, f'Searching for {argument}', ephemeral=True, delete_after=240)
-            song = await m.YTSong.from_search_string(argument)
+            try:
+                song = await m.YTSong.from_search_string(argument)
+            except Exception as e:
+                await safe_response(ctx, f'Error searching for {argument}: {e}', ephemeral=True)
+                raise ValueError(f'Error searching for {argument}: {e}')
         return song
 
     async def autocomplete(self, ctx: discord.Interaction, current: str):
@@ -180,7 +184,5 @@ class IntRangeTransformer(app_commands.Transformer):
         if self.max_ is not None and res > self.max_:
             await safe_response(ctx, f'Value must be <= than {self.max_}', ephemeral=True)
             raise ValueError(f'Value must be less than {self.max_}')
-
-        return res
 
         return res
