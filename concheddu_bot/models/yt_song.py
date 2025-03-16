@@ -253,7 +253,7 @@ class YTSong(models.Model):
         """Download the thumbnails"""
         logger.debug(f'Downloading thumbnails for {self.title}')
 
-        urls = await self.get_thumbnails_urls()
+        urls = self.get_thumbnails_urls()
         res = []
         for url in urls:
             path = YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
