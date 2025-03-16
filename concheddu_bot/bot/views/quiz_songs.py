@@ -230,8 +230,11 @@ class QuizSongs(discord.ui.View):
         embed_thumb = None
         thumb = None
         point_value = 1
+        max_duration = self.segment_length
         if self.progressive_blur:
             point_value = 5
+            self.segment_length = 1
+            max_duration = 10
             self.thumbnail_blur = 60
         unblurred: discord.File = None
         embed_url = None
@@ -279,10 +282,10 @@ class QuizSongs(discord.ui.View):
             start = 0
             end = self.segment_length
         elif self.segment_mode == 'end':
-            start = song.duration - self.segment_length
-            end = song.duration
+            start = song.duration - max_duration
+            end = start + self.segment_length
         elif self.segment_mode == 'random':
-            start = random.randint(0, song.duration - self.segment_length)
+            start = random.randint(0, song.duration - max_duration)
             end = start + self.segment_length
 
         @ensure_response(before=False, defer=True)
@@ -316,16 +319,17 @@ class QuizSongs(discord.ui.View):
         @ensure_response(before=False, defer=True)
         @ensure_user(users=[user], defer=True)
         async def next_blur_callback(itc: discord.Interaction):
-            nonlocal thumb, point_value
+            nonlocal thumb, point_value, end
             if answered:
                 return
             if self.thumbnail_blur <= 0:
                 return
             self.thumbnail_blur -= 15
             point_value -= 1
+            end += 2
             fp = await thumb.get_image(blur_radius=self.thumbnail_blur)
             file = discord.File(fp, filename='thumbnail.webp')
-            embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value}'
+            embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value} d={end-start}s'
             # embed, _, file, _ = await self.get_thumbnail_embed(song, user)
             # embed_url = embed.image.url if embed else None
             await message.edit(
@@ -549,6 +553,9 @@ class QuizSongs(discord.ui.View):
         logger.info('Quiz songs:')
         for song in songs:
             logger.info(f' - {song.title}')
+
+        if self.progressive_blur:
+            self.segment_length = -1
 
         self.server = server = await m.DiscordServer.from_discord_guild(itc.guild)
         self.quiz_obj = await m.QuizSong.objects.acreate(
