@@ -54,8 +54,12 @@ async def safe_response(itc: discord.Interaction, content: str = '', append: boo
         kwargs.pop('ephemeral', None)
         kwargs.pop('delete_after', None)
         if append:
-            resp = await itc.original_response()
-            msg.append(resp.content)
+            try:
+                resp = await itc.original_response()
+            except discord.errors.NotFound:
+                pass
+            else:
+                msg.append(resp.content)
     else:
         rfunc = itc.response.send_message
     msg.append(content)
