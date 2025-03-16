@@ -476,6 +476,9 @@ class QuizSongs(discord.ui.View):
         logger.info(f'Found {found_songs} songs')
 
         if not self.multiple_choice:
+            if self.nmc == 0:
+                self.nmc = len(songs)
+                logger.info(f'Using all songs for user choice')
             if self.nmc > len(songs):
                 await safe_response(
                     itc, f'Not enough songs found in global/playlist ({found_songs}/{self.nmc})',

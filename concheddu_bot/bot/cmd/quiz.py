@@ -34,13 +34,13 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     async def start(
             self, itc: discord.Interaction,
             num_songs: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 5,
-            num_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=2)] = 5,
+            num_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=0)] = 0,
             segment_length: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 20,
             segment_mode: str = 'start',
             audio_filter: str = None,
-            multiple_choice: bool = True,
-            show_thumbnail: bool = False,
-            thumbnail_blur: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=100)] = 0
+            multiple_choice: bool = False,
+            show_thumbnail: bool = True,
+            thumbnail_blur: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=100)] = 30
         ):
         """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
         in order to have the same number of questions for each user.
