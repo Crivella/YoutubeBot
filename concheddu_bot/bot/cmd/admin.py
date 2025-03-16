@@ -65,20 +65,6 @@ class Admin(commands.GroupCog, group_name='admin'):
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response()
     @call_command_register()
-    async def get_thumb_urls(self, itc: discord.Interaction):
-        """Download all thumbnails"""
-        await safe_response(itc, f'Getting all thumbnail urls', ephemeral=True)
-        await loop_process(
-            itc,
-            m.YTSong.objects.all(),
-            lambda _, song: song.get_thumbnails_urls(),
-            delay=1
-            )
-
-    @app_commands.command()
-    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
-    @ensure_response()
-    @call_command_register()
     async def sync_files_to_db(self, itc: discord.Interaction):
         """Add files present on the device to songs in the database"""
         files = os.listdir(AUDIO_DIR)
