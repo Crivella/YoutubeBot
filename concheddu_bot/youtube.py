@@ -188,11 +188,6 @@ class YTDLSource():
             self.source = audio_class(path, **self.ff_opts)
         return self.source
 
-    @staticmethod
-    def get_thumbnail_path(yt_id: str, idx: int) -> str:
-        """Get the thumbnail path"""
-        return os.path.join(THUMB_DIR, f'{yt_id}.{idx}.webp')
-
     async def delete_files(self):
         """Delete the files"""
         if self.path is not None and os.path.exists(self.path):

@@ -1,4 +1,5 @@
 """This module contains the Image model."""
+import asyncio
 import hashlib
 import io
 import logging
@@ -9,6 +10,8 @@ import discord
 # import aiofiles
 from django.db import models
 from PIL import Image, ImageFilter
+
+from ..semaphores import SEMAPHORE_DOWNLOAD
 
 logger = logging.getLogger('bot')
 
@@ -56,18 +59,33 @@ class ImageObj(models.Model):
 
         await self.asave()
 
-    async def download(self):
+    async def download(self, *, loop=None) -> str:
         """Download the image"""
         if not self.url:
             logger.error('No url to download image')
             return
-        logger.info('Downloading image %s', self.url)
 
-        tmp_file, _ = ur_req.urlretrieve(self.url)
-        ext = os.path.splitext(self.url)[1]
+        if self.local_path and os.path.exists(self.local_path):
+            return self.local_path
+
+        try:
+            async with SEMAPHORE_DOWNLOAD:
+                logger.info(f'Downloading thumbnail {self.url}')
+                loop = loop or asyncio.get_event_loop()
+                tmp_file, _ =await loop.run_in_executor(None, lambda: ur_req.urlretrieve(self.url))
+        except Exception as e:
+            logger.error(f'Error downloading thumbnail {self.url}: {e}', exc_info=True)
+            return
+
+        ext = os.path.splitext(tmp_file)[1]
+        fp = io.BytesIO()
         with open(tmp_file, 'rb') as file:
-            await self.save_local(file, ext)
+            fp.write(file.read())
+        fp.seek(0)
+        await self.save_local(fp, ext)
         os.remove(tmp_file)
+
+        return self.local_path
 
     @classmethod
     async def save_from_message(cls, message: discord.Message):

@@ -185,7 +185,6 @@ class QuizSongs(discord.ui.View):
         if not self.show_thumbnail:
             return None
         thumbnails = [_ async for _ in song.thumbnails.all()]
-        # thumbnails_paths = song.get_thumbnails_paths() or await song.download_thumbnails()
         if not thumbnails:
             logger.warning(f'No thumbnail found for {song.title}')
             return None, None, None, None

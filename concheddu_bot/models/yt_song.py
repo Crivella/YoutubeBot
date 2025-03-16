@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import re
 import urllib
 
@@ -8,7 +7,6 @@ import discord
 from django.db import models
 
 from ..bot.utils import safe_response
-from ..semaphores import SEMAPHORE_DOWNLOAD
 from ..youtube import MAX_DURATION, YTDLSource
 from . import filters as flt
 from .discord import DiscordServer, DiscordUser
@@ -49,7 +47,6 @@ class YTSong(models.Model):
 
     # thumbnail_urls = models.JSONField(null=True)
     thumbnails = models.ManyToManyField('ImageObj', related_name='yt_songs')
-    num_thumbnails = models.IntegerField(default=0)
 
     @property
     def title(self):
@@ -258,68 +255,17 @@ class YTSong(models.Model):
         urls = self.get_thumbnails_urls()
         res = []
         for url in urls:
-            path = YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
-            if os.path.exists(path):
-                res.append(path)
-                continue
-            try:
-                async with SEMAPHORE_DOWNLOAD:
-                    logger.info(f'Downloading thumbnail {url} -> {path}')
-                    loop = loop or asyncio.get_event_loop()
-                    await loop.run_in_executor(None, lambda: urllib.request.urlretrieve(url, path))
-            except Exception as e:
-                logger.error(f'Error downloading thumbnail {url}: {e}', exc_info=True)
+            q = ImageObj.objects.filter(url=url)
+            if not await q.aexists():
+                new = ImageObj(url=url)
             else:
-                res.append(path)
+                new = await q.aget()
+            path = await new.download()
+            if path:
+                res.append(new)
+                if not await self.thumbnails.filter(pk=new.pk).aexists():
+                    await self.thumbnails.aadd(new)
 
-        if len(res) != self.num_thumbnails:
-            self.num_thumbnails = len(res)
-            await self.asave()
-
-        return res
-
-    async def convert_to_using_imageobjs(self, *, loop = None) -> list[ImageObj]:
-        """Convert the thumbnails to using ImageObj"""
-        import io
-        logger.debug(f'Converting {self.title} thumbnails to ImageObj')
-        urls = self.get_thumbnails_urls()
-        res = []
-        for url in urls:
-            path = YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
-            if not os.path.exists(path):
-                try:
-                    async with SEMAPHORE_DOWNLOAD:
-                        logger.info(f'Downloading thumbnail {url} -> {path}')
-                        loop = loop or asyncio.get_event_loop()
-                        await loop.run_in_executor(None, lambda: urllib.request.urlretrieve(url, path))
-                except Exception as e:
-                    logger.error(f'Error downloading thumbnail {url}: {e}', exc_info=True)
-                    continue
-            new = ImageObj(url=url)
-            fp = io.BytesIO()
-            with open(path, 'rb') as file:
-                fp.write(file.read())
-            fp.seek(0)
-            await new.save_local(fp, ext='.webp')
-            await self.thumbnails.aadd(new)
-
-            res.append(new)
-
-        if len(res) != self.num_thumbnails:
-            self.num_thumbnails = len(res)
-            await self.asave()
-
-        return res
-
-    def get_thumbnails_paths(self) -> list[str]:
-        """Return the thumbnails paths"""
-        # if self.thumbnail_urls is None:
-        #     return []
-        res = []
-        for i in range(self.num_thumbnails):
-            path = YTDLSource.get_thumbnail_path(self.youtube_id, i)
-            if os.path.exists(path):
-                res.append(path)
         return res
 
     @classmethod
