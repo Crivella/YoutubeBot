@@ -46,7 +46,8 @@ class YTSong(models.Model):
     times_answered = models.IntegerField(default=0)
     times_guessed = models.IntegerField(default=0)
 
-    thumbnail_urls = models.JSONField(null=True)
+    # thumbnail_urls = models.JSONField(null=True)
+    num_thumbnails = models.IntegerField(default=0)
 
     @property
     def title(self):
@@ -243,18 +244,10 @@ class YTSong(models.Model):
         await server.add_source(self, itc.user, on_play, audio_filter, channel=channel)
         asyncio.create_task(self.get_source(itc=itc_))
 
-    async def get_thumbnails_urls(self) -> list[str]:
+    def get_thumbnails_urls(self) -> list[str]:
         """Get the thumbnails urls"""
-        logger.debug(f'Getting thumbnails urls for {self.title}')
-
-        # If the thumbnails are not already fetched, force a refresh of the info
-        if self.thumbnail_urls is None:
-            src = YTDLSource.from_url(self.url)
-            data = await src.get_info(force=True)
-            self.thumbnail_urls = data['thumbnails']
-            await self.asave()
-
-        return self.thumbnail_urls
+        base = f'https://i.ytimg.com/vi_webp/{self.youtube_id}/'
+        return [base * f'{name}.webp' for name in ('sd1', 'sd2', 'sd3', 'sddefault')]
 
     async def download_thumbnails(self, *, loop = None) -> list[str]:
         """Download the thumbnails"""
@@ -264,6 +257,9 @@ class YTSong(models.Model):
         res = []
         for url in urls:
             path = YTDLSource.get_thumbnail_path(self.youtube_id, len(res))
+            if os.path.exists(path):
+                res.append(path)
+                continue
             try:
                 async with SEMAPHORE_DOWNLOAD:
                     logger.info(f'Downloading thumbnail {url} -> {path}')
@@ -274,14 +270,22 @@ class YTSong(models.Model):
             else:
                 res.append(path)
 
+        if len(res) != self.num_thumbnails:
+            self.num_thumbnails = len(res)
+            await self.asave()
+
         return res
 
     def get_thumbnails_paths(self) -> list[str]:
         """Return the thumbnails paths"""
         if self.thumbnail_urls is None:
             return []
-        res = [YTDLSource.get_thumbnail_path(self.youtube_id, i) for i in range(len(self.thumbnail_urls))]
-        return list(filter(lambda _: os.path.exists(_), res))
+        res = []
+        for i in range(self.num_thumbnails):
+            path = YTDLSource.get_thumbnail_path(self.youtube_id, i)
+            if os.path.exists(path):
+                res.append(path)
+        return res
 
     @classmethod
     async def get_all_songs(

@@ -210,7 +210,7 @@ class QuizSongs(discord.ui.View):
                 color=self.user_colors[user.id],
             )
             embed.set_image(url=f'{thumb_url}')
-        return embed, file, unblurred
+        return embed, thumb_path, file, unblurred
 
     async def quiz_step(self):
         if self.idx >= len(self.songs):
@@ -227,6 +227,7 @@ class QuizSongs(discord.ui.View):
         answered = False
         unblurred: discord.File = None
         embed_url = None
+        thumb_path = None
 
         time_first_play = None
         time_blind_guess = time.time()
@@ -341,7 +342,8 @@ class QuizSongs(discord.ui.View):
                 end=end,
                 num_choices=self.nmc,
                 num_plays=num_plays,
-                time=time_end - time_start
+                time=time_end - time_start,
+                thumbnail=thumb_path
                 )
 
             msg = []
@@ -388,7 +390,7 @@ class QuizSongs(discord.ui.View):
         view.add_item(self.play_start)
         msg = f'<@{user.id}> \'s turn'
 
-        embed, file, unblurred = await self.get_thumbnail_embed(song, user)
+        embed, thumb_path, file, unblurred = await self.get_thumbnail_embed(song, user)
         embed_url = embed.image.url if embed else None
 
         message = await self.channel.send(

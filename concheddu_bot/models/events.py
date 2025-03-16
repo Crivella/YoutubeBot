@@ -35,6 +35,9 @@ class GuessSongEvent(models.Model):
     # - from the first time the question was generated otherwise
     time_to_answer = models.FloatField(null=True)
 
+    # The thumbnail used for the song
+    thumbnail = models.CharField(max_length=512, null=True)
+
     user = models.ForeignKey(
         'DiscordUser', on_delete=models.CASCADE,
         null=True,  # Allow null to accomodate previous guesses without user

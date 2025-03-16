@@ -64,6 +64,8 @@ class QuizSong(models.Model):
         params_msg.append(f'- segment_mode={self.segment_mode}')
         params_msg.append(f'- segment_length={self.segment_length}')
         params_msg.append(f'- audio_filter="{self.audio_filter}"')
+        params_msg.append(f'- multiple_choice={self.multiple_choice}')
+        params_msg.append(f'- show_thumbnail={self.show_thumbnail} (blur={self.thumbnail_blur})')
         res.add_field(name='Parameters', value='\n'.join(params_msg))
         return res
 
@@ -73,10 +75,14 @@ class QuizSong(models.Model):
         await self.asave()
 
     async def guess(
-            self, song_id: int, answer_id: int, user: 'DiscordUser',
+            self,
+            song_id: int,
+            answer_id: int,
+            user: 'DiscordUser',
             start: int, end: int, num_choices: int,
             num_plays: int = 0,
-            time: int = None
+            time: int = None,
+            thumbnail: str = None
         ) -> bool:
         """Guess a song"""
         song = await YTSong.objects.aget(youtube_id=song_id)
@@ -97,7 +103,8 @@ class QuizSong(models.Model):
             end=end,
             num_choices=num_choices,
             num_plays=num_plays,
-            time_to_answer=time
+            time_to_answer=time,
+            thumbnail=thumbnail
         )
         return res
 
