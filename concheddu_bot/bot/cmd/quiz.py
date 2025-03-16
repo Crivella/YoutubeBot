@@ -40,6 +40,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             audio_filter: str = None,
             multiple_choice: bool = False,
             show_thumbnail: bool = True,
+            progressive_blur: bool = False,
             thumbnail_blur: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=100)] = 30
         ):
         """Start a quiz: select atleast 1 user. The number of songs will be adjusted down
@@ -53,6 +54,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
             multiple_choice (bool, optional): Multiple choice or use command to answer. Defaults to False.
             show_thumbnail (bool, optional): Show thumbnail in the quiz. Defaults to True.
+            progressive_blur (bool, optional): Blur the thumbnail progressively. Defaults to False.
             thumbnail_blur (int, optional): BoxBlur the thumbnail by X pixels. Defaults to 30.
         """
         if segment_mode not in ALLOWED_SEGMENT_MODES:
@@ -80,6 +82,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
 
             multiple_choice=multiple_choice,
             show_thumbnail=show_thumbnail,
+            progressive_blur=progressive_blur,
             thumbnail_blur=thumbnail_blur
         )
 

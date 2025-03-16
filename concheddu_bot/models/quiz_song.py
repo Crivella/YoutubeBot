@@ -83,7 +83,8 @@ class QuizSong(models.Model):
             start: int, end: int, num_choices: int,
             num_plays: int = 0,
             time: int = None,
-            thumbnail: 'ImageObj' = None
+            thumbnail: 'ImageObj' = None,
+            blur: int = 0
         ) -> bool:
         """Guess a song"""
         song = await YTSong.objects.aget(youtube_id=song_id)
@@ -105,7 +106,8 @@ class QuizSong(models.Model):
             num_choices=num_choices,
             num_plays=num_plays,
             time_to_answer=time,
-            thumbnail=thumbnail
+            thumbnail=thumbnail,
+            blur = blur
         )
         return res
 

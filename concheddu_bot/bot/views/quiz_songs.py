@@ -130,6 +130,7 @@ class QuizSongs(discord.ui.View):
             audio_filter: str = None,
             multiple_choice: bool = True,
             show_thumbnail: bool = False,
+            progressive_blur: bool = False,
             thumbnail_blur: int = 0,
         ):
         super().__init__()
@@ -143,6 +144,7 @@ class QuizSongs(discord.ui.View):
         # self.quiz = quiz
         self.multiple_choice = multiple_choice
         self.show_thumbnail = show_thumbnail
+        self.progressive_blur = progressive_blur
         self.thumbnail_blur = thumbnail_blur
 
         users = self.itc.user.voice.channel.members
@@ -224,9 +226,15 @@ class QuizSongs(discord.ui.View):
         server = self.server
         message = None
         answered = False
+
+        embed_thumb = None
+        thumb = None
+        point_value = 1
+        if self.progressive_blur:
+            point_value = 5
+            self.thumbnail_blur = 60
         unblurred: discord.File = None
         embed_url = None
-        thumb = None
 
         time_first_play = None
         time_blind_guess = time.time()
@@ -257,6 +265,11 @@ class QuizSongs(discord.ui.View):
             self.answer_btn = CallbackButton(
                 label=random.choice(skip_titles),
                 style=discord.ButtonStyle.primary
+            )
+        if self.progressive_blur:
+            self.next_blur = CallbackButton(
+                label='Next blur',
+                style=discord.ButtonStyle.secondary
             )
 
         num_plays = 0
@@ -302,6 +315,26 @@ class QuizSongs(discord.ui.View):
 
         @ensure_response(before=False, defer=True)
         @ensure_user(users=[user], defer=True)
+        async def next_blur_callback(itc: discord.Interaction):
+            nonlocal thumb, point_value
+            if answered:
+                return
+            if self.thumbnail_blur <= 0:
+                return
+            self.thumbnail_blur -= 15
+            point_value -= 1
+            fp = await thumb.get_image(blur_radius=self.thumbnail_blur)
+            file = discord.File(fp, filename='thumbnail.webp')
+            embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value}'
+            # embed, _, file, _ = await self.get_thumbnail_embed(song, user)
+            # embed_url = embed.image.url if embed else None
+            await message.edit(
+                embed=embed_thumb,
+                attachments=[file,]
+            )
+
+        @ensure_response(before=False, defer=True)
+        @ensure_user(users=[user], defer=True)
         async def answer_callback(itc: discord.Interaction, answer_song: m.YTSong = None):
             nonlocal message, answered, enqueueing
             if answered:
@@ -342,7 +375,8 @@ class QuizSongs(discord.ui.View):
                 num_choices=self.nmc,
                 num_plays=num_plays,
                 time=time_end - time_start,
-                thumbnail=thumb
+                thumbnail=thumb,
+                blur=self.thumbnail_blur
                 )
 
             msg = []
@@ -361,8 +395,11 @@ class QuizSongs(discord.ui.View):
                 embed.set_image(url=embed_url)
 
             self.answers.append(result)
-            self.user_answers[user.id].append(result if answer is not None else None)
-            self.score[user.id] += result
+            app = 0
+            if result:
+                app = point_value
+                self.score[user.id] += point_value
+            self.user_answers[user.id].append(app if answer is not None else None)
 
             view.clear_items()
             await message.edit(
@@ -376,6 +413,8 @@ class QuizSongs(discord.ui.View):
 
         self.play_start.add_callback(play_callback)
         self.play_stop.add_callback(stop_callback)
+        if self.progressive_blur:
+            self.next_blur.add_callback(next_blur_callback)
         self.answer_btn.add_callback(answer_callback)
 
         if self.multiple_choice:
@@ -387,14 +426,18 @@ class QuizSongs(discord.ui.View):
         view.add_item(self.answer_btn)
         view.add_item(self.play_stop)
         view.add_item(self.play_start)
+        if self.progressive_blur:
+            view.add_item(self.next_blur)
         msg = f'<@{user.id}> \'s turn'
 
-        embed, thumb, file, unblurred = await self.get_thumbnail_embed(song, user)
-        embed_url = embed.image.url if embed else None
+        embed_thumb, thumb, file, unblurred = await self.get_thumbnail_embed(song, user)
+        if self.progressive_blur:
+            embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value}'
+        embed_url = embed_thumb.image.url if embed_thumb else None
 
         message = await self.channel.send(
             content=msg, view=view,
-            embed=embed, file=file
+            embed=embed_thumb, file=file
         )
 
     async def command_answer(self, itc: discord.Interaction, song: m.YTSong):
@@ -518,6 +561,7 @@ class QuizSongs(discord.ui.View):
 
             multiple_choice=self.multiple_choice,
             show_thumbnail=self.show_thumbnail,
+            thumbnail_blur=self.thumbnail_blur if not self.progressive_blur else -1,
 
             playlist=playlist,
             creator=await m.DiscordUser.from_discord_user(itc.user),
@@ -571,7 +615,19 @@ class QuizSongs(discord.ui.View):
         emoji_map = {
             None: '❔',
             False: '❌',
-            True: '✅'
+            True: '✅',
+            1: '✅',
+            0: '❌',
+            # number emojis
+            2: '2️⃣',
+            3: '3️⃣',
+            4: '4️⃣',
+            5: '5️⃣',
+            6: '6️⃣',
+            7: '7️⃣',
+            8: '8️⃣',
+            9: '9️⃣',
+            10: '🔟',
         }
 
         for user in lst:

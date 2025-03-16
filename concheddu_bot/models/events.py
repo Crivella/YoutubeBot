@@ -37,6 +37,7 @@ class GuessSongEvent(models.Model):
 
     # The thumbnail used for the song
     thumbnail = models.ForeignKey('ImageObj', on_delete=models.SET_NULL, null=True)
+    blur = models.IntegerField(default=0)
 
     user = models.ForeignKey(
         'DiscordUser', on_delete=models.CASCADE,
