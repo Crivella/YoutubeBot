@@ -47,12 +47,13 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
 
         Args:
             num_songs (int, optional): Number of questions per user. Defaults to 5.
-            num_choices (int, optional): Number of choices/song pool (multiplechoise/non). Defaults to 5.
+            num_choices (int, optional): Number of choices/song pool (multiplechoise/non). Defaults to 0 (= all).
             segment_length (int, optional): Length of the segment of the song to play. Defaults to 20.
             segment_mode (str, optional): start/end/random. Defaults to 'start'.
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
-            multiple_choice (bool, optional): Multiple choice or use command to answer. Defaults to True.
-            show_thumbnail (bool, optional): Show thumbnail in the quiz. Defaults to False.
+            multiple_choice (bool, optional): Multiple choice or use command to answer. Defaults to False.
+            show_thumbnail (bool, optional): Show thumbnail in the quiz. Defaults to True.
+            thumbnail_blur (int, optional): BoxBlur the thumbnail by X pixels. Defaults to 30.
         """
         if segment_mode not in ALLOWED_SEGMENT_MODES:
             await safe_response(itc, f'Segment mode invalid', ephemeral=True)
