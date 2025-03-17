@@ -44,7 +44,7 @@ class ImageObj(models.Model):
             md5.update(chunk)
         return md5.hexdigest()
 
-    async def save_local(self, fp: io.BytesIO, ext: str) -> tuple[str, str]:
+    async def save_local(self, fp: io.BytesIO, ext: str):
         """Save the image locally"""
         md5 = ImageObj._md5(fp)
         # dir_path = os.path.join(IMAGE_DIR, md5[:2], md5[2:4])
