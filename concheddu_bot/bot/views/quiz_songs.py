@@ -436,7 +436,7 @@ class QuizSongs(discord.ui.View):
 
         embed_thumb, thumb, file, unblurred = await self.get_thumbnail_embed(song, user)
         if self.progressive_blur:
-            embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value}'
+            embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value} d={end-start}s'
         embed_url = embed_thumb.image.url if embed_thumb else None
 
         message = await self.channel.send(
