@@ -4,6 +4,7 @@ import hashlib
 import io
 import logging
 import os
+import random
 import urllib.request as ur_req
 
 import discord
@@ -113,6 +114,34 @@ class ImageObj(models.Model):
         img = Image.open(self.local_path)
         if blur_radius:
             img = img.filter(ImageFilter.BoxBlur(blur_radius))
+        fp = io.BytesIO()
+        img.save(fp, format='webp')
+        fp.seek(0)
+        return fp
+
+    async def get_image_scrambled(self, gx: int = 20, gy: int = 20) -> io.BytesIO:
+        """Scramble the image"""
+        if not self.local_path:
+            raise FileNotFoundError('No local path')
+        img = Image.open(self.local_path)
+        if gx and gy:
+            X = img.size[0]
+            Y = img.size[1]
+            X -= X % gx
+            Y -= Y % gy
+            chunks = []
+            sx = X // gx
+            sy = Y // gy
+            for y in range(gy):
+                for x in range(gx):
+                    chunk = img.crop((x * sx, y * sy, (x + 1) * sx, (y + 1) * sy))
+                    chunks.append(chunk)
+            random.shuffle(chunks)
+            img = Image.new('RGB', (X, Y))
+            for i in range(gy):
+                for j in range(gx):
+                    img.paste(chunks.pop(), (j * sx, i * sy))
+
         fp = io.BytesIO()
         img.save(fp, format='webp')
         fp.seek(0)

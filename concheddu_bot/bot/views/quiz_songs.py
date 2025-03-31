@@ -5,7 +5,6 @@ from collections import defaultdict
 from typing import Awaitable
 
 import discord
-from PIL import Image, ImageFilter
 
 from ... import models as m
 from ..utils import ensure_response, ensure_user, safe_response
@@ -13,6 +12,8 @@ from .buttons import CallbackButton
 from .paged import ListQuiz
 from .utils import elide, logger
 
+BLUR_KEY = 'blur'
+SCRAMBLE_KEY = 'scramble'
 
 class QuizSongsList(discord.ui.View):
     def __init__(self, itc: discord.Interaction, quizes: list[m.QuizSong]):
@@ -130,7 +131,7 @@ class QuizSongs(discord.ui.View):
             audio_filter: str = None,
             multiple_choice: bool = True,
             show_thumbnail: bool = False,
-            progressive_blur: bool = False,
+            progressive: str = None,
             thumbnail_blur: int = 0,
         ):
         super().__init__()
@@ -144,7 +145,13 @@ class QuizSongs(discord.ui.View):
         # self.quiz = quiz
         self.multiple_choice = multiple_choice
         self.show_thumbnail = show_thumbnail
-        self.progressive_blur = progressive_blur
+        self.progressive_blur = False
+        self.progressive_scramble = False
+        if progressive == BLUR_KEY:
+            self.progressive_blur = True
+        elif progressive == SCRAMBLE_KEY:
+            self.progressive_scramble = True
+        self.scramble_grid = None
         self.thumbnail_blur = thumbnail_blur
 
         users = self.itc.user.voice.channel.members
@@ -181,9 +188,12 @@ class QuizSongs(discord.ui.View):
 
     async def get_thumbnail_embed(
             self, song: m.YTSong, user: discord.Member,
-            blur: bool = True
+            blur: bool = False,
+            scramble: bool = False
         ) -> tuple[discord.Embed, discord.File, discord.File]:
         """Get the thumbnail embed"""
+        if blur and scramble:
+            raise ValueError('Cannot blur and scramble at the same time')
         if not self.show_thumbnail:
             return None
         thumbnails = await song.get_thumbnails()
@@ -195,15 +205,20 @@ class QuizSongs(discord.ui.View):
         attach_name = 'thumbnail.webp'
         # thumb_path = random.choice(thumbnails_paths)
         thumb_url = f'attachment://{attach_name}'
-        unblurred = discord.File(await thumb.get_image(), filename=attach_name)
+        original = discord.File(await thumb.get_image(), filename=attach_name)
         # Apply a radius box filter
         if self.thumbnail_blur and blur:
             file = discord.File(
                 await thumb.get_image(blur_radius = self.thumbnail_blur),
                 filename=attach_name
             )
+        elif self.scramble_grid and scramble:
+            file = discord.File(
+                await thumb.get_image_scrambled(*self.scramble_grid),
+                filename=attach_name
+            )
         else:
-            file = unblurred
+            file = original
 
         if thumb_url:
             embed = discord.Embed(
@@ -211,7 +226,7 @@ class QuizSongs(discord.ui.View):
                 color=self.user_colors[user.id],
             )
             embed.set_image(url=f'{thumb_url}')
-        return embed, thumb, file, unblurred
+        return embed, thumb, file, original
 
     async def quiz_step(self):
         if self.idx >= len(self.songs):
@@ -236,6 +251,11 @@ class QuizSongs(discord.ui.View):
             self.segment_length = 1
             max_duration = 10
             self.thumbnail_blur = 60
+        elif self.progressive_scramble:
+            point_value = 5
+            self.segment_length = 1
+            max_duration = 10
+            self.scramble_grid = (20, 20)
         unblurred: discord.File = None
         embed_url = None
 
@@ -272,6 +292,11 @@ class QuizSongs(discord.ui.View):
         if self.progressive_blur:
             self.next_blur = CallbackButton(
                 label='Next blur',
+                style=discord.ButtonStyle.secondary
+            )
+        if self.progressive_scramble:
+            self.next_scramble = CallbackButton(
+                label='Next scramble',
                 style=discord.ButtonStyle.secondary
             )
 
@@ -322,7 +347,7 @@ class QuizSongs(discord.ui.View):
             nonlocal thumb, point_value, end
             if answered:
                 return
-            if self.thumbnail_blur <= 0:
+            if point_value == 1:
                 return
             self.thumbnail_blur -= 15
             point_value -= 1
@@ -330,6 +355,28 @@ class QuizSongs(discord.ui.View):
             fp = await thumb.get_image(blur_radius=self.thumbnail_blur)
             file = discord.File(fp, filename='thumbnail.webp')
             embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value} d={end-start}s'
+            # embed, _, file, _ = await self.get_thumbnail_embed(song, user)
+            # embed_url = embed.image.url if embed else None
+            await message.edit(
+                embed=embed_thumb,
+                attachments=[file,]
+            )
+
+        @ensure_response(before=False, defer=True)
+        @ensure_user(users=[user], defer=True)
+        async def next_scramble_callback(itc: discord.Interaction):
+            nonlocal thumb, point_value, end
+            if answered:
+                return
+            if point_value == 1:
+                return
+            gx = self.scramble_grid[0] - 5
+            self.scramble_grid = (gx, gx)
+            point_value -= 1
+            end += 2
+            fp = await thumb.get_image_scrambled(*self.scramble_grid)
+            file = discord.File(fp, filename='thumbnail.webp')
+            embed_thumb.title = f'THUMBNAIL (scramble={self.scramble_grid})  points={point_value} d={end-start}s'
             # embed, _, file, _ = await self.get_thumbnail_embed(song, user)
             # embed_url = embed.image.url if embed else None
             await message.edit(
@@ -419,6 +466,8 @@ class QuizSongs(discord.ui.View):
         self.play_stop.add_callback(stop_callback)
         if self.progressive_blur:
             self.next_blur.add_callback(next_blur_callback)
+        if self.progressive_scramble:
+            self.next_scramble.add_callback(next_scramble_callback)
         self.answer_btn.add_callback(answer_callback)
 
         if self.multiple_choice:
@@ -432,11 +481,19 @@ class QuizSongs(discord.ui.View):
         view.add_item(self.play_start)
         if self.progressive_blur:
             view.add_item(self.next_blur)
+        if self.progressive_scramble:
+            view.add_item(self.next_scramble)
         msg = f'<@{user.id}> \'s turn'
 
-        embed_thumb, thumb, file, unblurred = await self.get_thumbnail_embed(song, user)
+        embed_thumb, thumb, file, unblurred = await self.get_thumbnail_embed(
+            song, user,
+            blur=self.progressive_blur or self.thumbnail_blur > 0,
+            scramble=self.progressive_scramble
+        )
         if self.progressive_blur:
             embed_thumb.title = f'THUMBNAIL (blur={self.thumbnail_blur})  points={point_value} d={end-start}s'
+        if self.progressive_scramble:
+            embed_thumb.title = f'THUMBNAIL (scramble={self.scramble_grid})  points={point_value} d={end-start}s'
         embed_url = embed_thumb.image.url if embed_thumb else None
 
         message = await self.channel.send(
@@ -451,6 +508,7 @@ class QuizSongs(discord.ui.View):
     async def quiz_finish(self):
         """Finish the quiz"""
         await self.quiz_obj.finish()
+        self.server.player.locked = False
         # print(await self.quiz_obj.get_score())
         max_score = max(self.score.values())
         winners = [user for user in self.users if self.score[user.id] == max_score]
@@ -556,8 +614,11 @@ class QuizSongs(discord.ui.View):
 
         if self.progressive_blur:
             self.segment_length = -1
+        if self.progressive_scramble:
+            self.segment_length = -1
 
         self.server = server = await m.DiscordServer.from_discord_guild(itc.guild)
+        server.player.locked = True
         self.quiz_obj = await m.QuizSong.objects.acreate(
             server=server,
             num_songs=self.num_songs,
