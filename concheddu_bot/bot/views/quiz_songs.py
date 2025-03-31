@@ -508,7 +508,7 @@ class QuizSongs(discord.ui.View):
     async def quiz_finish(self):
         """Finish the quiz"""
         await self.quiz_obj.finish()
-        self.server.player.locked = False
+        await self.server.player.unlock()
         # print(await self.quiz_obj.get_score())
         max_score = max(self.score.values())
         winners = [user for user in self.users if self.score[user.id] == max_score]
@@ -618,7 +618,7 @@ class QuizSongs(discord.ui.View):
             self.segment_length = -1
 
         self.server = server = await m.DiscordServer.from_discord_guild(itc.guild)
-        server.player.locked = True
+        await server.player.lock()
         self.quiz_obj = await m.QuizSong.objects.acreate(
             server=server,
             num_songs=self.num_songs,

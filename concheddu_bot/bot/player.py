@@ -1,7 +1,6 @@
 """Global runtime server variables."""
 import asyncio
 import logging
-from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import wraps
 from typing import Callable
@@ -89,10 +88,10 @@ class Player:
         # self.server: discord.Guild = None
         self.channel: discord.VoiceChannel = None
         self.client: discord.VoiceClient = None
-        self.locked: bool = False
 
         self.active: bool = True
         self.first: bool = True
+        self._locked: bool = False
         self.monitoring_task: asyncio.Task = None
 
     @property
@@ -100,12 +99,19 @@ class Player:
         """Return the playing status"""
         return self.client and self.client.is_playing()
 
-    @contextmanager
-    def lock(self):
+    @property
+    def locked(self) -> bool:
+        """Return the locked status"""
+        return self._locked
+
+    async def lock(self):
         """Lock the player"""
-        self.locked = True
-        yield
-        self.locked = False
+        self._locked = True
+
+    async def unlock(self):
+        self._locked = False
+        if not self.queue:
+            await self.stop()
 
     # Rewrite monitor to be used directly without a thread
     async def monitor(self, delay: float = 0.5):
