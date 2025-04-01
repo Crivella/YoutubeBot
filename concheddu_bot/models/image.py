@@ -146,3 +146,30 @@ class ImageObj(models.Model):
         img.save(fp, format='webp')
         fp.seek(0)
         return fp
+
+    async def get_image_partial_reveal(self, gx: int = 20, gy: int = 20, num: int = 10) -> io.BytesIO:
+        """Scramble the image"""
+        if not self.local_path:
+            raise FileNotFoundError('No local path')
+        img = Image.open(self.local_path)
+        if num < gx * gy:
+            X = img.size[0]
+            Y = img.size[1]
+            X -= X % gx
+            Y -= Y % gy
+            chunks = []
+            sx = X // gx
+            sy = Y // gy
+            for y in range(gy):
+                for x in range(gx):
+                    chunk = img.crop((x * sx, y * sy, (x + 1) * sx, (y + 1) * sy))
+                    chunks.append((x*sx, y*sy, chunk))
+            todo = random.sample(chunks, num)
+            img = Image.new('RGB', (X, Y))
+            for x, y, chunk in todo:
+                img.paste(chunk, (x, y))
+
+        fp = io.BytesIO()
+        img.save(fp, format='webp')
+        fp.seek(0)
+        return fp

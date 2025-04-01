@@ -10,7 +10,7 @@ from ...import models as m
 from .utils import sanitize_ffmpeg_filter
 from ..utils import sense_check, safe_response, ensure_response, SenseCheckError
 from .. import views as v
-from ..views.quiz_songs import BLUR_KEY, SCRAMBLE_KEY
+from ..views.quiz_songs import BLUR_KEY, SCRAMBLE_KEY, PARTIAL_KEY
 from .utils import call_command_register
 from . import transformers as tfs
 
@@ -22,11 +22,12 @@ SEGMENT_MODES_DESC = {
     'end': 'End of the song',
     'random': 'Random segment of the song'
 }
-ALLOWED_PROGRESSIVE_MODES = [BLUR_KEY, SCRAMBLE_KEY]
 PROGRESSIVE_MODES_DESC = {
     BLUR_KEY: 'Blur the thumbnail',
-    SCRAMBLE_KEY: 'Scramble the thumbnail'
+    SCRAMBLE_KEY: 'Scramble the thumbnail',
+    PARTIAL_KEY: 'Partial reaveal of squares of the image'
 }
+ALLOWED_PROGRESSIVE_MODES = list(PROGRESSIVE_MODES_DESC.keys())
 
 current_quiz: dict[int, v.QuizSongs] = {}
 
