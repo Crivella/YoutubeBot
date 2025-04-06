@@ -148,6 +148,7 @@ class QuizSongs(discord.ui.View):
         self.show_thumbnail = show_thumbnail
         self.progressive_blur = False
         self.progressive_scramble = False
+        self.progressive_reveal = False
         if progressive == BLUR_KEY:
             self.progressive_blur = True
         elif progressive == SCRAMBLE_KEY:
