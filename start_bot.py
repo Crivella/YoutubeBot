@@ -59,5 +59,6 @@ def main():
     bot.run(token)
 
 if __name__ == '__main__':
+    # https://stackoverflow.com/questions/62853875/stopping-python-container-is-slow-sigterm-not-passed-to-python-process
     signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(0))
     main()
