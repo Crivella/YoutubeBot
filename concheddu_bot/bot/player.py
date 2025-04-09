@@ -178,6 +178,7 @@ class Player:
     async def clear(self):
         """Clear the queue"""
         self.queue.clear()
+        await self.unlock()
         await self.stop()
         # self.channel = None
 
@@ -190,10 +191,10 @@ class Player:
 
         # song, user, on_play, afilt = self.queue.get_current()
         obj = self.queue.get_current()
-        logger.debug(f'Playing {obj.song} from `{obj.user}`')
         if not obj.song:
             await self.stop()
             return
+        logger.debug(f'Playing {obj.song} from `{obj.user}`')
         # logger.debug(f'Playing {song.title} from `{user.name}`')
         if not self.client:
             if not self.channel:
@@ -218,5 +219,7 @@ class Player:
     @with_monitor
     async def resume(self):
         """Resume the player"""
+        if not self.client:
+            raise ValueError('No client to resume')
         if self.client.is_paused():
             self.client.resume()
