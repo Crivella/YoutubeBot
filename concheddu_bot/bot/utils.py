@@ -66,6 +66,9 @@ async def safe_response(itc: discord.Interaction, content: str = '', append: boo
 
     try:
         await rfunc(content='\n'.join(msg), *args, **kwargs)
+
+    except discord.errors.HTTPException as e:
+        logger.error(f'HTTPException: {e}')
     except Exception as e:
         logger.error(f'Error sending message: {e}', exc_info=True)
 
