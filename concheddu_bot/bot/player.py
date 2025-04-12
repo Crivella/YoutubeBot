@@ -177,7 +177,8 @@ class Player:
     async def clear(self):
         """Clear the queue"""
         self.queue.clear()
-        await self.unlock()
+        # TODO: Quiz relies on clear but need to maintain the player locked
+        # await self.unlock()
         await self.stop()
 
     async def play(self, force: bool = False):
