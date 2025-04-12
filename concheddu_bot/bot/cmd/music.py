@@ -2,16 +2,15 @@
 import logging
 
 import discord
-
 from discord import app_commands
 from discord.ext import commands
 
-from ...import models as m
-from .utils import sanitize_ffmpeg_filter
-from . import transformers as tfs
-from ..utils import sense_check, safe_response, ensure_response, SenseCheckError
+from ... import models as m
 from .. import views as v
-from .utils import call_command_register
+from ..utils import (SenseCheckError, ensure_response, safe_response,
+                     sense_check)
+from . import transformers as tfs
+from .utils import call_command_register, sanitize_ffmpeg_filter
 
 logger = logging.getLogger('bot')
 
@@ -144,7 +143,12 @@ class MusicPlayer(commands.GroupCog, group_name='player'):
         """Sync the bot commands"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         embedVar = discord.Embed(color=0xFF0000)
-        embedVar.add_field(name='Now playing:', value=str(server.player.queue))
+        loop_str = ''
+        if server.player.queue.loop_all:
+            loop_str = '(loop all)'
+        elif server.player.queue.loop_one:
+            loop_str = '(loop one)'
+        embedVar.add_field(name=f'Now playing: {loop_str}', value=str(server.player.queue))
         await safe_response(itc, embed=embedVar, ephemeral=True)
 
     @app_commands.command()
