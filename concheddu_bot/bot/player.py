@@ -106,10 +106,12 @@ class Player:
 
     async def lock(self):
         """Lock the player"""
+        logger.debug('Locking player')
         self._locked = True
 
     async def unlock(self):
         self._locked = False
+        logger.debug('Unlocking player')
         if not self.queue:
             await self.stop()
 
@@ -171,16 +173,12 @@ class Player:
                 await safe_disconnect(client)
             except Exception as e:
                 logger.error(e, exc_info=True)
-            # else:
-            #     self.client = None
-            #     self.channel = None
 
     async def clear(self):
         """Clear the queue"""
         self.queue.clear()
         await self.unlock()
         await self.stop()
-        # self.channel = None
 
     async def play(self, force: bool = False):
         """Play the player"""
