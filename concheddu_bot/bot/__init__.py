@@ -54,4 +54,6 @@ class MyBot(commands.Bot):
             # clean up
             logger.info(f'Leaving {before.channel.name} on [{before.channel.guild.name}]')
             server = await m.DiscordServer.from_discord_guild(before.channel.guild)
+            server.player.client = None
+            server.player.channel = None
             await server.stop()

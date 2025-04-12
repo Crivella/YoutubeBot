@@ -171,9 +171,9 @@ class Player:
                 await safe_disconnect(client)
             except Exception as e:
                 logger.error(e, exc_info=True)
-            else:
-                self.client = None
-                self.channel = None
+            # else:
+            #     self.client = None
+            #     self.channel = None
 
     async def clear(self):
         """Clear the queue"""
