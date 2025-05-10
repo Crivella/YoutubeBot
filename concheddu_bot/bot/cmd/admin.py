@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import sys
 
 import discord
 from discord import app_commands
@@ -115,3 +116,12 @@ class Admin(commands.GroupCog, group_name='admin'):
 
         await song.adelete()
         await safe_response(itc, f'Deleted song `{song.title}`', ephemeral=True)
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response()
+    @call_command_register()
+    async def hard_restart(self, itc: discord.Interaction):
+        """Restart the bot by forcing the current process to exit and the bot to restart"""
+        await safe_response(itc, f'Restarting bot', ephemeral=True)
+        sys.exit(0)
