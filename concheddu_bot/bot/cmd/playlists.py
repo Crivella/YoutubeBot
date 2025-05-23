@@ -1,14 +1,16 @@
 """Music commands for the bot"""
-import discord
 import logging
+import random
 
+import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ...import models as m
+from ... import models as m
 from .. import views as v
+from ..utils import (SenseCheckError, ensure_response, safe_response,
+                     sense_check)
 from . import transformers as tfs
-from ..utils import ensure_response, sense_check, safe_response, SenseCheckError
 from .utils import call_command_register
 
 logger = logging.getLogger('bot')
@@ -111,6 +113,7 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer],
             num: app_commands.Transform[int, tfs.IntRangeTransformer(min=0)] = 0,
             sorting: app_commands.Transform[str, tfs.SongFilterTransformer] = 'times_played',
+            top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0)] = 0,
             ):
         """Load a playlist
 
@@ -118,8 +121,21 @@ class Playlists(commands.GroupCog, group_name='playlists'):
             name (str): The name of the playlist
             num (int, optional): The number of songs to load. Defaults to 0 (all).
             sorting (str, optional): Sorting option. Defaults to 'times_played'.
+            top (int, optional): Pick the top N songs than apply the sorting. Defaults to 0 (all).
         """
-        songs = await playlist.get_all_songs(n=num, sorting=sorting)
+        if top > 0:
+            if sorting != 'random':
+                await safe_response(
+                    itc,
+                    'Top N songs can only be used with random sorting',
+                    ephemeral=True,
+                    delete_after=10
+                )
+                return
+            songs = await playlist.get_all_songs(n=top, sorting='times_played')
+            songs = random.sample(songs, min(len(songs), num))
+        else:
+            songs = await playlist.get_all_songs(n=num, sorting=sorting)
         if not songs:
             await safe_response(
                 itc,
