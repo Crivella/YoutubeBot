@@ -27,7 +27,7 @@ def song_annotate_times_played(
     pv_query = m.Q(playevent__song=m.F('id'))
     if server_id is not None:
         pv_query &= m.Q(playevent__server_id=server_id)
-    pv_query &= m.Q(playevent__quizsong__isnull=not from_quiz)
+    pv_query &= m.Q(playevent__quiz_id__isnull=not from_quiz)
     res = res.annotate(times_played=m.Count(
         m.Case(
             m.When(pv_query, then=1),
