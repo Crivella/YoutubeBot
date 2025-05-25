@@ -722,6 +722,7 @@ class QuizSongs(discord.ui.View):
                     embed_links=True,
                     attach_files=True,
                     manage_channels=True,
+                    # https://github.com/discord/discord-api-docs/issues/2520
                     # manage_permissions=True,
                 )
             }
