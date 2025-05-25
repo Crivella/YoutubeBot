@@ -7,6 +7,7 @@ from typing import Awaitable
 import discord
 
 from ... import models as m
+from .. import get_current_bot
 from ..utils import ensure_response, ensure_user, safe_response
 from .buttons import CallbackButton
 from .paged import ListQuiz
@@ -137,6 +138,7 @@ class QuizSongs(discord.ui.View):
         ):
         super().__init__()
         self.itc = itc
+        self.bot = get_current_bot()
         self.orig_channel = self.channel = itc.channel
         self.num_songs = num_songs
         self.nmc = num_choices
@@ -712,8 +714,15 @@ class QuizSongs(discord.ui.View):
             category=itc.channel.category,
             overwrites={
                 itc.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                itc.user: discord.PermissionOverwrite(read_messages=True),
-                **{user: discord.PermissionOverwrite(read_messages=True) for user in users}
+                **{user: discord.PermissionOverwrite(read_messages=True) for user in users},
+                self.bot.user: discord.PermissionOverwrite(
+                    read_messages=True,
+                    send_messages=True,
+                    embed_links=True,
+                    attach_files=True,
+                    manage_messages=True,
+                    manage_channels=True,
+                )
             }
         )
         self.channel = new_channel

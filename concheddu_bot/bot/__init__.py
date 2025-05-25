@@ -10,11 +10,21 @@ from .utils import DEBUG_MESSAGES, safe_response
 
 logger = logging.getLogger('bot')
 
+current_bot: discord.Client | None = None
+
+def get_current_bot() -> discord.Client | None:
+    """Get the current bot instance"""
+    global current_bot
+    return current_bot
+
 class MyBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.playing_on: set[int] = set()
         self.queues: dict[int, list[str]] = {}
+
+        global current_bot
+        current_bot = self
 
         self.tree.error(self._on_tree_error)
 
