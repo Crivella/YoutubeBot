@@ -125,3 +125,35 @@ class Admin(commands.GroupCog, group_name='admin'):
         """Restart the bot by forcing the current process to exit and the bot to restart"""
         await safe_response(itc, f'Restarting bot', ephemeral=True)
         sys.exit(0)
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response()
+    @call_command_register()
+    async def test_parse(self, itc: discord.Interaction):
+        """Restart the bot by forcing the current process to exit and the bot to restart"""
+        quizzes: list[m.QuizSong] = await m.QuizSong.objects.all()
+        ranges = []
+        for quiz in quizzes:
+            if quiz.date_start is None or quiz.date_end is None:
+                continue
+            q_str = f'QuizSong(id={quiz.id}, start={quiz.date_start}, end={quiz.date_end})'
+            logger.info(q_str)
+            ranges.append((quiz.date_start, quiz.date_end))
+        play_events = await m.PlayEvent.objects.all()
+        to_flag = []
+        for play in play_events:
+            if play.date is None:
+                continue
+            p_str = f'PlayEvent(id={play.id}, date={play.date})'
+            for s,e in ranges:
+                if s <= play.date <= e:
+                    p_str += f' in range {s} - {e}'
+                    to_flag.append(play)
+                    break
+
+            logger.info(p_str)
+        msg = f'Found {len(quizzes)} quizzes and {len(play_events)} play events'
+        msg += f'\nFinished quizzes: {len(ranges)}'
+        msg += f'\nPlay events in quizzes: {len(to_flag)}'
+        await safe_response(itc, msg, ephemeral=True)

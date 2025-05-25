@@ -13,6 +13,13 @@ class PlayEvent(models.Model):
     end = models.IntegerField(null=True)
     audio_filter = models.CharField(max_length=512, null=True)
 
+    quiz = models.ForeignKey(
+        'QuizSong', on_delete=models.DO_NOTHING,  # Do not delete events if quiz is deleted
+        null=True,  # QuizSong is nullable to accommodate previous plays without quiz
+        default=None,
+        related_name='plays'
+    )
+
     date = models.DateTimeField(auto_now_add=True)
 
 class GuessSongEvent(models.Model):
