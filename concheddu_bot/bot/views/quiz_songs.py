@@ -148,6 +148,7 @@ class QuizSongs(discord.ui.View):
         # self.quiz = quiz
         self.multiple_choice = multiple_choice
         self.show_thumbnail = show_thumbnail
+        self.progressive = progressive
         self.progressive_blur = False
         self.progressive_scramble = False
         self.progressive_reveal = False
@@ -753,7 +754,7 @@ class QuizSongs(discord.ui.View):
             f'- Audio filter: "{self.audio_filter}"',
             f'- Multiple choice: {self.multiple_choice}',
             f'- Show thumbnail: {self.show_thumbnail} (blur={self.thumbnail_blur})',
-            f'- Progressive blur: {self.progressive_blur}',
+            f'- Progressive: {self.progressive}',
         ]
 
     def embed_details(self, embed: discord.Embed):
