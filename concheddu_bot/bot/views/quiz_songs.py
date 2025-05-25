@@ -811,4 +811,7 @@ class QuizSongs(discord.ui.View):
             self.scoreboard = await self.channel.send(embed=embed)
 
     async def on_timeout(self):
-        await self.itc.delete_original_response()
+        try:
+            await self.itc.delete_original_response()
+        except discord.NotFound:
+            pass
