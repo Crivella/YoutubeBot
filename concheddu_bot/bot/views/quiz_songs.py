@@ -158,6 +158,7 @@ class QuizSongs(discord.ui.View):
         elif progressive == PARTIAL_KEY:
             self.progressive_reveal = True
         self.scramble_grid = None
+        self.reveal_grid = None
         self.thumbnail_blur = thumbnail_blur
 
         users = self.itc.user.voice.channel.members
@@ -202,7 +203,7 @@ class QuizSongs(discord.ui.View):
         if blur and scramble:
             raise ValueError('Cannot blur and scramble at the same time')
         if not self.show_thumbnail:
-            return None
+            return None, None, None, None
         thumbnails = await song.get_thumbnails()
         if not thumbnails:
             logger.warning(f'No thumbnail found for {song.title}')
