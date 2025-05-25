@@ -137,7 +137,7 @@ class QuizSongs(discord.ui.View):
         ):
         super().__init__()
         self.itc = itc
-        self.channel = itc.channel
+        self.orig_channel = self.channel = itc.channel
         self.num_songs = num_songs
         self.nmc = num_choices
         self.segment_length = segment_length
@@ -579,7 +579,16 @@ class QuizSongs(discord.ui.View):
         )
         self.embed_details(embed)
         self.embed_score(embed, sort=True)
-        await self.channel.send(embed=embed)
+        await self.orig_channel.send(embed=embed)
+
+        if self.channel is not None and self.orig_channel != self.channel and self.channel.name.startswith('quiz-'):
+            try:
+                await self.channel.delete()
+            except discord.Forbidden:
+                logger.warning(f'Could not delete channel {self.channel.name}, missing permissions')
+            except discord.NotFound:
+                logger.warning(f'Channel {self.channel.name} not found, already deleted?')
+            self.channel = self.orig_channel
 
         for callback in self.on_finish:
             await callback()
@@ -696,13 +705,26 @@ class QuizSongs(discord.ui.View):
 
         for callback in self.on_start:
             await callback(self.songs, self.all_song, self.quiz_obj)
+
+        # Create a new text channel and add only the users that are participating in the quiz
+        new_channel = await itc.guild.create_text_channel(
+            name=f'quiz-{self.quiz_obj.id}',
+            category=itc.channel.category,
+            overwrites={
+                itc.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                itc.user: discord.PermissionOverwrite(read_messages=True),
+                **{user: discord.PermissionOverwrite(read_messages=True) for user in users}
+            }
+        )
+        self.channel = new_channel
+
         embed = discord.Embed(
             title='Quiz started',
             color=0x00ff00
         )
         self.embed_details(embed)
         await self.itc.delete_original_response()
-        await itc.channel.send(embed=embed)
+        await self.channel.send(embed=embed)
         await self.display_score()
         await self.quiz_step()
 
