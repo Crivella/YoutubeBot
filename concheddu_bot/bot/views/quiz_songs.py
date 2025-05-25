@@ -720,8 +720,8 @@ class QuizSongs(discord.ui.View):
                     send_messages=True,
                     embed_links=True,
                     attach_files=True,
-                    manage_messages=True,
-                    # manage_channels=True,
+                    manage_channels=True,
+                    # manage_permissions=True,
                 )
             }
         )
