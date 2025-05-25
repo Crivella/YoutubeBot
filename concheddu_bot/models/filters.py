@@ -17,7 +17,9 @@ def song_annotate_title(queryset: m.QuerySet) -> m.QuerySet:
     ))
     return res
 
-def song_annotate_times_played(queryset: m.QuerySet, server_id: int = None) -> m.QuerySet:
+def song_annotate_times_played(
+        queryset: m.QuerySet, server_id: int = None, from_quiz: bool = False
+    ) -> m.QuerySet:
     """Annotate the times played"""
     if hasattr(queryset, 'query') and 'times_played' in queryset.query.annotations:
         return queryset
@@ -25,6 +27,7 @@ def song_annotate_times_played(queryset: m.QuerySet, server_id: int = None) -> m
     pv_query = m.Q(playevent__song=m.F('id'))
     if server_id is not None:
         pv_query &= m.Q(playevent__server_id=server_id)
+    pv_query &= m.Q(playevent__quizsong__isnull=not from_quiz)
     res = res.annotate(times_played=m.Count(
         m.Case(
             m.When(pv_query, then=1),
