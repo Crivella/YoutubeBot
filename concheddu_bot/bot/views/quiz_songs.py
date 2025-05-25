@@ -349,7 +349,8 @@ class QuizSongs(discord.ui.View):
             await song.play(
                 update_msg=False, itc=itc,
                 start=start, end=end,
-                audio_filter=self.audio_filter
+                audio_filter=self.audio_filter,
+                quiz_id=self.quiz_obj.id,
             )
             enqueueing = False
 

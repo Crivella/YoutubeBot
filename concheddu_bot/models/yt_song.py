@@ -214,6 +214,7 @@ class YTSong(models.Model):
             audio_filter: str = None,
             *,
             itc: discord.Interaction,
+            quiz_id: int = None,
             **kwargs
         ):
         """Play or queue the song"""
@@ -235,7 +236,8 @@ class YTSong(models.Model):
                 await safe_response(itc, f'Playing {self.title}', ephemeral=True, append=True)
             await PlayEvent.objects.acreate(
                 user=user, song=self, server=server,
-                start=start, end=end, audio_filter=audio_filter
+                start=start, end=end, audio_filter=audio_filter,
+                quiz_id=quiz_id
             )
 
         itc_ = itc if update_msg else None
