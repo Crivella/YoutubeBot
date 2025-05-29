@@ -140,7 +140,8 @@ class AnimeObj(models.Model):
                     continue
                 animes.append(await cls.from_id(mal_id))
 
-            has_next = res_data.get('has_next_page', False)
+            pagination_data = res_data.get('pagination', {})
+            has_next = pagination_data.get('has_next_page', False)
             if not has_next:
                 logger.warning('No more pages available in top anime list')
                 break
@@ -449,12 +450,10 @@ class AnimeCharacter(models.Model):
         new, _ = await cls.objects.aupdate_or_create(
             mal_id=mal_id, defaults=defaults
         )
-        if 'images' in cdata:
-            images = cdata['images']
-            webp_thumbnail_url = images.get('webp', {}).get('image_url', None)
-            if webp_thumbnail_url:
-                new.thumbnail = await ImageObj.from_url(webp_thumbnail_url)
-                await new.asave()
+        thumbnail_url = get_image_url(cdata.get('images', {}))
+        if thumbnail_url:
+            new.thumbnail = await ImageObj.from_url(thumbnail_url)
+            await new.asave()
 
         voice_actors_data = data.get('voice_actors', [])
         for va_data in voice_actors_data:
