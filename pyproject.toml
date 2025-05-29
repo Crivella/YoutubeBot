@@ -30,6 +30,9 @@ dependencies = [
 # Source = "https://github.com/crivella/ocr_translate"
 
 [project.optional-dependencies]
+mal = [
+    "jikanpy-v4"  # Jikan API client for MAL (MyAnimeList)
+]
 mysql = [
     "pymysql==1.1.0",
 ]
