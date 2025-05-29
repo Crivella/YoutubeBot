@@ -60,6 +60,20 @@ class ImageObj(models.Model):
 
         await self.asave()
 
+    @classmethod
+    async def from_url(cls, url: str) -> 'ImageObj':
+        """Create an ImageObj from a URL"""
+        if not url:
+            logger.error('No URL provided for ImageObj')
+            return None
+
+        # Check if the image already exists
+        new, created = await cls.objects.aget_or_create(url=url)
+        if created:
+            await new.download()
+
+        return new
+
     async def download(self, *, loop=None) -> str:
         """Download the image"""
         if not self.url:
@@ -71,11 +85,11 @@ class ImageObj(models.Model):
 
         try:
             async with SEMAPHORE_DOWNLOAD:
-                logger.info(f'Downloading thumbnail {self.url}')
+                logger.info(f'Downloading image {self.url}')
                 loop = loop or asyncio.get_event_loop()
-                tmp_file, _ =await loop.run_in_executor(None, lambda: ur_req.urlretrieve(self.url))
+                tmp_file, _ = await loop.run_in_executor(None, lambda: ur_req.urlretrieve(self.url))
         except Exception as e:
-            logger.error(f'Error downloading thumbnail {self.url}: {e}', exc_info=True)
+            logger.error(f'Error downloading image {self.url}: {e}', exc_info=True)
             return
 
         ext = os.path.splitext(tmp_file)[1]

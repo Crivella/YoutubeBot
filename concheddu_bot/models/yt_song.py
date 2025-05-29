@@ -9,6 +9,7 @@ from django.db import models
 from ..bot.utils import safe_response
 from ..youtube import MAX_DURATION, YTDLSource
 from . import filters as flt
+from .anime import AnimeObj
 from .discord import DiscordServer, DiscordUser
 from .events import PlayEvent
 from .image import ImageObj
@@ -44,6 +45,11 @@ class YTSong(models.Model):
 
     times_answered = models.IntegerField(default=0)
     times_guessed = models.IntegerField(default=0)
+
+    anime = models.ForeignKey(
+        AnimeObj, on_delete=models.SET_NULL, null=True,
+        related_name='songs'
+    )
 
     # thumbnail_urls = models.JSONField(null=True)
     thumbnails = models.ManyToManyField('ImageObj', related_name='yt_songs')

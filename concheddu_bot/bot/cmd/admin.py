@@ -126,6 +126,31 @@ class Admin(commands.GroupCog, group_name='admin'):
         await safe_response(itc, f'Restarting bot', ephemeral=True)
         sys.exit(0)
 
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response(before=True, defer=True)
+    @call_command_register()
+    async def test_import_anime(self, itc: discord.Interaction, anime_id: int):
+        """Restart the bot by forcing the current process to exit and the bot to restart"""
+        from ...models.anime import AnimeObj
+        obj = await AnimeObj.from_id(anime_id)
+        if obj is None:
+            await safe_response(itc, f'Anime with id {anime_id} not found', ephemeral=True)
+            return
+        print(f'Found anime: {obj.title} ({obj.id})')
+        await safe_response(itc, f'Found anime: {obj.title} ({obj.id})', ephemeral=True)
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response(before=True, defer=True)
+    @call_command_register()
+    async def test_import_anime_top(self, itc: discord.Interaction, num: int):
+        """Restart the bot by forcing the current process to exit and the bot to restart"""
+        from ...models.anime import AnimeObj
+        res = await AnimeObj.from_top(num)
+        logger.info(f'Found {len(res)} anime in top {num}')
+        await safe_response(itc, f'Found anime: {obj.title} ({obj.id})', ephemeral=True)
+
     # @app_commands.command()
     # @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     # @ensure_response()
