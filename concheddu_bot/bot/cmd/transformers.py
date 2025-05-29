@@ -4,6 +4,7 @@ import os
 
 import discord
 from discord import app_commands
+from django.db.models import Q
 
 from ... import models as m
 from ...models import filters as flt
@@ -128,6 +129,60 @@ class SongFilterTransformer(app_commands.Transformer):
         return [
             app_commands.Choice(name=flt.song_order_descr[k], value=k) for k in flt.song_order_map.keys()
             if k.startswith(current)
+        ]
+
+class AnimeTransformer(app_commands.Transformer):
+    def __init__(
+            self, *args,
+            allow_new: bool = False,
+            nullable: bool = False,
+            # from_server_playlist: bool = False,
+            **kwargs
+        ):
+        super().__init__(*args, **kwargs)
+        self.anime_map = {}
+        self.allow_new = allow_new
+        self.nullable = nullable
+        # self.from_server_playlist = from_server_playlist
+
+    async def transform(self, ctx: discord.Interaction, argument: str):
+        if argument is None or argument == NONE_STR:
+            if self.nullable:
+                return
+            raise ValueError(f'Song cannot be null')
+        anime = self.anime_map.get(argument, argument)
+        if isinstance(anime, str):
+            if not self.allow_new:
+                await safe_response(ctx, f'Anime `{argument}` not found', ephemeral=True)
+                raise ValueError(f'Anime `{argument}` not found')
+            await safe_response(ctx, f'Searching for {argument}', ephemeral=True, delete_after=240)
+            try:
+                anime = await m.AnimeObj.from_string(argument)
+            except Exception as e:
+                await safe_response(ctx, f'Error searching for {argument}: {e}', ephemeral=True)
+                raise ValueError(f'Error searching for {argument}: {e}')
+        return anime
+
+    async def autocomplete(self, ctx: discord.Interaction, current: str):
+        await safe_defer(ctx)
+
+        q = m.AnimeObj.objects
+        q = q.filter(
+            Q(title__icontains=current) |
+            Q(title_english__icontains=current)
+        )
+        cnt = await q.acount()
+        if cnt > MAX_AUTO_COMPLETE:
+            return [app_commands.Choice(name=f'{cnt} anime found', value=NONE_STR)]
+        anime = [a async for a in q.all()]
+
+        self.anime_map = {str(a.mal_id): a for a in anime}
+        return [
+            app_commands.Choice(
+                name=f'{elide(a.title, 50)}',
+                value=str(a.mal_id)
+            )
+            for a in anime
         ]
 
 # class UserListTransformer(app_commands.Transformer):

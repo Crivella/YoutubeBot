@@ -50,6 +50,7 @@ def main():
     from concheddu_bot.bot import cmd
     print('Starting bot...')
     bot = get_bot()
+    asyncio.run(bot.add_cog(cmd.Anime(bot=bot)))
     asyncio.run(bot.add_cog(cmd.Music()))
     asyncio.run(bot.add_cog(cmd.MusicPlayer()))
     asyncio.run(bot.add_cog(cmd.Playlists()))

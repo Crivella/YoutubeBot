@@ -263,6 +263,62 @@ class AnimeObj(models.Model):
             # Here you would typically search for the anime by title in an API
             raise NotImplementedError('Searching by title is not implemented yet')
 
+    async def to_embed(self) -> tuple[discord.Embed, discord.File]:
+        """Convert the Anime instance to a Discord embed"""
+        embed = discord.Embed(
+            title=self.title, description=self.description or 'No description available'
+            )
+        file = None
+
+        thumb_id = self.thumbnail_id
+        if thumb_id is not None:
+            thumbnail = await ImageObj.objects.aget(id=thumb_id)
+            attach_name = 'thumbnail.webp'
+            thumb_url = f'attachment://{attach_name}'
+            file = discord.File(await thumbnail.get_image(), filename=attach_name)
+            embed.set_thumbnail(url=thumb_url)
+
+        embed.add_field(name='Episodes', value=str(self.num_episodes) if self.num_episodes else 'N/A')
+        embed.add_field(name='Score', value=str(self.score) if self.score else 'N/A')
+        embed.add_field(name='Rank', value=str(self.rank) if self.rank else 'N/A')
+        embed.add_field(name='Popularity', value=str(self.popularity) if self.popularity else 'N/A')
+        embed.add_field(name='Members', value=str(self.members) if self.members else 'N/A')
+        embed.add_field(name='Favorites', value=str(self.favorites) if self.favorites else 'N/A')
+
+        if self.release_date:
+            embed.add_field(name='Release Date', value=self.release_date.strftime('%Y-%m-%d'))
+        if self.aired_from:
+            embed.add_field(name='Aired From', value=self.aired_from.strftime('%Y-%m-%d'))
+        if self.aired_to:
+            embed.add_field(name='Aired To', value=self.aired_to.strftime('%Y-%m-%d'))
+
+        studios = ', '.join([studio.name async for studio in self.studios.all()]) or 'Unknown'
+        genres = ', '.join([genre.name async for genre in self.genres.all()]) or 'Unknown'
+
+        embed.add_field(name='Studios', value=studios)
+        embed.add_field(name='Genres', value=genres)
+
+        characters = await self.get_characters(top=5)
+        char_lst = []
+        for char in characters:
+            char_lst.append(f'- {char.name} ({char.role.capitalize()}) [{char.favorites} favorites]')
+
+        embed.add_field(
+            name='Characters',
+            value='\n'.join(char_lst) if char_lst else 'No characters found',
+            inline=False
+        )
+
+        embed.set_footer(text=f'MAL ID: {self.mal_id}')
+
+        return embed, file
+
+    async def get_characters(self, top: int = 10) -> list['AnimeCharacter']:
+        """Get characters from this anime"""
+        q = self.characters.all()
+        q = q.order_by('-favorites')[:top]
+        return [char async for char in q]
+
 class Language(models.Model):
     """Language model"""
     name = models.CharField(max_length=64, unique=True)
@@ -310,10 +366,10 @@ class VoiceActor(models.Model):
                 language=language_obj
             )
 
-        thumbnail_url = get_image_url(person_data.get('images', {}))
-        if thumbnail_url:
-            new.thumbnail = await ImageObj.from_url(thumbnail_url)
-            await new.asave()
+        # thumbnail_url = get_image_url(person_data.get('images', {}))
+        # if thumbnail_url:
+        #     new.thumbnail = await ImageObj.from_url(thumbnail_url)
+        #     await new.asave()
 
         return new
 
@@ -413,3 +469,44 @@ class AnimeCharacter(models.Model):
             await new.asave()
 
         return new
+
+    async def to_embed(self) -> tuple[discord.Embed, discord.File]:
+        """Convert the Character instance to a Discord embed"""
+        embed = discord.Embed(
+            title=self.name,
+            description=self.description or 'No description available',
+            color=discord.Color.blurple()
+        )
+        file = None
+
+        if self.thumbnail_id:
+            thumbnail = await ImageObj.objects.aget(id=self.thumbnail_id)
+            attach_name = f'character_{self.mal_id}_thumbnail.webp'
+            file = discord.File(await thumbnail.get_image(), filename=attach_name)
+            embed.set_thumbnail(url=f'attachment://{attach_name}')
+
+        embed.add_field(name='Role', value=self.role.capitalize(), inline=True)
+        embed.add_field(name='Favorites', value=str(self.favorites), inline=True)
+
+        if self.anime:
+            embed.add_field(name='Anime', value=self.anime.title, inline=False)
+
+        return embed, file
+
+    # async def add_to_embed(self, embed: discord.Embed) -> discord.File:
+    #     """Add character information to a Discord embed"""
+    #     embed.add_field(name='Character', value=self.name, inline=False)
+    #     embed.add_field(name='Role', value=self.role.capitalize(), inline=True)
+    #     embed.add_field(name='Favorites', value=str(self.favorites), inline=True)
+
+    #     if self.description:
+    #         embed.add_field(name='Description', value=self.description, inline=False)
+
+    #     if self.thumbnail_id:
+    #         thumbnail = await ImageObj.objects.aget(id=self.thumbnail_id)
+    #         attach_name = f'character_{self.mal_id}_thumbnail.webp'
+    #         file = discord.File(await thumbnail.get_image(), filename=attach_name)
+    #         embed.set_thumbnail(url=f'attachment://{attach_name}')
+    #         return file
+
+    #     return None

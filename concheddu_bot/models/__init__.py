@@ -1,3 +1,4 @@
+from .anime import AnimeCharacter, AnimeObj
 from .discord import DiscordChannel, DiscordServer, DiscordUser
 from .events import AddedSongEvent, CallCommandEvent, GuessSongEvent, PlayEvent
 from .image import ImageObj
@@ -19,4 +20,5 @@ __all__ = [
     'DiscordChannel',
     'QuizSong',
     'ImageObj',
+    'AnimeObj', 'AnimeCharacter',
 ]
