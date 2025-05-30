@@ -86,7 +86,8 @@ class Anime(commands.GroupCog, group_name='anime'):
     async def import_top(
         self, itc: discord.Interaction,
         start: int,
-        num: int
+        num: int,
+        force: bool = False
         ):
         """Import the top `num` anime from MyAnimeList
 
@@ -94,8 +95,9 @@ class Anime(commands.GroupCog, group_name='anime'):
             itc (discord.Interaction): The interaction context
             start (int): The starting index of the top anime to import
             num (int): The number of top anime to import
+            force (bool, optional): Whether to perfrom updates that require an anime-by-anime query. Defaults to False.
         """
-        res = await m.AnimeObj.from_top(start, num)
+        res = await m.AnimeObj.from_top(start, num, force=force)
         logger.info(f'Found {len(res)} anime in top {num}')
         await safe_response(itc, f'Imported {len(res)} anime', ephemeral=True)
 

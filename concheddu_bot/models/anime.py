@@ -1,19 +1,13 @@
 import asyncio
+import datetime
 import logging
 import re
-import urllib
 
 import discord
-import requests
 from django.db import models
 from jikanpy import AioJikan
 from jikanpy.exceptions import JikanException
 
-from ..bot.utils import safe_response
-from ..youtube import MAX_DURATION, YTDLSource
-from . import filters as flt
-from .discord import DiscordServer, DiscordUser
-from .events import PlayEvent
 from .image import ImageObj
 
 logger = logging.getLogger('bot')
@@ -28,6 +22,8 @@ jikan_key_map = [
     ('synopsis', 'description'),
     ('episodes', 'num_episodes'),
     # ('aired', 'aired_from'),  # This will be a dict, we will handle it later
+    ('type', 'type'),
+    ('source', 'source'),
     ('score', 'score'),
     ('scored_by', 'scored_by'),
     ('rank', 'rank'),
@@ -35,6 +31,8 @@ jikan_key_map = [
     ('members', 'members'),
     ('favorites', 'favorites'),
 ]
+
+API_DELAY = 1.5  # seconds to wait between API calls to avoid hitting rate limits
 
 def get_image_url(data: dict) -> str:
     """Get the image URL from the data dictionary"""
@@ -79,10 +77,32 @@ class AnimeObj(models.Model):
         help_text='Images of places from the anime'
     )
 
+    type = models.CharField(
+        max_length=64, choices=[
+            ('tv', 'TV'),
+            ('movie', 'Movie'),
+            ('ova', 'OVA'),
+            ('ona', 'ONA'),
+            ('special', 'Special'),
+            ('music', 'Music')
+        ], default='tv',
+        help_text='Type of the anime'
+    )
+    source = models.CharField(
+        max_length=64, choices=[
+            ('original', 'Original'),
+            ('manga', 'Manga'),
+            ('light_novel', 'Light Novel'),
+            ('visual_novel', 'Visual Novel'),
+            ('video_game', 'Video Game'),
+            ('other', 'Other')
+        ], default='original',
+        help_text='Source material of the anime'
+    )
+
     num_episodes = models.IntegerField(
         null=True, blank=True, help_text='Number of episodes in the anime'
     )
-    release_date = models.DateField(null=True, blank=True)
     aired_from = models.DateField(null=True, blank=True, help_text='Start date of airing')
     aired_to = models.DateField(null=True, blank=True, help_text='End date of airing')
 
@@ -118,7 +138,7 @@ class AnimeObj(models.Model):
     )
 
     @classmethod
-    async def from_top(cls, start: int = 0, num: int = 10) -> list['AnimeObj']:
+    async def from_top(cls, start: int = 0, num: int = 10, force: bool = False) -> list['AnimeObj']:
         """Fetch top anime from MyAnimeList"""
         page = start // 25 + 1 # MyAnimeList pages are 25 items each
         animes = []
@@ -129,7 +149,7 @@ class AnimeObj(models.Model):
                     res_data = await jikan.top(type='anime', page=page)
                 except JikanException as e:
                     logger.error(f'Failed to fetch top anime: {e}')
-                    return []
+                    break
 
             top_data = res_data.get('data', [])
             top_data = top_data[:num]  # Limit to the requested number
@@ -139,8 +159,7 @@ class AnimeObj(models.Model):
                 if not mal_id:
                     logger.warning("Anime data missing 'mal_id', skipping")
                     continue
-                animes.append(await cls.from_id(mal_id))
-                await asyncio.sleep(1.5)
+                animes.append(await cls.from_jikan_data(anime_data, force=force))
 
             pagination_data = res_data.get('pagination', {})
             has_next = pagination_data.get('has_next_page', False)
@@ -148,6 +167,7 @@ class AnimeObj(models.Model):
                 logger.warning('No more pages available in top anime list')
                 break
             page += 1
+            await asyncio.sleep(API_DELAY)
 
         logger.info(f'Fetched {len(animes)} anime entries from MyAnimeList')
         return animes
@@ -186,8 +206,44 @@ class AnimeObj(models.Model):
         for char_data in characters_data:
             await AnimeCharacter.from_jikan_anime_data(char_data, self)
 
+    def get_aired_data(self, data):
+        """Extract aired_from date from Jikan data"""
+        aired_from = data.get('aired', {}).get('from')
+        if aired_from:
+            dt = datetime.datetime.fromisoformat(aired_from.replace('Z', '+00:00'))
+            self.aired_from = dt.date()
+        aired_to = data.get('aired', {}).get('to')
+        if aired_to:
+            dt = datetime.datetime.fromisoformat(aired_to.replace('Z', '+00:00'))
+            self.aired_to = dt.date()
+
+    async def update_data(self, data: dict = None):
+        """Update the anime data from a dictionary"""
+        if data is None:
+            logger.info(f'Fetching anime data for ID {self.mal_id} from Jikan')
+            async with AioJikan() as jikan:
+                try:
+                    anime_data = await jikan.anime(self.mal_id)
+                except JikanException as e:
+                    logger.error(f'Failed to fetch anime data for ID {self.mal_id}: {e}')
+                    return
+            data = anime_data.get('data', {})
+
+        for key, new_key in jikan_key_map:
+            setattr(self, new_key, data.get(key, None))
+
+        self.get_aired_data(data)
+
+        await self.asave()
+
+    @staticmethod
+    async def get_all_types() -> list[str]:
+        """Get all unique types of anime from the database"""
+        types = await AnimeObj.objects.values_list('type', flat=True).distinct()
+        return list(types)
+
     @classmethod
-    async def from_jikan_data(cls, data: dict):
+    async def from_jikan_data(cls, data: dict, force: bool = False) -> 'AnimeObj':
         """Create an Anime instance from Jikan data"""
         anime_id = data.get('mal_id')
 
@@ -198,7 +254,9 @@ class AnimeObj(models.Model):
             else:
                 dct[new_key] = None
 
-        new, _ = await cls.objects.aupdate_or_create(mal_id=anime_id, defaults=dct)
+        new, created = await cls.objects.aupdate_or_create(mal_id=anime_id, defaults=dct)
+
+        new.get_aired_data(data)
 
         thumbmail_url = get_image_url(data.get('images', {}))
         if thumbmail_url:
@@ -228,7 +286,9 @@ class AnimeObj(models.Model):
                 )
                 await new.genres.aadd(genre_obj)
 
-        await new.fetch_characters()
+        if created or force:
+            await new.fetch_characters()
+            await asyncio.sleep(API_DELAY)  # When used to fecth anime sequentially, avoid hitting Jikan API too fast
 
         return new
 
@@ -252,6 +312,7 @@ class AnimeObj(models.Model):
             except JikanException as e:
                 logger.error(f'Failed to fetch anime data for ID {anime_id}: {e}')
                 raise ValueError(f'Anime with ID {anime_id} not found')
+            await asyncio.sleep(API_DELAY)  # Avoid hitting Jikan API too fast
         logger.debug(f'Fetched anime data for ID {anime_id}: {anime_data}')
 
         anime_data = anime_data['data']
@@ -302,8 +363,6 @@ class AnimeObj(models.Model):
         embed.add_field(name='Members', value=str(self.members) if self.members else 'N/A')
         embed.add_field(name='Favorites', value=str(self.favorites) if self.favorites else 'N/A')
 
-        if self.release_date:
-            embed.add_field(name='Release Date', value=self.release_date.strftime('%Y-%m-%d'))
         if self.aired_from:
             embed.add_field(name='Aired From', value=self.aired_from.strftime('%Y-%m-%d'))
         if self.aired_to:
