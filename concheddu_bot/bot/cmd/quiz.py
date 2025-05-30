@@ -41,7 +41,7 @@ class QuizHighLow(commands.GroupCog, group_name='quiz_highlow'):
             self, itc: discord.Interaction,
             object_type: app_commands.Transform[str, tfs.ObjectTypeTransformer()],
             object_param: app_commands.Transform[str, tfs.ObjectParamTransformer()],
-            max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=100, max=3000)] = 500
+            max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=3000)] = 0
         ):
         """Start a high/low quiz game.
 

@@ -88,8 +88,12 @@ class QuizHighLowRunner(discord.ui.View):
             return
 
         q = object_cls.objects
-        q = q.order_by(f'-{self.object_param}')  # order by the object parameter in descending order
-        q = q[:self.max_top] # limit to 2000 objects to avoid memory issues
+        if self.max_top > 0:
+            q = q.order_by(f'-{self.object_param}')  # order by the object parameter in descending order
+            q = q[:self.max_top] # limit to max_top objects
+        else:
+            q = q.order_by('?')
+            q = q[:3000]  # limit to 3000 objects to avoid performance issues
         objects = [o async for o in q.all()]
         if not objects:
             await safe_response(itc, f'No {self.object_type} found', ephemeral=True, delete_after=10)
