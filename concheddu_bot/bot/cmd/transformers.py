@@ -55,72 +55,113 @@ class PlaylistTransformer(app_commands.Transformer):
         playlists = [p async for p in q.all()]
         return [app_commands.Choice(name=p.name, value=p.name) for p in playlists]
 
-server_playlist_cache: dict[int, list[m.YTSong]] = {}
-class SongTransformer(app_commands.Transformer):
+object_server_cache: dict = {}
+
+class GenericObjectTransformer(app_commands.Transformer):
+    klass = None
+    from_argument_function_name: str = None
+    list_filters = []
+    query_filters = []
+    map_attribute = None
+    descr_function = None
+
     def __init__(
             self, *args,
             allow_new: bool = False,
             nullable: bool = False,
-            from_server_playlist: bool = False,
+            from_cache: bool = False,
             **kwargs
         ):
         super().__init__(*args, **kwargs)
-        self.song_map = {}
+        self.object_map = {}
         self.allow_new = allow_new
         self.nullable = nullable
-        self.from_server_playlist = from_server_playlist
+        self.from_cache = from_cache
 
     async def transform(self, ctx: discord.Interaction, argument: str):
         if argument is None or argument == NONE_STR:
             if self.nullable:
                 return
-            raise ValueError(f'Song cannot be null')
-        song = self.song_map.get(argument, argument)
-        if isinstance(song, str):
+            raise ValueError(f'{self.klass.__name__} cannot be null')
+        res = self.object_map.get(argument, argument)
+        if isinstance(res, str):
             if not self.allow_new:
-                await safe_response(ctx, f'Song `{argument}` not found', ephemeral=True)
-                raise ValueError(f'Song `{argument}` not found')
+                await safe_response(ctx, f'{self.klass.__name__} `{argument}` not found', ephemeral=True)
+                raise ValueError(f'{self.klass.__name__} `{argument}` not found')
             await safe_response(ctx, f'Searching for {argument}', ephemeral=True, delete_after=240)
             try:
-                song = await m.YTSong.from_search_string(argument)
+                func = getattr(self.klass, self.from_argument_function_name, None)
+                if func is None:
+                    raise ValueError(f'No function {self.from_argument_function_name} found in {self.klass.__name__}')
+                res = await func(argument)
             except Exception as e:
                 await safe_response(ctx, f'Error searching for {argument}: {e}', ephemeral=True)
                 raise ValueError(f'Error searching for {argument}: {e}')
-        return song
+        return res
 
     async def autocomplete(self, ctx: discord.Interaction, current: str):
         await safe_defer(ctx)
 
-        if self.from_server_playlist:
-            songs = server_playlist_cache.get(ctx.guild.id, [])
-            songs = [s for s in songs if current.lower() in s.title.lower()]
-            if len(songs) > MAX_AUTO_COMPLETE:
-                return [app_commands.Choice(name=f'{len(songs)} songs found', value=NONE_STR)]
+        if self.from_cache:
+            cache = object_server_cache.setdefault(self.klass.__name__, {})
+            objects = cache.get(ctx.guild.id, [])
+            cl = current.lower()
+            app = objects.copy()
+            for flt in self.list_filters:
+                app2 = []
+                for obj in app:
+                    if flt(obj, cl):
+                        app2.append(obj)
+                app = app2
+            objects = app
+            if len(objects) > MAX_AUTO_COMPLETE:
+                return [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
         else:
-            q = m.YTSong.objects
-            q = flt.song_annotate_title(q)
-            q = q.filter(title__icontains=current)
+            q = self.klass.objects
+            for filter in self.query_filters:
+                q = q.filter(filter(current))
             cnt = await q.acount()
             if cnt > MAX_AUTO_COMPLETE:
-                return [app_commands.Choice(name=f'{cnt} songs found', value=NONE_STR)]
-            songs = [s async for s in q.all()]
+                return [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
+            objects = [obj async for obj in q.all()]
 
-        self.song_map = {s.youtube_id: s for s in songs}
+        self.object_map = {getattr(s, self.map_attribute): s for s in objects}
         return [
             app_commands.Choice(
-                name=f'[{s.duration}] {elide(s.title, 50)}',
-                value=s.youtube_id
+                # name=f'[{s.duration}] {elide(s.title, 50)}',
+                name=self.descr_function(obj),
+                value=getattr(obj, self.map_attribute)
             )
-            for s in songs
+            for obj in objects
         ]
 
     @staticmethod
-    def register_server_playlist(server_id: int, songs: list[m.YTSong]):
-        server_playlist_cache[server_id] = songs.copy()
+    def register_cache(klass, server_id: int, objects: list):
+        cache = object_server_cache.setdefault(klass.__name__, {})
+        for obj in objects:
+            if not isinstance(obj, klass):
+                raise ValueError(f'Object {obj} is not an instance of {klass.__name__}')
+        cache[server_id] = objects.copy()
 
     @staticmethod
-    def remove_server_playlist(server_id: int):
-        server_playlist_cache.pop(server_id, None)
+    def remove_cache(klass, server_id: int):
+        cache = object_server_cache.setdefault(klass.__name__, {})
+        cache.pop(server_id, None)
+
+
+server_playlist_cache: dict[int, list[m.YTSong]] = {}
+class SongTransformer(GenericObjectTransformer):
+    klass = m.YTSong
+    from_argument_function_name: str = 'from_search_string'
+    descr_name = 'title'
+    query_filters = [
+        lambda x: Q(original_title__icontains=x) | Q(manual_title__icontains=x),
+    ]
+    list_filters = [
+        lambda s, cl: cl in s.original_title.lower() or cl in (s.manual_title or '').lower(),
+    ]
+    map_attribute = 'youtube_id'
+    descr_function = lambda cls,s: f'[{s.duration}] {elide(s.title, 50)}'
 
 class SongFilterTransformer(app_commands.Transformer):
     async def transform(self, ctx: discord.Interaction, argument: str):
@@ -155,59 +196,29 @@ class ObjectParamTransformer(app_commands.Transformer):
             if el.startswith(current.upper())
         ]
 
-class AnimeTransformer(app_commands.Transformer):
-    def __init__(
-            self, *args,
-            allow_new: bool = False,
-            nullable: bool = False,
-            # from_server_playlist: bool = False,
-            **kwargs
-        ):
-        super().__init__(*args, **kwargs)
-        self.anime_map = {}
-        self.allow_new = allow_new
-        self.nullable = nullable
-        # self.from_server_playlist = from_server_playlist
+class AnimeTransformer(GenericObjectTransformer):
+    klass = m.AnimeObj
+    from_argument_function_name: str = 'from_string'
+    list_filters = [
+        lambda a, cl: cl in a.title.lower() or cl in (a.title_english or '').lower(),
+    ]
+    query_filters = [
+        lambda x: Q(title__icontains=x) | Q(title_english__icontains=x),
+    ]
+    map_attribute = 'mal_id'
+    descr_function = lambda cls, a: f'{elide(a.title, 50)}'
 
-    async def transform(self, ctx: discord.Interaction, argument: str):
-        if argument is None or argument == NONE_STR:
-            if self.nullable:
-                return
-            raise ValueError(f'Song cannot be null')
-        anime = self.anime_map.get(argument, argument)
-        if isinstance(anime, str):
-            if not self.allow_new:
-                await safe_response(ctx, f'Anime `{argument}` not found', ephemeral=True)
-                raise ValueError(f'Anime `{argument}` not found')
-            await safe_response(ctx, f'Searching for {argument}', ephemeral=True, delete_after=240)
-            try:
-                anime = await m.AnimeObj.from_string(argument)
-            except Exception as e:
-                await safe_response(ctx, f'Error searching for {argument}: {e}', ephemeral=True)
-                raise ValueError(f'Error searching for {argument}: {e}')
-        return anime
-
-    async def autocomplete(self, ctx: discord.Interaction, current: str):
-        await safe_defer(ctx)
-
-        q = m.AnimeObj.objects
-        q = q.filter(
-            Q(title__icontains=current) |
-            Q(title_english__icontains=current)
-        )
-        cnt = await q.acount()
-        if cnt > MAX_AUTO_COMPLETE:
-            return [app_commands.Choice(name=f'{cnt} anime found', value=NONE_STR)]
-        anime = [a async for a in q.all()]
-
-        self.anime_map = {str(a.mal_id): a for a in anime}
-        return [
-            app_commands.Choice(
-                name=f'{elide(a.title, 50)}',
-                value=str(a.mal_id)
-            )
-            for a in anime
-        ]
+class AnimeCharacterTransformer(app_commands.Transformer):
+    klass = m.AnimeCharacter
+    from_argument_function_name: str = 'from_string'
+    list_filters = [
+        lambda c, cl: cl in c.name.lower()
+    ]
+    query_filters = [
+        lambda x: Q(name__icontains=x)
+    ]
+    map_attribute = 'mal_id'
+    descr_function = lambda cls, c: f'{elide(c.name, 50)}'
 
 # class UserListTransformer(app_commands.Transformer):
 #     async def transform(self, ctx: discord.Interaction, argument: str) -> list[m.DiscordUser]:

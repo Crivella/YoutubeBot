@@ -10,7 +10,7 @@ from .... import models as m
 from ... import views as v
 from ...utils import (SenseCheckError, ensure_response, safe_response,
                       sense_check)
-from ...views.quiz_songs import BLUR_KEY, PARTIAL_KEY, SCRAMBLE_KEY
+from ...views.quiz.quiz_songs import BLUR_KEY, PARTIAL_KEY, SCRAMBLE_KEY
 from .. import transformers as tfs
 from ..utils import call_command_register, sanitize_ffmpeg_filter
 
@@ -95,12 +95,12 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
 
         async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):
             if not multiple_choice:
-                tfs.SongTransformer.register_server_playlist(server_id, all_songs)
+                tfs.SongTransformer.register_cache(m.YTSong, server_id, all_songs)
             current_quiz[server_id] = view
         view.on_start.append(start_callback)
 
         async def finish_callback():
-            tfs.SongTransformer.remove_server_playlist(server_id)
+            tfs.SongTransformer.remove_cache(m.YTSong, server_id)
             current_quiz.pop(server_id, None)
         view.on_finish.append(finish_callback)
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)
@@ -138,7 +138,7 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
     @call_command_register()
     async def answer(
             self, itc: discord.Interaction,
-            song: app_commands.Transform[m.YTSong, tfs.SongTransformer(from_server_playlist=True)]
+            song: app_commands.Transform[m.YTSong, tfs.SongTransformer(from_cache=True)]
             ):
         """List the quizzes"""
         quiz = current_quiz.get(itc.guild.id, None)
