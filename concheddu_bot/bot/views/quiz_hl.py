@@ -162,7 +162,6 @@ class QuizHighLowRunner(discord.ui.View):
         self.embed_details(embed)
         await self.itc.delete_original_response()
         await self.channel.send(embed=embed)
-        await self.display_score()
         await self.quiz_step()
 
     async def quiz_step(self):
@@ -170,7 +169,6 @@ class QuizHighLowRunner(discord.ui.View):
         if self.idx >= len(self.objects):
             return await self.quiz_finish()
 
-        await self.display_score()
         self.play_view.clear_items()
 
         self.id1 = self.id2
@@ -241,6 +239,10 @@ class QuizHighLowRunner(discord.ui.View):
         title1 = await item1.get_str()
         title2 = await item2.get_str()
 
+        embed_score = discord.Embed(
+            title='Current score',
+            color=0x0000ff
+        )
         embed1 = discord.Embed(
             title=f'{title1}: {self.object_score_map[item1.id]}',
             color=0x00ff00
@@ -250,6 +252,8 @@ class QuizHighLowRunner(discord.ui.View):
             title=f'{title2}: {score}',
             color=0xff0000
         )
+
+        self.embed_score(embed_score)
 
         files = []
         if thumb1:
@@ -265,7 +269,7 @@ class QuizHighLowRunner(discord.ui.View):
 
         kwargs = {
             'content': f'Quiz step {self.idx} - Guess the score of the second object compared to the first one!',
-            'embeds': [embed1, embed2],
+            'embeds': [embed_score, embed1, embed2],
             'files': files,
             'view': view
         }
@@ -334,20 +338,6 @@ class QuizHighLowRunner(discord.ui.View):
             embed (discord.Embed): The embed to add the score to
         """
         embed.add_field(name='Score', value=f'- {self.player.name}: {self.score[self.player.id]} points', inline=False)
-
-    async def display_score(self):
-        self.clear_items()
-        embed = discord.Embed(
-            title='Current score',
-            color=0x0000ff
-        )
-
-        self.embed_score(embed)
-
-        if self.scoreboard:
-            await self.scoreboard.edit(embed=embed)
-        else:
-            self.scoreboard = await self.channel.send(embed=embed)
 
     async def on_timeout(self):
         try:
