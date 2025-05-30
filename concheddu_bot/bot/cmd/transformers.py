@@ -125,12 +125,12 @@ class GenericObjectTransformer(app_commands.Transformer):
                 return [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
             objects = [obj async for obj in q.all()]
 
-        self.object_map = {getattr(s, str(self.map_attribute)): s for s in objects}
+        self.object_map = {str(getattr(s, self.map_attribute)): s for s in objects}
         return [
             app_commands.Choice(
                 # name=f'[{s.duration}] {elide(s.title, 50)}',
                 name=self.descr_function(obj),
-                value=getattr(obj, str(self.map_attribute))
+                value=str(getattr(obj, self.map_attribute))
             )
             for obj in objects
         ]
