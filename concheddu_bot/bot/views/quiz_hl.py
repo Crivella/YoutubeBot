@@ -324,6 +324,7 @@ class QuizHighLowRunner(discord.ui.View):
             f'- Object type: {self.object_type}',
             f'- Object parameter: {self.object_param}',
             f'- Number of objects: {len(self.objects)}',
+            f'- Max top: {self.max_top}' if self.max_top > 0 else '- Random order',
             f'- Started by: {self.player.name}',
         ]
 
