@@ -254,11 +254,9 @@ class QuizHighLowRunner(discord.ui.View):
 
         if self.play_message is None:
             logger.debug(f'Sending new play message for quiz {self.quiz_obj.id}')
-            logger.info(f'{self.channel.name} - {self.channel.id}')
             self.play_message = await self.channel.send(**kwargs)
         else:
             kwargs['attachments'] = kwargs.pop('files', [])
-            logger.debug(f'Editing existing play message for quiz {self.quiz_obj.id}')
             await self.play_message.edit(**kwargs)
 
     async def quiz_finish(self):
