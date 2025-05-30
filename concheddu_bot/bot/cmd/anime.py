@@ -27,7 +27,7 @@ class Anime(commands.GroupCog, group_name='anime'):
     @app_commands.command()
     @ensure_response()
     @call_command_register()
-    async def show(
+    async def show_anime(
             self, itc: discord.Interaction,
             anime: app_commands.Transform[m.AnimeObj, tfs.AnimeTransformer]
         ):
@@ -43,25 +43,41 @@ class Anime(commands.GroupCog, group_name='anime'):
     @app_commands.command()
     @ensure_response()
     @call_command_register()
-    async def show_characters(
+    async def show_character(
             self, itc: discord.Interaction,
-            anime: app_commands.Transform[m.AnimeObj, tfs.AnimeTransformer],
-            num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=10)] = 5
+            character: app_commands.Transform[m.AnimeCharacter, tfs.AnimeCharacterTransformer]
         ):
-        """Show top `num` characters of an anime
+        """Show details of an anime
+
         Args:
             itc (discord.Interaction): The interaction context
-            anime (m.AnimeObj): The anime object to show characters for
-            num (int): The number of characters to show (default: 10)
+            character (m.AnimeObj): The character object to show
         """
-        characters = await anime.get_characters(top=num)
-        embeds = []
-        files = []
-        for character in characters:
-            embed, file = await character.to_embed()
-            embeds.append(embed)
-            files.append(file)
-        await safe_response(itc, embeds=embeds, files=files)
+        embed, file = await character.to_embed()
+        await safe_response(itc, embed=embed, file=file)
+
+    # @app_commands.command()
+    # @ensure_response()
+    # @call_command_register()
+    # async def show_characters(
+    #         self, itc: discord.Interaction,
+    #         anime: app_commands.Transform[m.AnimeObj, tfs.AnimeTransformer],
+    #         num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=10)] = 5
+    #     ):
+    #     """Show top `num` characters of an anime
+    #     Args:
+    #         itc (discord.Interaction): The interaction context
+    #         anime (m.AnimeObj): The anime object to show characters for
+    #         num (int): The number of characters to show (default: 10)
+    #     """
+    #     characters = await anime.get_characters(top=num)
+    #     embeds = []
+    #     files = []
+    #     for character in characters:
+    #         embed, file = await character.to_embed()
+    #         embeds.append(embed)
+    #         files.append(file)
+    #     await safe_response(itc, embeds=embeds, files=files)
 
     @app_commands.command()
     @ensure_response(before=True, defer=True)
