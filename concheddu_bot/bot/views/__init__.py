@@ -1,11 +1,11 @@
 from .list_songs import SongList
 from .playlist import DeletePlaylist, EditPlaylist
-from .quiz_hl import QuizHighLowRunner
-from .quiz_songs import QuizSongs, QuizSongsList
+from .quiz import QuizGuessCharacterRunner, QuizHighLowRunner, QuizSongs
+from .quiz.quiz_songs import QuizSongsList
 
 __all__ = [
     'SongList',
     'CreatePlaylist', 'DeletePlaylist', 'EditPlaylist',
     'QuizSongs', 'QuizSongsList',
-    'QuizHighLowRunner'
+    'QuizHighLowRunner', 'QuizGuessCharacterRunner'
 ]

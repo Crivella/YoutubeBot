@@ -3,12 +3,12 @@ from typing import Awaitable
 
 import discord
 
-from ... import models as m
-from ...models.quiz_hl import object_type_map
-from .. import get_current_bot
-from ..utils import ensure_response, ensure_user, safe_response
-from .buttons import CallbackButton
-from .utils import elide, logger
+from .... import models as m
+from ....models.quiz_hl import object_type_map
+from ... import get_current_bot
+from ...utils import ensure_response, ensure_user, safe_response
+from ..buttons import CallbackButton
+from ..utils import elide, logger
 
 NONE_STR = '__NO__NE__'
 
