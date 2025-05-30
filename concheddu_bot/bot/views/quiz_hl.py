@@ -93,25 +93,20 @@ class QuizHighLowRunner(discord.ui.View):
             q = q[:self.max_top] # limit to max_top objects
         else:
             q = q.order_by('?')
-            q = q[:3000]  # limit to 3000 objects to avoid performance issues
+            q = q[:100]  # limit to 3000 objects to avoid performance issues
         objects = [o async for o in q.all()]
+        random.shuffle(objects)
+        objects = objects[:100]
         if not objects:
             await safe_response(itc, f'No {self.object_type} found', ephemeral=True, delete_after=10)
             return
 
-        app = []
         for obj in objects:
             score = getattr(obj, self.object_param, None)
             if score is None:
-                continue
-            app.append(obj)
+                await safe_response(itc, f'Not all found objects have the parameter {self.object_param}', ephemeral=True, delete_after=10)
+                return
             self.object_score_map[obj.id] = score
-        if not app:
-            await safe_response(itc, f'No {self.object_type} with parameter {self.object_param} found', ephemeral=True, delete_after=10)
-            return
-        objects = app
-
-        random.shuffle(objects)  # random order for the objects
 
         self.object_map = {obj.id: obj for obj in objects}
         self.objects = [o.id for o in objects]
@@ -134,27 +129,6 @@ class QuizHighLowRunner(discord.ui.View):
             object_choice_ids=self.objects,
         )
 
-        # for callback in self.on_start:
-        #     await callback(self.songs, self.all_song, self.quiz_obj)
-
-        # Create a new text channel and add only the users that are participating in the quiz
-        # new_channel = await itc.guild.create_text_channel(
-        #     name=f'quiz-{self.quiz_obj.id}',
-        #     category=itc.channel.category,
-        #     overwrites={
-        #         itc.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        #         **{user: discord.PermissionOverwrite(read_messages=True) for user in users},
-        #         self.bot.user: discord.PermissionOverwrite(
-        #             read_messages=True,
-        #             send_messages=True,
-        #             embed_links=True,
-        #             attach_files=True,
-        #             manage_channels=True,
-        #             # https://github.com/discord/discord-api-docs/issues/2520
-        #             # manage_permissions=True,
-        #         )
-        #     }
-        # )
         self.id2 = self.objects[0]
         self.idx = 1
         self.channel = itc.channel
@@ -300,15 +274,6 @@ class QuizHighLowRunner(discord.ui.View):
         self.embed_details(embed)
         self.embed_score(embed)
         await self.orig_channel.send(embed=embed)
-
-        # if self.channel is not None and self.orig_channel != self.channel and self.channel.name.startswith('quiz-'):
-        #     try:
-        #         await self.channel.delete()
-        #     except discord.Forbidden:
-        #         logger.warning(f'Could not delete channel {self.channel.name}, missing permissions')
-        #     except discord.NotFound:
-        #         logger.warning(f'Channel {self.channel.name} not found, already deleted?')
-        #     self.channel = self.orig_channel
 
         for callback in self.on_finish:
             await callback()
