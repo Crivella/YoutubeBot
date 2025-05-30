@@ -130,6 +130,9 @@ class QuizHighLowRunner(discord.ui.View):
             object_choice_ids=self.objects,
         )
 
+        for callback in self.on_start:
+            await callback(self.quiz_obj)
+
         self.id2 = self.objects[0]
         self.idx = 1
         self.channel = itc.channel

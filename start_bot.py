@@ -55,7 +55,7 @@ def main():
     asyncio.run(bot.add_cog(cmd.MusicPlayer()))
     asyncio.run(bot.add_cog(cmd.Playlists()))
     asyncio.run(bot.add_cog(cmd.QuizSong()))
-    asyncio.run(bot.add_cog(cmd.QuizHighLow()))
+    asyncio.run(bot.add_cog(cmd.QuizAnime()))
     # asyncio.run(bot.add_cog(cmd.QuizSongText()))
     asyncio.run(bot.add_cog(cmd.Admin(bot=bot)))
     bot.run(token)
