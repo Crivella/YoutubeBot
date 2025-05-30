@@ -208,7 +208,7 @@ class AnimeTransformer(GenericObjectTransformer):
     map_attribute = 'mal_id'
     descr_function = lambda cls, a: f'{elide(a.title, 50)}'
 
-class AnimeCharacterTransformer(app_commands.Transformer):
+class AnimeCharacterTransformer(GenericObjectTransformer):
     klass = m.AnimeCharacter
     from_argument_function_name: str = 'from_string'
     list_filters = [
