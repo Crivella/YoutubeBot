@@ -342,6 +342,8 @@ class QuizHighLowRunner(discord.ui.View):
             color=0x0000ff
         )
 
+        self.embed_score(embed)
+
         if self.scoreboard:
             await self.scoreboard.edit(embed=embed)
         else:
