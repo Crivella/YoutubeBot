@@ -219,27 +219,27 @@ class AnimeObj(models.Model):
             dt = datetime.datetime.fromisoformat(aired_to.replace('Z', '+00:00'))
             self.aired_to = dt.date()
 
-    def from_jikan_data_get_genres(self, data: dict):
+    async def from_jikan_data_get_genres(self, data: dict):
         """Extract genres from Jikan data"""
         genres_data = data.get('genres', [])
         for genre in genres_data:
             genre_mal_id = genre.get('mal_id')
             genre_name = genre.get('name').capitalize()
 
-            genre_obj, _ = AnimeGenre.objects.get_or_create(
+            genre_obj, _ = await AnimeGenre.objects.aget_or_create(
                 mal_id=genre_mal_id,
                 defaults={'name': genre_name}
             )
             self.genres.add(genre_obj)
 
-    def from_jikan_data_get_studios(self, data: dict):
+    async def from_jikan_data_get_studios(self, data: dict):
         """Extract studios from Jikan data"""
         studios_data = data.get('studios', [])
         for studio in studios_data:
             studio_mal_id = studio.get('mal_id')
             studio_name = studio.get('name').capitalize()
 
-            studio_obj, _ = AnimeStudio.objects.get_or_create(
+            studio_obj, _ = await AnimeStudio.objects.aget_or_create(
                 mal_id=studio_mal_id,
                 defaults={'name': studio_name}
             )
@@ -272,8 +272,8 @@ class AnimeObj(models.Model):
             await new.asave()
 
         new.from_jikan_data_get_aired(data)
-        new.from_jikan_data_get_studios(data)
-        new.from_jikan_data_get_genres(data)
+        await new.from_jikan_data_get_studios(data)
+        await new.from_jikan_data_get_genres(data)
 
         if created or force:
             await new.fetch_characters()
