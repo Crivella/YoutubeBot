@@ -123,6 +123,7 @@ class AnimeObj(models.Model):
         page = 1
         animes = []
         while num > 0:
+            logging.info(f'Fetching top anime page {page} with {num} entries remaining')
             async with AioJikan() as jikan:
                 try:
                     res_data = await jikan.top(type='anime', page=page)
@@ -149,6 +150,10 @@ class AnimeObj(models.Model):
 
         logger.info(f'Fetched {len(animes)} anime entries from MyAnimeList')
         return animes
+
+    async def get_str(self) -> str:
+        """Get a string representation of the anime"""
+        return f'{self.title}'
 
     @classmethod
     async def from_url(cls, url: str):
@@ -264,6 +269,17 @@ class AnimeObj(models.Model):
             # Here you would typically search for the anime by title in an API
             raise NotImplementedError('Searching by title is not implemented yet')
 
+    async def get_thumbnail(self) -> ImageObj | None:
+        """Get the thumbnail image for this anime"""
+        if self.thumbnail_id is None:
+            return None
+        try:
+            return await ImageObj.objects.aget(id=self.thumbnail_id)
+        except ImageObj.DoesNotExist:
+            logger.warning(f'Thumbnail for anime {self.title} (ID: {self.mal_id}) not found')
+            return None
+
+
     async def to_embed(self) -> tuple[discord.Embed, discord.File]:
         """Convert the Anime instance to a Discord embed"""
         embed = discord.Embed(
@@ -271,10 +287,9 @@ class AnimeObj(models.Model):
             )
         file = None
 
-        thumb_id = self.thumbnail_id
-        if thumb_id is not None:
-            thumbnail = await ImageObj.objects.aget(id=thumb_id)
-            attach_name = 'thumbnail.webp'
+        thumbnail = await self.get_thumbnail()
+        if thumbnail is not None:
+            attach_name = f'anime_{self.mal_id}_thumbnail.webp'
             thumb_url = f'attachment://{attach_name}'
             file = discord.File(await thumbnail.get_image(), filename=attach_name)
             embed.set_thumbnail(url=thumb_url)
@@ -469,6 +484,21 @@ class AnimeCharacter(models.Model):
 
         return new
 
+    async def get_thumbnail(self) -> ImageObj | None:
+        """Get the thumbnail image for this character"""
+        if self.thumbnail_id is None:
+            return None
+        try:
+            return await ImageObj.objects.aget(id=self.thumbnail_id)
+        except ImageObj.DoesNotExist:
+            logger.warning(f'Thumbnail for character {self.name} (ID: {self.mal_id}) not found')
+            return None
+
+    async def get_str(self):
+        """Get a string representation of the character"""
+        anime = await AnimeObj.objects.aget(id=self.anime_id)
+        return f'{self.name} ({anime.title})'
+
     async def to_embed(self) -> tuple[discord.Embed, discord.File]:
         """Convert the Character instance to a Discord embed"""
         embed = discord.Embed(
@@ -476,10 +506,10 @@ class AnimeCharacter(models.Model):
             description=self.description or 'No description available',
             color=discord.Color.blurple()
         )
-        file = None
 
-        if self.thumbnail_id:
-            thumbnail = await ImageObj.objects.aget(id=self.thumbnail_id)
+        file = None
+        thumbnail = await self.get_thumbnail()
+        if thumbnail is not None:
             attach_name = f'character_{self.mal_id}_thumbnail.webp'
             file = discord.File(await thumbnail.get_image(), filename=attach_name)
             embed.set_thumbnail(url=f'attachment://{attach_name}')

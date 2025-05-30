@@ -22,6 +22,33 @@ class PlayEvent(models.Model):
 
     date = models.DateTimeField(auto_now_add=True)
 
+class GuessHighLowEvent(models.Model):
+    """Guess high low event model"""
+    item1_id = models.IntegerField(null=True)
+    item2_id = models.IntegerField(null=True)
+
+    direction = models.IntegerField(
+        choices=[
+            (1, 'Item 2 is higher'),
+            (-1, 'Item 2 is lower'),
+        ]
+    )
+
+    user = models.ForeignKey(
+        'DiscordUser', on_delete=models.CASCADE,
+        null=True,  # Allow null to accommodate previous guesses without user
+        default=None,
+        related_name='highlow_guesses'
+    )
+    date = models.DateTimeField(auto_now_add=True)
+
+    quiz = models.ForeignKey(
+        'QuizHighLow', on_delete=models.CASCADE,
+        null=True,  # QuizHighLow is nullable to accommodate previous guesses without quiz
+        default=None,
+        related_name='guesses'
+    )
+
 class GuessSongEvent(models.Model):
     """Guess song event model"""
     real_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')

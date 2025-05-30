@@ -1,18 +1,18 @@
 """Run quizzes for the bot."""
 import asyncio
-import discord
 import logging
 
+import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ...import models as m
-from .utils import sanitize_ffmpeg_filter
-from ..utils import sense_check, safe_response, ensure_response, SenseCheckError
+from ... import models as m
 from .. import views as v
-from ..views.quiz_songs import BLUR_KEY, SCRAMBLE_KEY, PARTIAL_KEY
-from .utils import call_command_register
+from ..utils import (SenseCheckError, ensure_response, safe_response,
+                     sense_check)
+from ..views.quiz_songs import BLUR_KEY, PARTIAL_KEY, SCRAMBLE_KEY
 from . import transformers as tfs
+from .utils import call_command_register, sanitize_ffmpeg_filter
 
 logger = logging.getLogger('bot')
 
@@ -30,6 +30,36 @@ PROGRESSIVE_MODES_DESC = {
 ALLOWED_PROGRESSIVE_MODES = list(PROGRESSIVE_MODES_DESC.keys())
 
 current_quiz: dict[int, v.QuizSongs] = {}
+
+class QuizHighLow(commands.GroupCog, group_name='quiz_highlow'):
+    """Quiz commands for high/low game"""
+
+    @app_commands.command()
+    @ensure_response(allowed_exceptions=[SenseCheckError])
+    @call_command_register()
+    async def start(
+            self, itc: discord.Interaction,
+            object_type: app_commands.Transform[str, tfs.ObjectTypeTransformer()],
+            object_param: app_commands.Transform[str, tfs.ObjectParamTransformer()],
+            max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=100, max=3000)] = 500
+        ):
+        """Start a high/low quiz game.
+
+        Args:
+            itc (discord.Interaction): The interaction context.
+            object_type (str): Must be one of the allowed object type
+            object_param (str): Must be one of the allowed object param for the object type.
+            max_top (int): Limit the items in the quiz to the top X items ordered by the object param.
+        """
+        view = v.QuizHighLowRunner(
+            itc,
+            object_type=object_type,
+            object_param=object_param,
+            max_top=max_top,
+            user=itc.user
+        )
+
+        await safe_response(itc, 'Starting high/low quiz', view=view, ephemeral=True)
 
 class QuizSong(commands.GroupCog, group_name='quiz_song'):
     """Quiz commands"""

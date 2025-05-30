@@ -8,6 +8,7 @@ from django.db.models import Q
 
 from ... import models as m
 from ...models import filters as flt
+from ...models.quiz_hl import allowed_params, object_type_map
 from ..utils import safe_defer, safe_response
 from ..views.utils import elide
 
@@ -129,6 +130,29 @@ class SongFilterTransformer(app_commands.Transformer):
         return [
             app_commands.Choice(name=flt.song_order_descr[k], value=k) for k in flt.song_order_map.keys()
             if k.startswith(current)
+        ]
+
+class ObjectTypeTransformer(app_commands.Transformer):
+    async def transform(self, ctx: discord.Interaction, argument: str):
+        return argument
+
+    async def autocomplete(self, ctx: discord.Interaction, current: str):
+        return [
+            app_commands.Choice(name=el, value=el) for el in object_type_map.keys()
+            if el.startswith(current.upper())
+        ]
+
+class ObjectParamTransformer(app_commands.Transformer):
+    async def transform(self, ctx: discord.Interaction, argument: str):
+        return argument
+
+    async def autocomplete(self, ctx: discord.Interaction, current: str):
+        allowed = set()
+        for v in allowed_params.values():
+            allowed |= set(v)
+        return [
+            app_commands.Choice(name=el, value=el) for el in allowed
+            if el.startswith(current.upper())
         ]
 
 class AnimeTransformer(app_commands.Transformer):
