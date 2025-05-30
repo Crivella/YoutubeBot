@@ -12,7 +12,9 @@ from .image import ImageObj
 
 logger = logging.getLogger('bot')
 
-mal_rgx = re.compile(r'https?://(?:www\.)?myanimelist\.net/anime/(\d+)')
+mal_anime_rgx = re.compile(r'https?://(?:www\.)?myanimelist\.net/anime/(\d+)')
+mal_chara_rgx = re.compile(r'https?://(?:www\.)?myanimelist\.net/character/(\d+)')
+mal_person_rgx = re.compile(r'https?://(?:www\.)?myanimelist\.net/people/(\d+)')
 
 jikan_key_map = [
     # ('mal_id', 'mal_id'),
@@ -59,8 +61,66 @@ class AnimeGenre(models.Model):
     def __str__(self):
         return self.name
 
-class AnimeObj(models.Model):
+class JikanFetchMixin:
+    """Mixin for Jikan fetch methods"""
+    fetch_func = None
+    mal_rgx = None
+
+    @classmethod
+    async def from_jikan_data(cls, data: dict, force: bool = False):
+        """Create an instance from Jikan data"""
+        raise NotImplementedError('Subclasses must implement this method')
+
+    @classmethod
+    async def from_id(cls, mal_id: int):
+        """Create an object instance from a MAL ID"""
+        if not isinstance(mal_id, int):
+            raise ValueError('MAL ID must be an integer')
+
+        try:
+            new = await cls.objects.aget(mal_id=mal_id)
+        except cls.DoesNotExist:
+            logger.info(f'{cls.__name__} with ID {mal_id} not found in database, fetching from Jikan')
+        else:
+            logger.info(f'{cls.__name__} with ID {mal_id} found in database: {new}')
+            return new
+
+        async with AioJikan() as jikan:
+            func = getattr(jikan, cls.fetch_func, None)
+            if func is None:
+                raise NotImplementedError(f'Fetch function {cls.fetch_func} not implemented for {cls.__name__}')
+            try:
+                char_data = await func(mal_id)
+            except JikanException as e:
+                logger.error(f'Failed to fetch data for ID {mal_id}: {e}')
+                raise ValueError(f'{cls.__name__} with ID {mal_id} not found')
+            await asyncio.sleep(API_DELAY)  # Avoid hitting Jikan API too fast
+        logger.debug(f'Fetched data for ID {mal_id}: {char_data}')
+
+        char_data = char_data['data']
+
+        return await cls.from_jikan_data(char_data)
+
+    @classmethod
+    async def from_string(cls, chara_str: str):
+        """Create an Anime instance from a string (title or URL)"""
+        if chara_str.isdigit():
+            return await cls.from_id(int(chara_str))
+        elif (m := cls.mal_rgx.match(chara_str)):
+            chara_id = m.group(1)
+            if not chara_id.isdigit():
+                raise ValueError('MAL ID must be a number')
+            return await cls.from_id(int(chara_id))
+        else:
+            # Assume it's a title
+            # Here you would typically search for the anime by title in an API
+            raise NotImplementedError('Searching by title is not implemented yet')
+
+class AnimeObj(models.Model, JikanFetchMixin):
     """Anime model"""
+    fetch_func = 'anime'
+    mal_rgx = mal_anime_rgx
+
     mal_id = models.IntegerField(unique=True)
 
     title = models.CharField(max_length=512, help_text='Title of the anime')
@@ -178,22 +238,6 @@ class AnimeObj(models.Model):
         """Get a string representation of the anime"""
         return f'{self.title}'
 
-    @classmethod
-    async def from_url(cls, url: str):
-        """Create an Anime instance from a URL"""
-        # match = re.match(r'https?://(?:www\.)?myanimelist\.net/anime/(\d+)', url)
-        match = cls.mal_rgx.match(url)
-        if not match:
-            raise ValueError('Invalid MAL URL')
-
-        mal_id = match.group(1)
-        if not mal_id.isdigit():
-            raise ValueError('MAL ID must be a number')
-
-        mal_id = int(mal_id)
-
-        return await cls.from_id(mal_id)
-
     async def fetch_characters(self):
         """Fetch characters for this anime"""
         async with AioJikan() as jikan:
@@ -264,7 +308,7 @@ class AnimeObj(models.Model):
                 dct[new_key] = None
 
         new, created = await cls.objects.aupdate_or_create(mal_id=anime_id, defaults=dct)
-        logger.debug(f'{"Created new" if created else "Updated existing"} anime entry: {new.title} (ID: {new.mal_id})')
+        logger.info(f'{"Created new" if created else "Updated existing"} anime entry: {new.title} (ID: {new.mal_id})')
 
         thumbmail_url = get_image_url(data.get('images', {}))
         if thumbmail_url is not None and (new.thumbnail_id is None or force):
@@ -282,38 +326,11 @@ class AnimeObj(models.Model):
         return new
 
     @classmethod
-    async def from_id(cls, anime_id: int):
-        """Create an Anime instance from a MAL ID"""
-        if not isinstance(anime_id, int):
-            raise ValueError('MAL ID must be an integer')
-
-        try:
-            new = await cls.objects.aget(mal_id=anime_id)
-        except cls.DoesNotExist:
-            logger.info(f'Anime with ID {anime_id} not found in database, fetching from Jikan')
-        else:
-            logger.info(f'Anime with ID {anime_id} found in database: {new}')
-            return new
-
-        async with AioJikan() as jikan:
-            try:
-                anime_data = await jikan.anime(anime_id)
-            except JikanException as e:
-                logger.error(f'Failed to fetch anime data for ID {anime_id}: {e}')
-                raise ValueError(f'Anime with ID {anime_id} not found')
-            await asyncio.sleep(API_DELAY)  # Avoid hitting Jikan API too fast
-        logger.debug(f'Fetched anime data for ID {anime_id}: {anime_data}')
-
-        anime_data = anime_data['data']
-
-        return await cls.from_jikan_data(anime_data)
-
-    @classmethod
     async def from_string(cls, anime_str: str):
         """Create an Anime instance from a string (title or URL)"""
         if anime_str.isdigit():
             return await cls.from_id(int(anime_str))
-        elif cls.mal_rgx.match(anime_str):
+        elif mal_anime_rgx.match(anime_str):
             return await cls.from_url(anime_str)
         else:
             # Assume it's a title
@@ -392,8 +409,10 @@ class Language(models.Model):
         return self.name
 
 
-class VoiceActor(models.Model):
+class VoiceActor(models.Model, JikanFetchMixin):
     """Voice Actor model"""
+    fetch_func = 'person'
+    mal_rgx = mal_person_rgx
     name = models.CharField(max_length=512)
     mal_id = models.IntegerField(unique=True, null=True, blank=True)
 
@@ -449,8 +468,11 @@ class VACthrough(models.Model):
         return f"{self.voice_actor.name} as {self.character.name} ({self.language.name if self.language else 'N/A'})"
 
 
-class AnimeCharacter(models.Model):
+class AnimeCharacter(models.Model, JikanFetchMixin):
     """Character model"""
+    fetch_func = 'character'
+    mal_rgx = mal_chara_rgx
+
     name = models.CharField(max_length=512)
     anime = models.ForeignKey(AnimeObj, on_delete=models.CASCADE, related_name='characters')
     description = models.TextField(null=True, blank=True)
@@ -570,21 +592,3 @@ class AnimeCharacter(models.Model):
             embed.add_field(name='Anime', value=self.anime.title, inline=False)
 
         return embed, file
-
-    # async def add_to_embed(self, embed: discord.Embed) -> discord.File:
-    #     """Add character information to a Discord embed"""
-    #     embed.add_field(name='Character', value=self.name, inline=False)
-    #     embed.add_field(name='Role', value=self.role.capitalize(), inline=True)
-    #     embed.add_field(name='Favorites', value=str(self.favorites), inline=True)
-
-    #     if self.description:
-    #         embed.add_field(name='Description', value=self.description, inline=False)
-
-    #     if self.thumbnail_id:
-    #         thumbnail = await ImageObj.objects.aget(id=self.thumbnail_id)
-    #         attach_name = f'character_{self.mal_id}_thumbnail.webp'
-    #         file = discord.File(await thumbnail.get_image(), filename=attach_name)
-    #         embed.set_thumbnail(url=f'attachment://{attach_name}')
-    #         return file
-
-    #     return None
