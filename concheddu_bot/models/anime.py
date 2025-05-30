@@ -206,7 +206,7 @@ class AnimeObj(models.Model):
         for char_data in characters_data:
             await AnimeCharacter.from_jikan_anime_data(char_data, self)
 
-    def get_aired_data(self, data):
+    def from_jikan_data_get_aired(self, data: dict):
         """Extract aired_from date from Jikan data"""
         aired_from = data.get('aired', {}).get('from')
         if aired_from:
@@ -217,24 +217,31 @@ class AnimeObj(models.Model):
             dt = datetime.datetime.fromisoformat(aired_to.replace('Z', '+00:00'))
             self.aired_to = dt.date()
 
-    async def update_data(self, data: dict = None):
-        """Update the anime data from a dictionary"""
-        if data is None:
-            logger.info(f'Fetching anime data for ID {self.mal_id} from Jikan')
-            async with AioJikan() as jikan:
-                try:
-                    anime_data = await jikan.anime(self.mal_id)
-                except JikanException as e:
-                    logger.error(f'Failed to fetch anime data for ID {self.mal_id}: {e}')
-                    return
-            data = anime_data.get('data', {})
+    def from_jikan_data_get_genres(self, data: dict):
+        """Extract genres from Jikan data"""
+        genres_data = data.get('genres', [])
+        for genre in genres_data:
+            genre_mal_id = genre.get('mal_id')
+            genre_name = genre.get('name').capitalize()
 
-        for key, new_key in jikan_key_map:
-            setattr(self, new_key, data.get(key, None))
+            genre_obj, _ = AnimeGenre.objects.get_or_create(
+                mal_id=genre_mal_id,
+                defaults={'name': genre_name}
+            )
+            self.genres.add(genre_obj)
 
-        self.get_aired_data(data)
+    def from_jikan_data_get_studios(self, data: dict):
+        """Extract studios from Jikan data"""
+        studios_data = data.get('studios', [])
+        for studio in studios_data:
+            studio_mal_id = studio.get('mal_id')
+            studio_name = studio.get('name').capitalize()
 
-        await self.asave()
+            studio_obj, _ = AnimeStudio.objects.get_or_create(
+                mal_id=studio_mal_id,
+                defaults={'name': studio_name}
+            )
+            self.studios.add(studio_obj)
 
     @staticmethod
     async def get_all_types() -> list[str]:
@@ -255,36 +262,16 @@ class AnimeObj(models.Model):
                 dct[new_key] = None
 
         new, created = await cls.objects.aupdate_or_create(mal_id=anime_id, defaults=dct)
-
-        new.get_aired_data(data)
+        logger.debug(f'{"Created new" if created else "Updated existing"} anime entry: {new.title} (ID: {new.mal_id})')
 
         thumbmail_url = get_image_url(data.get('images', {}))
-        if thumbmail_url:
+        if thumbmail_url is not None and (new.thumbnail_id is None or force):
             new.thumbnail = await ImageObj.from_url(thumbmail_url)
             await new.asave()
 
-        studios_data = data.get('studios', [])
-        for studio in studios_data:
-            studio_mal_id = studio.get('mal_id')
-            studio_name = studio.get('name').capitalize()
-
-            studio_obj, _ = await AnimeStudio.objects.aupdate_or_create(
-                mal_id=studio_mal_id,
-                defaults={'name': studio_name}
-            )
-            await new.studios.aadd(studio_obj)
-
-        for gkey in ['genres', 'themes', 'demographics']:
-            genres_data = data.get(gkey, [])
-            for genre in genres_data:
-                genre_mal_id = genre.get('mal_id')
-                genre_name = genre.get('name').capitalize()
-
-                genre_obj, _ = await AnimeGenre.objects.aupdate_or_create(
-                    mal_id=genre_mal_id,
-                    defaults={'name': genre_name}
-                )
-                await new.genres.aadd(genre_obj)
+        new.from_jikan_data_get_aired(data)
+        new.from_jikan_data_get_studios(data)
+        new.from_jikan_data_get_genres(data)
 
         if created or force:
             await new.fetch_characters()
