@@ -118,9 +118,9 @@ class AnimeObj(models.Model):
     )
 
     @classmethod
-    async def from_top(cls, num: int = 10) -> list['AnimeObj']:
+    async def from_top(cls, start: int = 0, num: int = 10) -> list['AnimeObj']:
         """Fetch top anime from MyAnimeList"""
-        page = 1
+        page = start // 25 + 1 # MyAnimeList pages are 25 items each
         animes = []
         while num > 0:
             logging.info(f'Fetching top anime page {page} with {num} entries remaining')

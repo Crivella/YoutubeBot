@@ -83,14 +83,19 @@ class Anime(commands.GroupCog, group_name='anime'):
     @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
     @ensure_response(before=True, defer=True)
     @call_command_register()
-    async def import_top(self, itc: discord.Interaction, num: int):
+    async def import_top(
+        self, itc: discord.Interaction,
+        start: int,
+        num: int
+        ):
         """Import the top `num` anime from MyAnimeList
 
         Args:
             itc (discord.Interaction): The interaction context
+            start (int): The starting index of the top anime to import
             num (int): The number of top anime to import
         """
-        res = await m.AnimeObj.from_top(num)
+        res = await m.AnimeObj.from_top(start, num)
         logger.info(f'Found {len(res)} anime in top {num}')
         await safe_response(itc, f'Imported {len(res)} anime', ephemeral=True)
 
