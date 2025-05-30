@@ -128,14 +128,11 @@ class GenericObjectTransformer(app_commands.Transformer):
             objects = [obj async for obj in q.all()]
 
         self.object_map = {str(getattr(s, self.map_attribute)): s for s in objects}
-        dfunc = getattr(self, 'descr_function_name', None)
-        if dfunc is None:
-            raise ValueError(f'No description function name set for {self.klass.__name__}')
 
         return [
             app_commands.Choice(
                 # name=f'[{s.duration}] {elide(s.title, 50)}',
-                name=await dfunc(obj, self.verbose),
+                name=await getattr(obj, self.descr_function_name)(self.verbose),
                 value=str(getattr(obj, self.map_attribute))
             )
             for obj in objects
