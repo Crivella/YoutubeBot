@@ -230,7 +230,7 @@ class AnimeObj(models.Model):
                 mal_id=genre_mal_id,
                 defaults={'name': genre_name}
             )
-            self.genres.add(genre_obj)
+            await self.genres.aadd(genre_obj)
 
     async def from_jikan_data_get_studios(self, data: dict):
         """Extract studios from Jikan data"""
@@ -243,7 +243,7 @@ class AnimeObj(models.Model):
                 mal_id=studio_mal_id,
                 defaults={'name': studio_name}
             )
-            self.studios.add(studio_obj)
+            await self.studios.aadd(studio_obj)
 
     @staticmethod
     async def get_all_types() -> list[str]:
