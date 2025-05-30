@@ -85,8 +85,8 @@ class Anime(commands.GroupCog, group_name='anime'):
     @call_command_register()
     async def import_top(
         self, itc: discord.Interaction,
-        start: int,
-        num: int,
+        start: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 1,
+        num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 10,
         force: bool = False
         ):
         """Import the top `num` anime from MyAnimeList

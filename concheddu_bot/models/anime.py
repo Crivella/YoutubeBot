@@ -138,12 +138,13 @@ class AnimeObj(models.Model):
     )
 
     @classmethod
-    async def from_top(cls, start: int = 0, num: int = 10, force: bool = False) -> list['AnimeObj']:
+    async def from_top(cls, start: int = 1, num: int = 10, force: bool = False) -> list['AnimeObj']:
         """Fetch top anime from MyAnimeList"""
         page = start // 25 + 1 # MyAnimeList pages are 25 items each
+        start = (start - 1) % 25
         animes = []
         while num > 0:
-            logging.info(f'Fetching top anime page {page} with {num} entries remaining')
+            logger.info(f'Fetching top anime page {page} with {num} entries remaining')
             async with AioJikan() as jikan:
                 try:
                     res_data = await jikan.top(type='anime', page=page)
@@ -152,7 +153,7 @@ class AnimeObj(models.Model):
                     break
 
             top_data = res_data.get('data', [])
-            top_data = top_data[:num]  # Limit to the requested number
+            top_data = top_data[start:num+start]  # Limit to the requested number
             num -= len(top_data)
             for anime_data in top_data:
                 mal_id = anime_data.get('mal_id')
@@ -167,6 +168,7 @@ class AnimeObj(models.Model):
                 logger.warning('No more pages available in top anime list')
                 break
             page += 1
+            start = 0  # Reset start for subsequent pages
             await asyncio.sleep(API_DELAY)
 
         logger.info(f'Fetched {len(animes)} anime entries from MyAnimeList')
