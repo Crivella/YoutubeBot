@@ -28,6 +28,7 @@ class QuizHighLow(models.Model):
     )
     object_param = models.CharField(max_length=64, null=True, blank=True)
     num_objects = models.IntegerField(default=0)
+    max_top = models.IntegerField(default=0)
 
     server = models.ForeignKey('DiscordServer', on_delete=models.CASCADE)
     player = models.ForeignKey('DiscordUser', on_delete=models.CASCADE, related_name='quiz_highlow')

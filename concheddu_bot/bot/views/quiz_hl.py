@@ -122,6 +122,7 @@ class QuizHighLowRunner(discord.ui.View):
             object_type=self.object_type,
             object_param=self.object_param,
             num_objects=len(objects),
+            max_top=self.max_top,
 
             player=self.user,
             server=server,
