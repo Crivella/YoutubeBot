@@ -140,6 +140,7 @@ class AnimeObj(models.Model):
                     logger.warning("Anime data missing 'mal_id', skipping")
                     continue
                 animes.append(await cls.from_id(mal_id))
+                await asyncio.sleep(1.5)
 
             pagination_data = res_data.get('pagination', {})
             has_next = pagination_data.get('has_next_page', False)
