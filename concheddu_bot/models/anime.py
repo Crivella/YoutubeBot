@@ -588,7 +588,8 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         embed.add_field(name='Role', value=self.role.capitalize(), inline=True)
         embed.add_field(name='Favorites', value=str(self.favorites), inline=True)
 
-        if self.anime:
-            embed.add_field(name='Anime', value=self.anime.title, inline=False)
+        if self.anime_id:
+            anime = await AnimeObj.objects.aget(id=self.anime_id)
+            embed.add_field(name='Anime', value=anime.title, inline=True)
 
         return embed, file
