@@ -69,6 +69,10 @@ class YTSong(models.Model):
     def title(self, value):
         self._title = title_cleaner(value)
 
+    async def get_str(self, verbose: bool = False) -> str:
+        """Return the string representation of the song"""
+        return f'[{self.duration}s] {self.title}'
+
     class MaxDurationError(Exception):
         """Max duration error"""
 

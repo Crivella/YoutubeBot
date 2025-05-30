@@ -63,13 +63,14 @@ class GenericObjectTransformer(app_commands.Transformer):
     list_filters = []
     query_filters = []
     map_attribute = None
-    descr_function = None
+    descr_function_name = None
 
     def __init__(
             self, *args,
             allow_new: bool = False,
             nullable: bool = False,
             from_cache: bool = False,
+            verbose: bool = True,
             **kwargs
         ):
         super().__init__(*args, **kwargs)
@@ -77,6 +78,7 @@ class GenericObjectTransformer(app_commands.Transformer):
         self.allow_new = allow_new
         self.nullable = nullable
         self.from_cache = from_cache
+        self.verbose = verbose
 
     async def transform(self, ctx: discord.Interaction, argument: str):
         if argument is None or argument == NONE_STR:
@@ -126,10 +128,14 @@ class GenericObjectTransformer(app_commands.Transformer):
             objects = [obj async for obj in q.all()]
 
         self.object_map = {str(getattr(s, self.map_attribute)): s for s in objects}
+        dfunc = getattr(self, 'descr_function_name', None)
+        if dfunc is None:
+            raise ValueError(f'No description function name set for {self.klass.__name__}')
+
         return [
             app_commands.Choice(
                 # name=f'[{s.duration}] {elide(s.title, 50)}',
-                name=self.descr_function(obj),
+                name=await dfunc(obj, self.verbose),
                 value=str(getattr(obj, self.map_attribute))
             )
             for obj in objects
@@ -161,7 +167,9 @@ class SongTransformer(GenericObjectTransformer):
         lambda s, cl: cl in s.original_title.lower() or cl in (s.manual_title or '').lower(),
     ]
     map_attribute = 'youtube_id'
-    descr_function = lambda cls,s: f'[{s.duration}] {elide(s.title, 50)}'
+    # descr_function = lambda cls,s,vrb: f'[{s.duration}] {elide(s.title, 50)}'
+    descr_function_name = 'get_str'
+
 
 class SongFilterTransformer(app_commands.Transformer):
     async def transform(self, ctx: discord.Interaction, argument: str):
@@ -206,7 +214,8 @@ class AnimeTransformer(GenericObjectTransformer):
         lambda x: Q(title__icontains=x) | Q(title_english__icontains=x),
     ]
     map_attribute = 'mal_id'
-    descr_function = lambda cls, a: f'{elide(a.title, 50)}'
+    # descr_function = lambda cls, a: f'{elide(a.title, 50)}'
+    descr_function_name = 'get_str'
 
 class AnimeCharacterTransformer(GenericObjectTransformer):
     klass = m.AnimeCharacter
@@ -218,7 +227,8 @@ class AnimeCharacterTransformer(GenericObjectTransformer):
         lambda x: Q(name__icontains=x)
     ]
     map_attribute = 'mal_id'
-    descr_function = lambda cls, c: f'{elide(c.name, 50)}'
+    # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
+    descr_function_name = 'get_str'
 
 # class UserListTransformer(app_commands.Transformer):
 #     async def transform(self, ctx: discord.Interaction, argument: str) -> list[m.DiscordUser]:

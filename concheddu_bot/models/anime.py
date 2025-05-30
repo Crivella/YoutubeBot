@@ -234,7 +234,7 @@ class AnimeObj(models.Model, JikanFetchMixin):
         logger.info(f'Fetched {len(animes)} anime entries from MyAnimeList')
         return animes
 
-    async def get_str(self) -> str:
+    async def get_str(self, verbose: bool = False) -> str:
         """Get a string representation of the anime"""
         return f'{self.title}'
 
@@ -565,8 +565,10 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
             logger.warning(f'Thumbnail for character {self.name} (ID: {self.mal_id}) not found')
             return None
 
-    async def get_str(self):
+    async def get_str(self, verbose: bool = False) -> str:
         """Get a string representation of the character"""
+        if not verbose:
+            return self.name
         anime = await AnimeObj.objects.aget(id=self.anime_id)
         return f'{self.name} ({anime.title})'
 
