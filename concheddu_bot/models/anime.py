@@ -544,9 +544,9 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
 
         defaults = {
             'name': name,
-            'role': role,
+            # 'role': role,
             'favorites': favorites,
-            'anime': anime
+            # 'anime': anime
         }
 
         new, _ = await cls.objects.aupdate_or_create(
