@@ -341,6 +341,8 @@ class QuizGuessCharacterRunner(discord.ui.View):
             f'- Choosing from {self.max_top} characters',
             f'- Each user will have to guess {self.num_items} characters',
             f'- Each character will have {self.max_choices} choices',
+            f'- Minimum favorites: {self.min_favorites}',
+            f'- Maximum favorites: {self.max_favorites}',
             # f'- Each user will have to guess {self.num_songs} songs',
             # f'- Each song will have {self.nmc} choices',
             # f'- Segment length: {self.segment_length} s',
