@@ -218,7 +218,8 @@ class QuizGuessCharacterRunner(discord.ui.View):
                 point_value += 2
                 msg.append(f'- Correct character: {chara.name} ❤️❤️')
             else:
-                msg.append(f'- Incorrect character: {chara.name} 🙁🙁. You said {answer_character.name}')
+                answered_name = answer_character.name if answer_character else 'NONE'
+                msg.append(f'- Incorrect character: {chara.name} 🙁🙁. You said {answered_name}')
             # if res_anime:
             #     point_value += 1
             #     msg.append(f'- Correct anime: {chara.anime.title} ❤️❤️')
