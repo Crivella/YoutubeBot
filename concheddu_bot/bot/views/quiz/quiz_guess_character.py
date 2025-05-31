@@ -42,6 +42,8 @@ class QuizGuessCharacterRunner(discord.ui.View):
         self.num_items = num_items
         self.max_top = max_top
         self.max_choices = max_choices
+        self.min_favorites = min_favorites
+        self.max_favorites = max_favorites
 
         users = self.itc.user.voice.channel.members
 
