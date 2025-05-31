@@ -87,7 +87,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
             return
 
         q = m.AnimeCharacter.objects.get_queryset()
-        q.order_by('-favorites')
+        q = q.order_by('-favorites')
         if self.max_top > 0:
             q = q[:self.max_top]
 
@@ -177,7 +177,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
 
         user = self.users[self.idx % len(self.users)]
         chara = self.characters[self.idx]
-        anime = None
+        anime = await chara.get_main_anime()
 
         view = discord.ui.View()
 
@@ -215,16 +215,19 @@ class QuizGuessCharacterRunner(discord.ui.View):
             result = res_chara or res_anime
             point_value = 0
             if res_chara:
-                point_value += 2
-                msg.append(f'- Correct character: {chara.name} ❤️❤️')
+                point_value = 2
+                msg.append(f'- Correct character: {chara.name} from {anime.title} ❤️❤️')
             else:
-                answered_name = answer_character.name if answer_character else 'NONE'
-                msg.append(f'- Incorrect character: {chara.name} 🙁🙁. You said {answered_name}')
-            # if res_anime:
-            #     point_value += 1
-            #     msg.append(f'- Correct anime: {chara.anime.title} ❤️❤️')
-            # else:
-            #     msg.append(f'- Incorrect anime: {chara.anime.title} 🙁🙁')
+                if res_anime:
+                    point_value = 1
+                    msg.append(f'The character was {chara.name} from {anime.title}')
+                    msg.append(f'- Correct anime: {answer_anime.title} ❤️')
+                else:
+                    answered_chara_name = answer_character.name if answer_character else 'NONE'
+                    answered_anime_name = answer_anime.title if answer_anime else None
+                    msg.append(f'The character was {chara.name} from {anime.title} 🙁🙁')
+                    msg.append(f'- Incorrect character: {answered_chara_name}')
+                    msg.append(f'- Incorrect anime: {answered_anime_name}')
 
             embed = discord.Embed(
                 title= f'{user.nick}: ',

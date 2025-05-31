@@ -2,7 +2,7 @@
 from django.db import models
 from django.utils import timezone
 
-from .anime import AnimeCharacter, AnimeObj
+from .anime import AnimeCharacter, AnimeCharacterThrough, AnimeObj
 from .discord import DiscordUser
 from .events import GuessAnimeCharacterEvent
 
@@ -56,9 +56,13 @@ class QuizAnimeCharacter(models.Model):
             bool: _description_
         """
 
-        # TODO: need to change models for anime, right now only a specific anime of multiples can be guessed
-
         res1 = real.id == (guessed_char.id if guessed_char else None)
+        res2 = False
+        if guessed_anime is not None:
+            q = AnimeCharacterThrough.objects
+            q = q.filter(anime=guessed_anime, character=real)
+            res2 = await q.aexists()
+
 
         await GuessAnimeCharacterEvent.objects.acreate(
             quiz=self,
@@ -68,4 +72,4 @@ class QuizAnimeCharacter(models.Model):
             user=user
         )
 
-        return res1, False
+        return res1, res2
