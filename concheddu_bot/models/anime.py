@@ -625,7 +625,7 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         if anime is not None:
             q = q.filter(anime=anime)
         q = q.select_related('anime', 'role')
-        q = q.order_by('-favorites')
+        q = q.order_by('-anime__favorites')
         q = q[:5]
 
         anime_names = []
