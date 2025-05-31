@@ -382,12 +382,14 @@ class AnimeObj(models.Model, JikanFetchMixin):
 
         char_lst = []
         q = AnimeCharacterThrough.objects.filter(anime=self)
-        q = q.select_related('character')
+        q = q.select_related('character', 'role')
         q = q.order_by('-character__favorites')
         q = q[:5]
         async for thr in q.all():
             char = thr.character
-            char_lst.append(f'- {char.name} ({thr.role.capitalize()}) [{char.favorites} favorites]')
+            role = thr.role
+            role_name = role.name if role else 'Unknown'
+            char_lst.append(f'- {char.name} ({role_name}) [{char.favorites} favorites]')
 
         embed.add_field(
             name='Characters',
@@ -615,18 +617,16 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         q = await AnimeCharacterThrough.objects.filter(character=self)
         if anime is not None:
             q = q.filter(anime=anime)
-        q = q.select_related('anime')
+        q = q.select_related('anime', 'role')
         q = q.order_by('-favorites')
         q = q[:5]
-        through_lst = [_ async for _ in q]
 
-        anime_names = [f'- {t.anime.title} [{t.role}] (ID: {t.anime.mal_id})' for t in through_lst]
-        # anime_names = [f'- {a.title} (ID: {a.mal_id})' for a in anime_lst]
+        anime_names = []
+        async for t in q:
+            anime = t.anime
+            role_name = t.role.name if t.role else 'Unknown'
+            anime_names.append(f'- {anime.title} [{role_name}] (ID: {anime.mal_id})')
         anime_msg = '\n'.join(anime_names) if anime_names else 'No animes found'
         embed.add_field(name='Animes', value=anime_msg, inline=False)
-
-        # if self.anime_id:
-        #     anime = await AnimeObj.objects.aget(id=self.anime_id)
-        #     embed.add_field(name='Anime', value=anime.title, inline=True)
 
         return embed, file
