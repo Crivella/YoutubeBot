@@ -1,4 +1,4 @@
-import io
+import asyncio
 import random
 import time
 from collections import defaultdict
@@ -567,6 +567,7 @@ class QuizSongs(discord.ui.View):
 
         if self.channel is not None and self.orig_channel != self.channel and self.channel.name.startswith(self.CHANNEL_PREFIX):
             try:
+                await asyncio.sleep(10)
                 await self.channel.delete()
             except discord.Forbidden:
                 logger.warning(f'Could not delete channel {self.channel.name}, missing permissions')
