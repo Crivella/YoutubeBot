@@ -72,34 +72,35 @@ class JikanFetchMixin:
         raise NotImplementedError('Subclasses must implement this method')
 
     @classmethod
-    async def from_id(cls, mal_id: int):
+    async def from_id(cls, mal_id: int, force: bool = False):
         """Create an object instance from a MAL ID"""
         if not isinstance(mal_id, int):
             raise ValueError('MAL ID must be an integer')
 
-        try:
-            new = await cls.objects.aget(mal_id=mal_id)
-        except cls.DoesNotExist:
-            logger.info(f'{cls.__name__} with ID {mal_id} not found in database, fetching from Jikan')
-        else:
-            logger.info(f'{cls.__name__} with ID {mal_id} found in database: {new}')
-            return new
+        if not force:
+            try:
+                new = await cls.objects.aget(mal_id=mal_id)
+            except cls.DoesNotExist:
+                logger.info(f'{cls.__name__} with ID {mal_id} not found in database, fetching from Jikan')
+            else:
+                logger.info(f'{cls.__name__} with ID {mal_id} found in database: {new}')
+                return new
 
         async with AioJikan() as jikan:
             func = getattr(jikan, cls.fetch_func, None)
             if func is None:
                 raise NotImplementedError(f'Fetch function {cls.fetch_func} not implemented for {cls.__name__}')
             try:
-                char_data = await func(mal_id)
+                data = await func(mal_id)
             except JikanException as e:
                 logger.error(f'Failed to fetch data for ID {mal_id}: {e}')
                 raise ValueError(f'{cls.__name__} with ID {mal_id} not found')
             await asyncio.sleep(API_DELAY)  # Avoid hitting Jikan API too fast
-        logger.debug(f'Fetched data for ID {mal_id}: {char_data}')
+        logger.debug(f'Fetched data for ID {mal_id}: {data}')
 
-        char_data = char_data['data']
+        data = data['data']
 
-        return await cls.from_jikan_data(char_data)
+        return await cls.from_jikan_data(data, force=force)
 
     @classmethod
     async def from_string(cls, chara_str: str):
@@ -531,7 +532,7 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
     )
 
     def __str__(self):
-        return f'{self.name} ({self.anime.title})'
+        return f'{self.name}'
 
     @classmethod
     async def from_jikan_anime_data(cls, data: dict, anime: AnimeObj):
@@ -603,6 +604,18 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         thr = await q.afirst()
         anime = thr.anime
         return f'{self.name} ({anime.title})'
+
+    async def get_main_anime(self) -> AnimeObj:
+        """Get the main anime for this character"""
+        q = AnimeCharacterThrough.objects
+        q = q.filter(character=self)
+        q = q.select_related('anime')
+        q = q.order_by('-anime__favorites')
+
+        thr = await q.afirst()
+        if thr is None:
+            return None
+        return thr.anime
 
     async def to_embed(self, anime: AnimeObj = None) -> tuple[discord.Embed, discord.File]:
         """Convert the Character instance to a Discord embed"""

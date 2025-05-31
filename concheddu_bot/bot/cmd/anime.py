@@ -82,14 +82,15 @@ class Anime(commands.GroupCog, group_name='anime'):
     @app_commands.command()
     @ensure_response(before=True, defer=True)
     @call_command_register()
-    async def import_id(self, itc: discord.Interaction, anime_id: int):
+    async def import_id(self, itc: discord.Interaction, anime_id: int, force: bool = False):
         """Import an anime from MyAnimeList by ID
 
         Args:
             itc (discord.Interaction): The interaction context
             anime_id (int): The ID of the anime to import from MyAnimeList
+            force (bool, optional): Whether to force the import even if the anime already exists. Defaults to False.
         """
-        obj = await m.AnimeObj.from_id(anime_id)
+        obj = await m.AnimeObj.from_id(anime_id, force=force)
         if obj is None:
             await safe_response(itc, f'Anime with id {anime_id} not found', ephemeral=True)
         else:
