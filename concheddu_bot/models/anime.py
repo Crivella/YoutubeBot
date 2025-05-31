@@ -380,10 +380,15 @@ class AnimeObj(models.Model, JikanFetchMixin):
         embed.add_field(name='Studios', value=studios)
         embed.add_field(name='Genres', value=genres)
 
-        characters = await self.get_characters(top=5)
-        char_lst = []
-        for char in characters:
-            char_lst.append(f'- {char.name} ({char.role.capitalize()}) [{char.favorites} favorites]')
+        # characters = await self.get_characters(top=5)
+        # char_lst = []
+        q = await AnimeCharacterThrough.objects.filter(anime=self)
+        q = q.select_related('character')
+        q = q.order_by('-character__favorites')
+        q = q[:5]
+        chara_throughs = await AnimeCharacterThrough.objects
+        for thr in chara_throughs:
+            char_lst.append(f'- {thr.char.name} ({thr.role.capitalize()}) [{char.favorites} favorites]')
 
         embed.add_field(
             name='Characters',
@@ -616,7 +621,7 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         q = q[:5]
         through_lst = [_ async for _ in q]
 
-        anime_names = [f'- {t.anime.title} {t.role} (ID: {t.anime.mal_id})' for t in through_lst]
+        anime_names = [f'- {t.anime.title} [{t.role}] (ID: {t.anime.mal_id})' for t in through_lst]
         # anime_names = [f'- {a.title} (ID: {a.mal_id})' for a in anime_lst]
         anime_msg = '\n'.join(anime_names) if anime_names else 'No animes found'
         embed.add_field(name='Animes', value=anime_msg, inline=False)
