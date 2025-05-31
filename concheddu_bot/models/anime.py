@@ -591,7 +591,7 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         anime = await AnimeObj.objects.aget(id=self.anime_id)
         return f'{self.name} ({anime.title})'
 
-    async def to_embed(self) -> tuple[discord.Embed, discord.File]:
+    async def to_embed(self, anime: AnimeObj = None) -> tuple[discord.Embed, discord.File]:
         """Convert the Character instance to a Discord embed"""
         embed = discord.Embed(
             title=self.name,
@@ -606,11 +606,23 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
             file = discord.File(await thumbnail.get_image(), filename=attach_name)
             embed.set_thumbnail(url=f'attachment://{attach_name}')
 
-        embed.add_field(name='Role', value=self.role.capitalize(), inline=True)
+        # embed.add_field(name='Role', value=self.role.capitalize(), inline=True)
         embed.add_field(name='Favorites', value=str(self.favorites), inline=True)
+        q = await AnimeCharacterThrough.objects.filter(character=self)
+        if anime is not None:
+            q = q.filter(anime=anime)
+        q = q.select_related('anime')
+        q = q.order_by('-favorites')
+        q = q[:5]
+        through_lst = [_ async for _ in q]
 
-        if self.anime_id:
-            anime = await AnimeObj.objects.aget(id=self.anime_id)
-            embed.add_field(name='Anime', value=anime.title, inline=True)
+        anime_names = [f'- {t.anime.title} {t.role} (ID: {t.anime.mal_id})' for t in through_lst]
+        # anime_names = [f'- {a.title} (ID: {a.mal_id})' for a in anime_lst]
+        anime_msg = '\n'.join(anime_names) if anime_names else 'No animes found'
+        embed.add_field(name='Animes', value=anime_msg, inline=False)
+
+        # if self.anime_id:
+        #     anime = await AnimeObj.objects.aget(id=self.anime_id)
+        #     embed.add_field(name='Anime', value=anime.title, inline=True)
 
         return embed, file
