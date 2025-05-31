@@ -594,7 +594,13 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         """Get a string representation of the character"""
         if not verbose:
             return self.name
-        anime = await AnimeObj.objects.aget(id=self.anime_id)
+        q = AnimeCharacterThrough.objects
+        q = q.filter(character=self)
+        q = q.select_related('anime')
+        q = q.order_by('-anime__favorites')
+
+        thr = await q.afirst()
+        anime = thr.anime
         return f'{self.name} ({anime.title})'
 
     async def to_embed(self, anime: AnimeObj = None) -> tuple[discord.Embed, discord.File]:
