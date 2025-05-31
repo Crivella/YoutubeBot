@@ -49,6 +49,36 @@ class GuessHighLowEvent(models.Model):
         related_name='guesses'
     )
 
+class GuessAnimeCharacterEvent(models.Model):
+    """Guess anime character event model"""
+    real_character = models.ForeignKey('AnimeCharacter', on_delete=models.CASCADE, related_name='+')
+    guessed_character = models.ForeignKey(
+        'AnimeCharacter', on_delete=models.CASCADE, related_name='+',
+        # Use non to denote a skip (go on without guessing)
+        null=True
+    )
+    guessed_anime = models.ForeignKey(
+        'AnimeObj', on_delete=models.CASCADE, related_name='+',
+        # Use non to denote a skip (go on without guessing)
+        null=True
+    )
+
+    user = models.ForeignKey(
+        'DiscordUser', on_delete=models.CASCADE,
+        null=True,  # Allow null to accommodate previous guesses without user
+        default=None,
+        related_name='character_guesses'
+    )
+    date = models.DateTimeField(auto_now_add=True)
+
+    # The quiz this guess is part of
+    quiz = models.ForeignKey(
+        'QuizAnimeCharacter', on_delete=models.CASCADE,
+        null=True,  # QuizAnimeCharacter is nullable to accommodate previous guesses without quiz
+        default=None,
+        related_name='guesses'
+    )
+
 class GuessSongEvent(models.Model):
     """Guess song event model"""
     real_song = models.ForeignKey('YTSong', on_delete=models.CASCADE, related_name='+')

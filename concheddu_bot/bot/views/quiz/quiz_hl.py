@@ -9,17 +9,9 @@ from ... import get_current_bot
 from ...utils import ensure_response, ensure_user, safe_response
 from ..buttons import CallbackButton
 from ..utils import elide, logger
+from .utils import get_object_thumbnail
 
 NONE_STR = '__NO__NE__'
-
-async def get_object_thumbnail(obj):
-    """Get the thumbnail for an object"""
-    try:
-        res = await obj.get_thumbnail()
-    except Exception as e:
-        logger.error(f'Error getting thumbnail for {obj}: {e}')
-        res = None
-    return res
 
 class QuizHighLowRunner(discord.ui.View):
     def __init__(

@@ -12,6 +12,7 @@ from ...utils import ensure_response, ensure_user, safe_response
 from ..buttons import CallbackButton
 from ..paged import ListQuiz
 from ..utils import elide, logger
+from .utils import UserList
 
 BLUR_KEY = 'blur'
 SCRAMBLE_KEY = 'scramble'
@@ -30,28 +31,6 @@ class QuizSongsList(discord.ui.View):
 
     async def on_timeout(self):
         await self.itc.delete_original_response()
-
-class UserList(discord.ui.Select):
-    def __init__(self, users: list[discord.Member], *args, **kwargs):
-        super().__init__(
-            placeholder='Select a user',
-            options=[
-                discord.SelectOption(
-                    label=elide(user.name),
-                    value=user.id,
-                    emoji='👤'
-                ) for user in users
-            ],
-            *args, **kwargs
-        )
-        self.map = {str(user.id): user for user in users}
-
-    @ensure_response(before=False, defer=True)
-    async def callback(self, itc: discord.Interaction):
-        pass
-
-    def get_users(self):
-        return [self.map[user_id] for user_id in self.values]
 
 skip_titles = [
     'Minkia suko',
@@ -122,6 +101,7 @@ class ListAnswer(discord.ui.Select):
 
 
 class QuizSongs(discord.ui.View):
+    CHANNEL_PREFIX = 'quiz-song'
     def __init__(
             self,
             itc: discord.Interaction,
@@ -585,7 +565,7 @@ class QuizSongs(discord.ui.View):
         self.embed_score(embed, sort=True)
         await self.orig_channel.send(embed=embed)
 
-        if self.channel is not None and self.orig_channel != self.channel and self.channel.name.startswith('quiz-'):
+        if self.channel is not None and self.orig_channel != self.channel and self.channel.name.startswith(self.CHANNEL_PREFIX):
             try:
                 await self.channel.delete()
             except discord.Forbidden:
@@ -712,7 +692,7 @@ class QuizSongs(discord.ui.View):
 
         # Create a new text channel and add only the users that are participating in the quiz
         new_channel = await itc.guild.create_text_channel(
-            name=f'quiz-{self.quiz_obj.id}',
+            name=f'{self.CHANNEL_PREFIX}-{self.quiz_obj.id}',
             category=itc.channel.category,
             overwrites={
                 itc.guild.default_role: discord.PermissionOverwrite(read_messages=False),

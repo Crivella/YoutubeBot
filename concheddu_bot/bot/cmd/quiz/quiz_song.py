@@ -95,12 +95,12 @@ class QuizSong(commands.GroupCog, group_name='quiz_song'):
 
         async def start_callback(songs: list[m.YTSong], all_songs: list[m.YTSong], quiz: m.QuizSong):
             if not multiple_choice:
-                tfs.SongTransformer.register_cache(m.YTSong, server_id, all_songs)
+                tfs.SongTransformer.register_cache(server_id, all_songs)
             current_quiz[server_id] = view
         view.on_start.append(start_callback)
 
         async def finish_callback():
-            tfs.SongTransformer.remove_cache(m.YTSong, server_id)
+            tfs.SongTransformer.remove_cache(server_id)
             current_quiz.pop(server_id, None)
         view.on_finish.append(finish_callback)
         await safe_response(itc, 'Starting quiz', view=view, ephemeral=True)

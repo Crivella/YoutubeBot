@@ -3,6 +3,7 @@ from .discord import DiscordChannel, DiscordServer, DiscordUser
 from .events import AddedSongEvent, CallCommandEvent, GuessSongEvent, PlayEvent
 from .image import ImageObj
 from .playlist import Playlist
+from .quiz_guess_char import QuizAnimeCharacter
 from .quiz_hl import QuizHighLow
 from .quiz_song import QuizSong
 from .through_objects import PlaylistThrough
@@ -20,6 +21,8 @@ __all__ = [
     'DiscordServer',
     'DiscordChannel',
     'QuizSong',
+    'QuizHighLow',
+    'QuizAnimeCharacter',
     'ImageObj',
     'AnimeObj', 'AnimeCharacter',
 ]

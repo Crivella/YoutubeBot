@@ -408,6 +408,12 @@ class Language(models.Model):
     def __str__(self):
         return self.name
 
+class Role(models.Model):
+    """Role model"""
+    name = models.CharField(max_length=64, unique=True)
+
+    def __str__(self):
+        return self.name
 
 class VoiceActor(models.Model, JikanFetchMixin):
     """Voice Actor model"""
@@ -468,25 +474,35 @@ class VACthrough(models.Model):
         return f"{self.voice_actor.name} as {self.character.name} ({self.language.name if self.language else 'N/A'})"
 
 
+class AnimeCharacterThrough(models.Model):
+    """Anime Character Through model"""
+    anime = models.ForeignKey(AnimeObj, on_delete=models.CASCADE, related_name='+')
+    character = models.ForeignKey('AnimeCharacter', on_delete=models.CASCADE, related_name='+')
+    role = models.ForeignKey(
+        Role, on_delete=models.SET_NULL, null=True, blank=True,
+        help_text='Role of the character in the anime'
+    )
+
+    class Meta:
+        unique_together = ('anime', 'character')
+
+    def __str__(self):
+        return f'{self.character.name} in {self.anime.title}'
+
 class AnimeCharacter(models.Model, JikanFetchMixin):
     """Character model"""
     fetch_func = 'character'
     mal_rgx = mal_chara_rgx
 
     name = models.CharField(max_length=512)
-    anime = models.ForeignKey(AnimeObj, on_delete=models.CASCADE, related_name='characters')
+    # anime = models.ForeignKey(AnimeObj, on_delete=models.CASCADE, related_name='characters')
+    animes = models.ManyToManyField(
+        AnimeObj, through=AnimeCharacterThrough, related_name='characters',
+        help_text='Animes this character appears in'
+    )
     description = models.TextField(null=True, blank=True)
 
     mal_id = models.IntegerField(unique=True, null=True, blank=True)
-    role = models.CharField(
-        max_length=64, choices=[
-            ('main', 'Main Character'),
-            ('supporting', 'Supporting Character'),
-            # ('minor', 'Minor Character'),
-            # ('background', 'Background Character')
-        ], default='main',
-        help_text='Role of the character in the anime'
-    )
     favorites = models.IntegerField(default=0, help_text='Number of favorites on MyAnimeList')
 
     voice_actors = models.ManyToManyField(
@@ -511,7 +527,7 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         return f'{self.name} ({self.anime.title})'
 
     @classmethod
-    async def from_jikan_anime_data(cls, data: dict, anime: AnimeObj = None):
+    async def from_jikan_anime_data(cls, data: dict, anime: AnimeObj):
         """Create a Character instance from Jikan anime extension data"""
         cdata = data.get('character', {})
         if not cdata:
@@ -523,7 +539,7 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         if not name:
             raise ValueError("Character data must contain a 'name'")
 
-        role = data.get('role', 'supporting')
+        role = data.get('role', 'supporting').lower()
         favorites = data.get('favorites', 0)
 
         defaults = {
@@ -549,9 +565,12 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
                 logger.warning(f'Skipping voice actor data for character {new.name}: {e}')
                 continue
 
-        if anime is not None:
-            new.anime = anime
-            await new.asave()
+        role, _ = await Role.objects.aget_or_create(name=role)
+        await AnimeCharacterThrough.objects.aget_or_create(
+            anime=anime,
+            character=new,
+            role=role
+        )
 
         return new
 

@@ -138,17 +138,17 @@ class GenericObjectTransformer(app_commands.Transformer):
             for obj in objects
         ]
 
-    @staticmethod
-    def register_cache(klass, server_id: int, objects: list):
-        cache = object_server_cache.setdefault(klass.__name__, {})
+    @classmethod
+    def register_cache(cls, server_id: int, objects: list):
+        cache = object_server_cache.setdefault(cls.klass.__name__, {})
         for obj in objects:
-            if not isinstance(obj, klass):
-                raise ValueError(f'Object {obj} is not an instance of {klass.__name__}')
+            if not isinstance(obj, cls.klass):
+                raise ValueError(f'Object {obj} is not an instance of {cls.klass.__name__}')
         cache[server_id] = objects.copy()
 
-    @staticmethod
-    def remove_cache(klass, server_id: int):
-        cache = object_server_cache.setdefault(klass.__name__, {})
+    @classmethod
+    def remove_cache(cls, server_id: int):
+        cache = object_server_cache.setdefault(cls.klass.__name__, {})
         cache.pop(server_id, None)
 
 

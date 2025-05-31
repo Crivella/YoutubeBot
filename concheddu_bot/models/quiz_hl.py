@@ -38,42 +38,6 @@ class QuizHighLow(models.Model):
     date_start = models.DateTimeField(auto_now_add=True)
     date_end = models.DateTimeField(null=True)
 
-    # async def get_embed(self) -> discord.Embed:
-    #     """Generate the embed"""
-    #     creator = await DiscordUser.objects.aget(id=self.creator_id)
-    #     playlist = await Playlist.objects.aget(id=self.playlist_id) if self.playlist_id else None
-    #     score = await self.get_score()
-    #     users = [user async for user in self.players.all()]
-    #     users.sort(key=lambda _: score.get(_.id, 0), reverse=True)
-
-    #     fmt = '%Y-%m-%d %H:%M:%S'
-    #     start = self.date_start.strftime(fmt)
-    #     end = self.date_end.strftime(fmt) if self.date_end else 'Unfinished'
-    #     desc = []
-    #     desc.append(f'CREATOR: {creator.username}')
-    #     desc.append(f'START: {start} - END: {end}')
-    #     res = discord.Embed(
-    #         title=f'QuizSong',
-    #         description='\n'.join(desc),
-    #         color=discord.Color.blurple()
-    #     )
-
-    #     res.add_field(
-    #         name='Players',
-    #         value='\n'.join(f'{_.username} ({score[_.id]})' for _ in users)
-    #     )
-    #     params_msg = []
-    #     params_msg.append(f'- Playlist={playlist.name if playlist else "None"} (tot={self.total_choices})')
-    #     params_msg.append(f'- num_songs={self.num_songs}')
-    #     params_msg.append(f'- num_choices={self.num_choices}')
-    #     params_msg.append(f'- segment_mode={self.segment_mode}')
-    #     params_msg.append(f'- segment_length={self.segment_length}')
-    #     params_msg.append(f'- audio_filter="{self.audio_filter}"')
-    #     params_msg.append(f'- multiple_choice={self.multiple_choice}')
-    #     params_msg.append(f'- show_thumbnail={self.show_thumbnail} (blur={self.thumbnail_blur})')
-    #     res.add_field(name='Parameters', value='\n'.join(params_msg))
-    #     return res
-
     async def finish(self):
         """Finish the quiz"""
         self.date_end = timezone.now()
