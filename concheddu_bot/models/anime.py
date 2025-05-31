@@ -385,11 +385,12 @@ class AnimeObj(models.Model, JikanFetchMixin):
         q = q.select_related('character', 'role')
         q = q.order_by('-character__favorites')
         q = q[:5]
+
         async for thr in q.all():
             char = thr.character
             role = thr.role
-            role_name = role.name if role else 'Unknown'
-            char_lst.append(f'- {char.name} ({role_name}) [{char.favorites} favorites]')
+            role_name = role.name[0].upper() if role else 'U'
+            char_lst.append(f'- [{role_name}] {char.name} ({char.favorites}) [ID: {char.mal_id}]')
 
         embed.add_field(
             name='Characters',
@@ -631,8 +632,8 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         anime_names = []
         async for t in q:
             anime = t.anime
-            role_name = t.role.name if t.role else 'Unknown'
-            anime_names.append(f'- {anime.title} [{role_name}] (ID: {anime.mal_id})')
+            role_name = t.role.name[0].upper() if t.role else 'U'
+            anime_names.append(f'- [{role_name}] {anime.title} ({anime.favorites}) [ID: {anime.mal_id}]')
         anime_msg = '\n'.join(anime_names) if anime_names else 'No animes found'
         embed.add_field(name='Animes', value=anime_msg, inline=False)
 
