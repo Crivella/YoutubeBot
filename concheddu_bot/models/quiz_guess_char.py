@@ -22,6 +22,8 @@ class QuizAnimeCharacter(models.Model):
     num_objects = models.IntegerField(default=0)
     max_top = models.IntegerField(default=0)
     max_choices = models.IntegerField(default=0)
+    min_favorites = models.IntegerField(default=-1)
+    max_favorites = models.IntegerField(default=-1)
 
     server = models.ForeignKey('DiscordServer', on_delete=models.CASCADE)
     creator = models.ForeignKey('DiscordUser', on_delete=models.CASCADE)

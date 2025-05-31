@@ -84,7 +84,9 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             self, itc: discord.Interaction,
             num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=40)] = 10,
             max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=10000)] = 0,
-            max_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=5000)] = 500
+            max_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=5000)] = 500,
+            min_favorites: app_commands.Transform[int, tfs.IntRangeTransformer(min=-1)] = -1,
+            max_favorites: app_commands.Transform[int, tfs.IntRangeTransformer(min=-1)] = -1,
             ):
         """Start a guess the character quiz.
 
@@ -99,6 +101,8 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             num_items=num,
             max_top=max_top,
             max_choices=max_choices,
+            min_favorites=min_favorites,
+            max_favorites=max_favorites,
         )
 
         server_id = itc.guild.id

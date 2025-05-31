@@ -31,7 +31,9 @@ class QuizGuessCharacterRunner(discord.ui.View):
             itc: discord.Interaction,
             num_items: int = 5,
             max_top: int = 1000,
-            max_choices: int = 1000
+            max_choices: int = 1000,
+            min_favorites: int = -1,
+            max_favorites: int = -1,
         ):
         super().__init__()
         self.itc = itc
@@ -91,6 +93,11 @@ class QuizGuessCharacterRunner(discord.ui.View):
         q = q.order_by('-favorites')
         if self.max_top > 0:
             q = q[:self.max_top]
+        elif self.min_favorites >= 0 or self.max_favorites >= 0:
+            if self.min_favorites >= 0:
+                q = q.filter(favorites__gte=self.min_favorites)
+            if self.max_favorites >= 0:
+                q = q.filter(favorites__lte=self.max_favorites)
 
         characters = [c async for c in q.all()]
 
@@ -132,6 +139,8 @@ class QuizGuessCharacterRunner(discord.ui.View):
             num_objects=len(self.characters),
             max_top=self.max_top,
             max_choices=self.max_choices,
+            min_favorites=self.min_favorites,
+            max_favorites=self.max_favorites,
 
             object_choice_ids=[char.id for char in self.characters],
         )
