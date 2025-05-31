@@ -386,7 +386,8 @@ class AnimeObj(models.Model, JikanFetchMixin):
         q = q.order_by('-character__favorites')
         q = q[:5]
         async for thr in q.all():
-            char_lst.append(f'- {thr.char.name} ({thr.role.capitalize()}) [{thr.char.favorites} favorites]')
+            char = thr.character
+            char_lst.append(f'- {char.name} ({thr.role.capitalize()}) [{char.favorites} favorites]')
 
         embed.add_field(
             name='Characters',
