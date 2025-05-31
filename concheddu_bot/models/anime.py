@@ -380,15 +380,13 @@ class AnimeObj(models.Model, JikanFetchMixin):
         embed.add_field(name='Studios', value=studios)
         embed.add_field(name='Genres', value=genres)
 
-        # characters = await self.get_characters(top=5)
-        # char_lst = []
-        q = await AnimeCharacterThrough.objects.filter(anime=self)
+        char_lst = []
+        q = AnimeCharacterThrough.objects.filter(anime=self)
         q = q.select_related('character')
         q = q.order_by('-character__favorites')
         q = q[:5]
-        chara_throughs = await AnimeCharacterThrough.objects
-        for thr in chara_throughs:
-            char_lst.append(f'- {thr.char.name} ({thr.role.capitalize()}) [{char.favorites} favorites]')
+        async for thr in q.all():
+            char_lst.append(f'- {thr.char.name} ({thr.role.capitalize()}) [{thr.char.favorites} favorites]')
 
         embed.add_field(
             name='Characters',
