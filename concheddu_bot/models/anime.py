@@ -620,7 +620,8 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
 
         # embed.add_field(name='Role', value=self.role.capitalize(), inline=True)
         embed.add_field(name='Favorites', value=str(self.favorites), inline=True)
-        q = await AnimeCharacterThrough.objects.filter(character=self)
+        q = AnimeCharacterThrough.objects
+        q = q.filter(character=self)
         if anime is not None:
             q = q.filter(anime=anime)
         q = q.select_related('anime', 'role')
