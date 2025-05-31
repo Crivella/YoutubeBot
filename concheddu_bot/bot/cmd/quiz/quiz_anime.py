@@ -83,8 +83,8 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
     async def start_guess_character(
             self, itc: discord.Interaction,
             num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=40)] = 10,
-            max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=5000)] = 0,
-            max_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=2000)] = 20
+            max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0)] = 0,
+            max_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=5000)] = 20
             ):
         """Start a guess the character quiz.
 
@@ -121,7 +121,7 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
     async def guess_character_answer(
             self, itc: discord.Interaction,
             chara: app_commands.Transform[
-                m.AnimeCharacter, tfs.AnimeCharacterTransformer(from_cache=True, verbose=False)
+                m.AnimeCharacter, tfs.AnimeCharacterTransformer(from_cache=True, verbose=True)
             ] = None,
             anime: app_commands.Transform[
                 m.AnimeObj, tfs.AnimeTransformer(verbose=True)
