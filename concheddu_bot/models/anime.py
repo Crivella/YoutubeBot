@@ -237,7 +237,8 @@ class AnimeObj(models.Model, JikanFetchMixin):
 
     async def get_str(self, verbose: bool = False) -> str:
         """Get a string representation of the anime"""
-        return f'{self.title}'
+        title = self.title_english if self.title_english else self.title
+        return f'{title}'
 
     async def fetch_characters(self):
         """Fetch characters for this anime"""
@@ -603,7 +604,8 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
 
         thr = await q.afirst()
         anime = thr.anime
-        return f'{self.name} ({anime.title})'
+        title = anime.title_english if anime.title_english else anime.title
+        return f'{self.name} ({title})'
 
     async def get_main_anime(self) -> AnimeObj:
         """Get the main anime for this character"""
