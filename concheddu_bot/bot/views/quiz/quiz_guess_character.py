@@ -227,7 +227,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
             result = res_chara or res_anime
             point_value = 0
             real_anime_title = await anime.get_str()
-            answer_anime_title = await (answer_anime.get_str() if answer_anime else 'NONE')
+            answer_anime_title = (await answer_anime.get_str()) if answer_anime else 'NONE'
             if res_chara:
                 point_value = 2
                 msg.append(f'- Correct character: `{chara.name}` from `{real_anime_title}` ❤️❤️')
