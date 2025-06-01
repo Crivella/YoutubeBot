@@ -226,20 +226,21 @@ class QuizGuessCharacterRunner(discord.ui.View):
             msg = []
             result = res_chara or res_anime
             point_value = 0
+            real_anime_title = await anime.get_str()
+            answer_anime_title = await (answer_anime.get_str() if answer_anime else 'NONE')
             if res_chara:
                 point_value = 2
-                msg.append(f'- Correct character: `{chara.name}` from `{anime.title}` ❤️❤️')
+                msg.append(f'- Correct character: `{chara.name}` from `{real_anime_title}` ❤️❤️')
             else:
                 if res_anime:
                     point_value = 1
-                    msg.append(f'The character was `{chara.name}` from `{anime.title}`')
-                    msg.append(f'- Correct anime: `{answer_anime.title}` ❤️')
+                    msg.append(f'The character was `{chara.name}` from `{real_anime_title}`')
+                    msg.append(f'- Correct anime: `{answer_anime_title}` ❤️')
                 else:
                     answered_chara_name = answer_character.name if answer_character else 'NONE'
-                    answered_anime_name = answer_anime.title if answer_anime else None
-                    msg.append(f'The character was `{chara.name}` from `{anime.title}` 🙁🙁')
+                    msg.append(f'The character was `{chara.name}` from `{real_anime_title}` 🙁🙁')
                     msg.append(f'- Incorrect character: `{answered_chara_name}`')
-                    msg.append(f'- Incorrect anime: `{answered_anime_name}`')
+                    msg.append(f'- Incorrect anime: `{answer_anime_title}`')
 
             embed = discord.Embed(
                 title= f'{user.nick}: ',
