@@ -133,7 +133,6 @@ class QuizGuessCharacterRunner(discord.ui.View):
 
         self.server = server = await m.DiscordServer.from_discord_guild(itc.guild)
         creator = await m.DiscordUser.from_discord_user(itc.user)
-        await server.player.lock()
         self.quiz_obj = await m.QuizAnimeCharacter.objects.acreate(
             server=server,
             creator=creator,
