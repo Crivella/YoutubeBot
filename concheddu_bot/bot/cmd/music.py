@@ -142,14 +142,8 @@ class MusicPlayer(commands.GroupCog, group_name='player'):
     async def queue(self, itc: discord.Interaction):
         """Show the current queue of songs"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
-        embedVar = discord.Embed(color=0xFF0000)
-        loop_str = ''
-        if server.player.queue.loop_all:
-            loop_str = '(loop all)'
-        elif server.player.queue.loop_one:
-            loop_str = '(loop one)'
-        embedVar.add_field(name=f'Now playing: {loop_str}', value=str(server.player.queue))
-        await safe_response(itc, embed=embedVar, ephemeral=True)
+        embed, file = await server.player.generate_embed()
+        await safe_response(itc, embed=embed, file=file, ephemeral=True)
 
     @app_commands.command()
     @ensure_response(allowed_exceptions=[SenseCheckError])

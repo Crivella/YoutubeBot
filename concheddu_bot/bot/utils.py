@@ -58,6 +58,8 @@ async def safe_response(itc: discord.Interaction, content: str = '', append: boo
                 resp = await itc.original_response()
             except discord.errors.NotFound:
                 pass
+            except Exception as e:
+                logger.error(f'safe_response->Exception: {e}')
             else:
                 msg.append(resp.content)
     else:
