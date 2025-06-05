@@ -7,6 +7,7 @@ from typing import Callable
 
 import discord
 
+from ..progress_bar import get_progress_gif
 from ..semaphores import SEMAPHORE_FFMPEG
 from .utils import safe_disconnect
 
@@ -84,7 +85,7 @@ class Queue(list):
 
 class Player:
     def __init__(self):
-        self.queue = Queue()
+        self.queue: Queue = Queue()
         # self.server: discord.Guild = None
         self.channel: discord.VoiceChannel = None
         self.client: discord.VoiceClient = None
@@ -237,20 +238,32 @@ class Player:
                 await obj.on_play()
                 # Keep the semaphore locked until the song is finished
                 if self.verobse:
-                    embed, file = await self.generate_embed()
-                    await self.print_message(embed, file)
+                    await self.print_message()
                 else:
                     logger.debug(f'Playing {obj.song.title} from `{obj.user.name}`')
                 await asyncio.sleep(0.1)
                 while self.playing:
                     await asyncio.sleep(0.5)
 
-    async def print_message(self, embed: discord.Embed, file: discord.File = None):
+    async def print_message(self):
         """Print a message with the embed"""
+        if not self.queue or not self.queue.get_current().song:
+            return
+        song = self.queue.get_current().song
+        embed, file = await self.generate_embed()
+
+        progress_bar = get_progress_gif(song.duration)
+
         files = [] if file is None else [file]
         func = self.client.channel.send if self.message is None else self.message.edit
         files_arg = 'files' if self.message is None else 'attachments'
+
+        pgb_file = discord.File(progress_bar, filename='progress.gif')
+        embed.set_image(url='attachment://progress.gif')
+        files.append(pgb_file)
+
         kwargs = {files_arg: files, 'embed': embed}
+        print(kwargs)
         try:
             self.message = await func(**kwargs)
         except Exception as e:
