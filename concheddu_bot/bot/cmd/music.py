@@ -140,7 +140,7 @@ class MusicPlayer(commands.GroupCog, group_name='player'):
     @ensure_response()
     @call_command_register()
     async def queue(self, itc: discord.Interaction):
-        """Sync the bot commands"""
+        """Show the current queue of songs"""
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         embedVar = discord.Embed(color=0xFF0000)
         loop_str = ''

@@ -94,6 +94,10 @@ class Player:
         self._locked: bool = False
         self.monitoring_task: asyncio.Task = None
 
+        # self.text_channel: discord.TextChannel = None
+        self.message: discord.Message = None
+        self.verobse: bool = True
+
     @property
     def playing(self) -> bool:
         """Return the playing status"""
@@ -114,6 +118,14 @@ class Player:
         logger.debug('Unlocking player')
         if not self.queue:
             await self.stop()
+
+    async def enable_verbose(self):
+        """Enable verbose mode"""
+        self.verobse = True
+
+    async def disable_verbose(self):
+        """Disable verbose mode"""
+        self.verobse = False
 
     # Rewrite monitor to be used directly without a thread
     async def monitor(self, delay: float = 0.5):
@@ -162,11 +174,24 @@ class Player:
         if self.playing:
             self.client.pause()
 
+    async def delete_message(self):
+        """Delete the message"""
+        if self.message is None:
+            return
+        try:
+            await self.message.delete()
+        except discord.NotFound:
+            pass
+        except Exception as e:
+            logger.error(e, exc_info=True)
+        self.message = None
+
     async def stop(self):
         """Stop the player"""
         client = self.client
         self.first = True
         self.active = False
+        await self.delete_message()
         await asyncio.sleep(0.1)
         if not self.locked:
             try:
@@ -211,9 +236,50 @@ class Player:
             else:
                 await obj.on_play()
                 # Keep the semaphore locked until the song is finished
+                if self.verobse:
+                    embed, file = await self.generate_embed()
+                    await self.print_message(embed, file)
+                else:
+                    logger.debug(f'Playing {obj.song.title} from `{obj.user.name}`')
                 await asyncio.sleep(0.1)
                 while self.playing:
                     await asyncio.sleep(0.5)
+
+    async def print_message(self, embed: discord.Embed, file: discord.File = None):
+        """Print a message with the embed"""
+        files = [] if file is None else [file]
+        func = self.client.channel.send if self.message is None else self.message.edit
+        files_arg = 'files' if self.message is None else 'attachments'
+        kwargs = {files_arg: files, 'embed': embed}
+        try:
+            self.message = await func(**kwargs)
+        except Exception as e:
+            logger.error(f'Error sending/editing message: {e}', exc_info=True)
+            self.message = None
+
+    async def generate_embed(self) -> tuple[discord.Embed, discord.File]:
+        """Generate an embed for the current song"""
+        if not self.queue or not self.queue.get_current().song:
+            return discord.Embed(title='No song playing', color=0xFF0000), None
+
+        song = self.queue.get_current().song
+        embed = discord.Embed(color=0xFF0000)
+        loop_str = ''
+        if self.queue.loop_all:
+            loop_str = '(loop all)'
+        elif self.queue.loop_one:
+            loop_str = '(loop one)'
+        embed.add_field(name=f'Now playing: {loop_str}', value=str(self.queue))
+
+        thumbnails = await song.get_thumbnails()
+        file = None
+        if thumbnails:
+            thumb = thumbnails[0]
+            attach_name = f'song-{song.id}.webp'
+            file = discord.File(await thumb.get_image(), filename=attach_name)
+            embed.set_thumbnail(url=f'attachment://{attach_name}')
+
+        return embed, file
 
     @with_monitor
     async def resume(self):
