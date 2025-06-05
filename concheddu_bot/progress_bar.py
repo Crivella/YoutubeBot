@@ -5,10 +5,8 @@ from PIL import GifImagePlugin, Image, ImageDraw
 GifImagePlugin.LOADING_STRATEGY = GifImagePlugin.LoadingStrategy.RGB_ALWAYS
 
 
-def get_progress_gif(duration: int) -> io.BytesIO:
+def get_progress_gif(duration: int, width: int = 200, height: int = 30) -> io.BytesIO:
     """Generate a progress bar gif for the given duration."""
-    width = 200
-    height = 30
     frames = []
 
     num_frames = (duration * 4) + 1  # 4 frames per second
