@@ -92,6 +92,14 @@ class Queue(list):
             else:
                 self.idx = len(self)
 
+    def is_first(self) -> bool:
+        """Check if the current song is the first in the queue"""
+        return self.idx == 0
+
+    def is_last(self) -> bool:
+        """Check if the current song is the last in the queue"""
+        return self.idx >= len(self) - 1
+
     def clear(self):
         super().clear()
         self.idx = 0
@@ -369,6 +377,9 @@ class Player:
 
         self.loop_one_button.style = BLUE if self.queue.loop_one else GREY
         self.loop_all_button.style = BLUE if self.queue.loop_all else GREY
+
+        self.jump_button_p1.disabled = self.queue.is_last()
+        self.jump_button_m1.disabled = self.queue.is_first()
 
     async def print_message(self):
         """Print a message with the embed"""
