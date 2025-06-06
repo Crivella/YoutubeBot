@@ -265,18 +265,11 @@ class Player:
         """Print a message with the embed"""
         if not self.queue or not self.queue.get_current().song:
             return
-        song = self.queue.get_current().song
         embed, file = await self.generate_embed()
-
-        # progress_bar = get_progress_gif(song.duration)
 
         files = [] if file is None else [file]
         func = self.client.channel.send if self.message is None else self.message.edit
         files_arg = 'files' if self.message is None else 'attachments'
-
-        # pgb_file = discord.File(progress_bar, filename='progress.gif')
-        # embed.set_image(url='attachment://progress.gif')
-        # files.append(pgb_file)
 
         view = discord.ui.View(timeout=None)
 
@@ -284,16 +277,19 @@ class Player:
             label=STOP_BUTTON_LABEL,
             style=RED,
             custom_id='stop_player',
+            row=0,
         )
         jump_button_p1 = CallbackButton(
             label=JUMP_FORWARD_LABEL,
             style=BLUE,
             custom_id='jump_player_p1',
+            row=0,
         )
         jump_button_m1 = CallbackButton(
             label=JUMP_BACKWARD_LABEL,
             style=BLUE,
             custom_id='jump_player_m1',
+            row=0,
         )
         is_paused = self.client.is_paused() if self.client else False
         pause_resume_button = CallbackButton(
@@ -306,11 +302,13 @@ class Player:
             label=LOOP_ONE_LABEL,
             style=GREY,
             custom_id='loop_one_player',
+            row=1,
         )
         loop_all_button = CallbackButton(
             label=LOOP_ALL_LABEL,
             style=GREY,
             custom_id='loop_all_player',
+            row=1,
         )
 
         async def jump_p1(itc: discord.Interaction):
@@ -321,8 +319,6 @@ class Player:
             """Jump to the previous song in the queue"""
             logger.debug(f'Jumping to previous song in queue pressed by {itc.user.name}')
             await self.jump(-1, channel=self.channel)
-        # async def stop(itc: discord.Interaction):
-        #     await self.stop()
         async def clear(itc: discord.Interaction):
             """Clear the queue"""
             logger.debug(f'Clearing queue pressed by {itc.user.name}')
@@ -370,9 +366,7 @@ class Player:
         jump_button_m1.add_callback(jump_m1)
         loop_one_button.add_callback(loop_one)
         loop_all_button.add_callback(loop_all)
-        # clear_btton.add_callback(clear)
 
-        # view.add_item(clear_btton)
         view.add_item(stop_button)
         view.add_item(jump_button_m1)
         view.add_item(pause_resume_button)
