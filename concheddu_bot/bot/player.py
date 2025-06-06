@@ -106,6 +106,7 @@ class Player:
         self.monitoring_task: asyncio.Task = None
 
         # self.text_channel: discord.TextChannel = None
+        self.view: discord.ui.View = None
         self.message: discord.Message = None
         self.verobse: bool = True
 
