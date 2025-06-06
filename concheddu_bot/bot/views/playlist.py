@@ -1,8 +1,8 @@
 import discord
 
 from ... import models as m
+from ..buttons import CallbackButton
 from ..utils import ensure_response, safe_response
-from .buttons import CallbackButton
 from .paged import ListMultiSelect
 from .utils import MAX_LIST_OPT, logger
 

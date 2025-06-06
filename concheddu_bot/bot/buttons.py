@@ -1,6 +1,6 @@
 import discord
 
-from ..utils import ensure_response
+from .utils import ensure_response
 
 
 class CallbackButton(discord.ui.Button):

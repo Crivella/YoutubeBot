@@ -8,8 +8,8 @@ import discord
 
 from .... import models as m
 from ... import get_current_bot
+from ...buttons import CallbackButton
 from ...utils import ensure_response, ensure_user, safe_response
-from ..buttons import CallbackButton
 from ..paged import ListQuiz
 from ..utils import elide, logger
 from .utils import UserList

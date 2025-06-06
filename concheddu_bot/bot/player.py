@@ -7,8 +7,8 @@ from typing import Callable
 
 import discord
 
-from ..progress_bar import get_progress_gif
 from ..semaphores import SEMAPHORE_FFMPEG
+from .buttons import CallbackButton
 from .utils import safe_disconnect
 
 logger = logging.getLogger('bot')
@@ -252,23 +252,70 @@ class Player:
         song = self.queue.get_current().song
         embed, file = await self.generate_embed()
 
-        progress_bar = get_progress_gif(song.duration)
+        # progress_bar = get_progress_gif(song.duration)
 
         files = [] if file is None else [file]
         func = self.client.channel.send if self.message is None else self.message.edit
         files_arg = 'files' if self.message is None else 'attachments'
 
-        pgb_file = discord.File(progress_bar, filename='progress.gif')
-        embed.set_image(url='attachment://progress.gif')
-        files.append(pgb_file)
+        # pgb_file = discord.File(progress_bar, filename='progress.gif')
+        # embed.set_image(url='attachment://progress.gif')
+        # files.append(pgb_file)
 
-        kwargs = {files_arg: files, 'embed': embed}
-        print(kwargs)
+        view = discord.ui.View(timeout=None)
+
+        stop_button = CallbackButton(
+            label='Stop',
+            style=discord.ButtonStyle.red,
+            custom_id='stop_player',
+        )
+        jump_button_p1 = CallbackButton(
+            label='>>',
+            style=discord.ButtonStyle.blurple,
+            custom_id='jump_player_p1'
+        )
+        jump_button_m1 = CallbackButton(
+            label='<<',
+            style=discord.ButtonStyle.blurple,
+            custom_id='jump_player_m1'
+        )
+        # clear_btton = CallbackButton(
+        #     label='🪣',
+        #     style=discord.ButtonStyle.grey,
+        #     custom_id='clear_player'
+        # )
+
+        async def jump_p1(itc: discord.Interaction):
+            await self.jump(1, channel=self.channel)
+        async def jump_m1(itc: discord.Interaction):
+            await self.jump(-1, channel=self.channel)
+        # async def stop(itc: discord.Interaction):
+        #     await self.stop()
+        async def clear(itc: discord.Interaction):
+            await self.clear()
+
+        stop_button.add_callback(clear)
+        jump_button_p1.add_callback(jump_p1)
+        jump_button_m1.add_callback(jump_m1)
+        # clear_btton.add_callback(clear)
+
+        # view.add_item(clear_btton)
+        view.add_item(jump_button_m1)
+        view.add_item(stop_button)
+        view.add_item(jump_button_p1)
+
+        kwargs = {
+            files_arg: files,
+            'embed': embed,
+            'view': view,
+            }
         try:
             self.message = await func(**kwargs)
         except Exception as e:
             logger.error(f'Error sending/editing message: {e}', exc_info=True)
             self.message = None
+
+
 
     async def generate_embed(self) -> tuple[discord.Embed, discord.File]:
         """Generate an embed for the current song"""
