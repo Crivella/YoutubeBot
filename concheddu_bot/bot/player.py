@@ -303,12 +303,12 @@ class Player:
             call_self=True,
         )
         loop_one_button = CallbackButton(
-            label='🔁 Loop one',
+            label=LOOP_ONE_LABEL,
             style=GREY,
             custom_id='loop_one_player',
         )
         loop_all_button = CallbackButton(
-            label='🔂 Loop all',
+            label=LOOP_ALL_LABEL,
             style=GREY,
             custom_id='loop_all_player',
         )
@@ -345,6 +345,7 @@ class Player:
         async def loop_one(itc: discord.Interaction):
             """Loop the current song"""
             nonlocal loop_one_button, loop_all_button
+            logger.debug(f'Loop one pressed by {itc.user.name}')
             self.queue.loop_one = not self.queue.loop_one
             self.queue.loop_all = False
             loop_one_button.style = BLUE if self.queue.loop_one else GREY
@@ -355,6 +356,7 @@ class Player:
         async def loop_all(itc: discord.Interaction):
             """Loop all songs in the queue"""
             nonlocal loop_one_button, loop_all_button
+            logger.debug(f'Loop all pressed by {itc.user.name}')
             self.queue.loop_all = not self.queue.loop_all
             self.queue.loop_one = False
             loop_all_button.style = BLUE if self.queue.loop_all else GREY
