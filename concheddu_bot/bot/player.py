@@ -271,100 +271,99 @@ class Player:
 
     def setup_view(self):
         """Setup the view for the player"""
-        if self.view is not None:
-            return
-        self.view = discord.ui.View(timeout=None)
-        self.stop_button = CallbackButton(
-            label=STOP_BUTTON_LABEL,
-            style=RED,
-            custom_id='stop_player',
-            row=0,
-        )
-        self.jump_button_p1 = CallbackButton(
-            label=JUMP_FORWARD_LABEL,
-            style=BLUE,
-            custom_id='jump_player_p1',
-            row=0,
-        )
-        self.jump_button_m1 = CallbackButton(
-            label=JUMP_BACKWARD_LABEL,
-            style=BLUE,
-            custom_id='jump_player_m1',
-            row=0,
-        )
-        self.pause_resume_button = CallbackButton(
-            label=PAUSE_BUTTON_LABEL,
-            style=GREY,
-            custom_id='pause_resume_player',
-            call_self=True,
-        )
-        self.loop_one_button = CallbackButton(
-            label=LOOP_ONE_LABEL,
-            style=GREY,
-            custom_id='loop_one_player',
-            row=1,
-        )
-        self.loop_all_button = CallbackButton(
-            label=LOOP_ALL_LABEL,
-            style=GREY,
-            custom_id='loop_all_player',
-            row=1,
-        )
+        if self.view is None:
+            self.view = discord.ui.View(timeout=None)
+            self.stop_button = CallbackButton(
+                label=STOP_BUTTON_LABEL,
+                style=RED,
+                custom_id='stop_player',
+                row=0,
+            )
+            self.jump_button_p1 = CallbackButton(
+                label=JUMP_FORWARD_LABEL,
+                style=BLUE,
+                custom_id='jump_player_p1',
+                row=0,
+            )
+            self.jump_button_m1 = CallbackButton(
+                label=JUMP_BACKWARD_LABEL,
+                style=BLUE,
+                custom_id='jump_player_m1',
+                row=0,
+            )
+            self.pause_resume_button = CallbackButton(
+                label=PAUSE_BUTTON_LABEL,
+                style=GREY,
+                custom_id='pause_resume_player',
+                call_self=True,
+            )
+            self.loop_one_button = CallbackButton(
+                label=LOOP_ONE_LABEL,
+                style=GREY,
+                custom_id='loop_one_player',
+                row=1,
+            )
+            self.loop_all_button = CallbackButton(
+                label=LOOP_ALL_LABEL,
+                style=GREY,
+                custom_id='loop_all_player',
+                row=1,
+            )
 
-        async def jump_p1(itc: discord.Interaction):
-            """Jump to the next song in the queue"""
-            logger.debug(f'Jumping to next song in queue pressed by {itc.user.name}')
-            await self.jump(1, channel=self.channel)
-        async def jump_m1(itc: discord.Interaction):
-            """Jump to the previous song in the queue"""
-            logger.debug(f'Jumping to previous song in queue pressed by {itc.user.name}')
-            await self.jump(-1, channel=self.channel)
-        async def clear(itc: discord.Interaction):
-            """Clear the queue"""
-            logger.debug(f'Clearing queue pressed by {itc.user.name}')
-            await self.clear()
-        async def pause_resume(itc: discord.Interaction, btn: CallbackButton):
-            """Pause or resume the player"""
-            if self.client.is_paused():
-                logger.debug(f'Resuming player pressed by {itc.user.name}')
-                await self.resume(channel=self.channel)
-            else:
-                logger.debug(f'Pausing player pressed by {itc.user.name}')
-                await self.pause()
+            async def jump_p1(itc: discord.Interaction):
+                """Jump to the next song in the queue"""
+                logger.debug(f'Jumping to next song in queue pressed by {itc.user.name}')
+                await self.jump(1, channel=self.channel)
+            async def jump_m1(itc: discord.Interaction):
+                """Jump to the previous song in the queue"""
+                logger.debug(f'Jumping to previous song in queue pressed by {itc.user.name}')
+                await self.jump(-1, channel=self.channel)
+            async def clear(itc: discord.Interaction):
+                """Clear the queue"""
+                logger.debug(f'Clearing queue pressed by {itc.user.name}')
+                await self.clear()
+            async def pause_resume(itc: discord.Interaction, btn: CallbackButton):
+                """Pause or resume the player"""
+                if self.client.is_paused():
+                    logger.debug(f'Resuming player pressed by {itc.user.name}')
+                    await self.resume(channel=self.channel)
+                else:
+                    logger.debug(f'Pausing player pressed by {itc.user.name}')
+                    await self.pause()
 
-            self.refresh_view()
+                self.refresh_view()
 
-            await safe_response(itc, view=self.view)
+                await safe_response(itc, view=self.view)
 
-        async def loop_one(itc: discord.Interaction):
-            """Loop the current song"""
-            logger.debug(f'Loop one pressed by {itc.user.name}')
-            self.queue.loop_one = not self.queue.loop_one
-            self.refresh_view()
+            async def loop_one(itc: discord.Interaction):
+                """Loop the current song"""
+                logger.debug(f'Loop one pressed by {itc.user.name}')
+                self.queue.loop_one = not self.queue.loop_one
+                self.refresh_view()
 
-            await safe_response(itc, view=self.view)
+                await safe_response(itc, view=self.view)
 
-        async def loop_all(itc: discord.Interaction):
-            """Loop all songs in the queue"""
-            logger.debug(f'Loop all pressed by {itc.user.name}')
-            self.queue.loop_all = not self.queue.loop_all
-            self.refresh_view()
+            async def loop_all(itc: discord.Interaction):
+                """Loop all songs in the queue"""
+                logger.debug(f'Loop all pressed by {itc.user.name}')
+                self.queue.loop_all = not self.queue.loop_all
+                self.refresh_view()
 
-            await safe_response(itc, view=self.view)
+                await safe_response(itc, view=self.view)
 
-        self.stop_button.add_callback(clear)
-        self.jump_button_p1.add_callback(jump_p1)
-        self.pause_resume_button.add_callback(pause_resume)
-        self.jump_button_m1.add_callback(jump_m1)
-        self.loop_one_button.add_callback(loop_one)
-        self.loop_all_button.add_callback(loop_all)
+            self.stop_button.add_callback(clear)
+            self.jump_button_p1.add_callback(jump_p1)
+            self.pause_resume_button.add_callback(pause_resume)
+            self.jump_button_m1.add_callback(jump_m1)
+            self.loop_one_button.add_callback(loop_one)
+            self.loop_all_button.add_callback(loop_all)
 
-        self.view.add_item(self.stop_button)
-        self.view.add_item(self.jump_button_m1)
-        self.view.add_item(self.pause_resume_button)
-        self.view.add_item(self.jump_button_p1)
-        self.view.add_item(self.loop_one_button)
-        self.view.add_item(self.loop_all_button)
+            self.view.add_item(self.stop_button)
+            self.view.add_item(self.jump_button_m1)
+            self.view.add_item(self.pause_resume_button)
+            self.view.add_item(self.jump_button_p1)
+            self.view.add_item(self.loop_one_button)
+            self.view.add_item(self.loop_all_button)
 
         # Refresh the view to update the buttons
         self.refresh_view()
