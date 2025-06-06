@@ -13,6 +13,16 @@ from .utils import safe_disconnect, safe_response
 
 logger = logging.getLogger('bot')
 
+# PAUSE_BUTTON_LABEL = '⏸️'
+# RESUME_BUTTON_LABEL = '▶️'
+PAUSE_BUTTON_LABEL = 'PAUSE'
+RESUME_BUTTON_LABEL = 'RESUME'
+JUMP_FORWARD_LABEL = '>>'
+JUMP_BACKWARD_LABEL = '<<'
+STOP_BUTTON_LABEL = 'STOP'
+LOOP_ONE_LABEL = '🔁 Loop one'
+LOOP_ALL_LABEL = '🔂 Loop all'
+
 def with_monitor(func):
     """Decorator to add a monitor to the function"""
     @wraps(func)
@@ -265,25 +275,36 @@ class Player:
         view = discord.ui.View(timeout=None)
 
         stop_button = CallbackButton(
-            label='Stop',
+            label=STOP_BUTTON_LABEL,
             style=discord.ButtonStyle.red,
             custom_id='stop_player',
         )
         jump_button_p1 = CallbackButton(
-            label='>>',
+            label=JUMP_FORWARD_LABEL,
             style=discord.ButtonStyle.blurple,
             custom_id='jump_player_p1',
         )
         jump_button_m1 = CallbackButton(
-            label='<<',
+            label=JUMP_BACKWARD_LABEL,
             style=discord.ButtonStyle.blurple,
             custom_id='jump_player_m1',
         )
+        is_paused = self.client.is_paused() if self.client else False
         pause_resume_button = CallbackButton(
-            label='⏸️' if not self.client.is_paused() else '▶️',
-            style=discord.ButtonStyle.grey if not self.client.is_paused() else discord.ButtonStyle.green,
+            label=PAUSE_BUTTON_LABEL if not is_paused else RESUME_BUTTON_LABEL,
+            style=discord.ButtonStyle.grey if not is_paused else discord.ButtonStyle.green,
             custom_id='pause_resume_player',
             call_self=True,
+        )
+        loop_one_button = CallbackButton(
+            label='🔁 Loop one',
+            style=discord.ButtonStyle.grey,
+            custom_id='loop_one_player',
+        )
+        loop_all_button = CallbackButton(
+            label='🔂 Loop all',
+            style=discord.ButtonStyle.grey,
+            custom_id='loop_all_player',
         )
         # clear_btton = CallbackButton(
         #     label='🪣',
@@ -310,27 +331,51 @@ class Player:
             if self.client.is_paused():
                 logger.debug(f'Resuming player pressed by {itc.user.name}')
                 await self.resume(channel=self.channel)
-                btn.label = '⏸️'
+                btn.label = PAUSE_BUTTON_LABEL
                 btn.style = discord.ButtonStyle.grey
             else:
                 logger.debug(f'Pausing player pressed by {itc.user.name}')
                 await self.pause()
-                btn.label = '▶️'
+                btn.label = RESUME_BUTTON_LABEL
                 btn.style = discord.ButtonStyle.green
+
+            await safe_response(itc, view=view)
+
+        async def loop_one(itc: discord.Interaction):
+            """Loop the current song"""
+            nonlocal loop_one_button, loop_all_button
+            self.queue.loop_one = not self.queue.loop_one
+            self.queue.loop_all = False
+            loop_one_button.style = discord.ButtonStyle.blurple if not self.queue.loop_all else discord.ButtonStyle.grey
+            loop_all_button.style = discord.ButtonStyle.grey
+
+            await safe_response(itc, view=view)
+
+        async def loop_all(itc: discord.Interaction):
+            """Loop all songs in the queue"""
+            nonlocal loop_one_button, loop_all_button
+            self.queue.loop_all = not self.queue.loop_all
+            self.queue.loop_one = False
+            loop_all_button.style = discord.ButtonStyle.blurple if not self.queue.loop_all else discord.ButtonStyle.grey
+            loop_one_button.style = discord.ButtonStyle.grey
 
             await safe_response(itc, view=view)
 
         stop_button.add_callback(clear)
         jump_button_p1.add_callback(jump_p1)
-        jump_button_m1.add_callback(jump_m1)
-        # clear_btton.add_callback(clear)
         pause_resume_button.add_callback(pause_resume)
+        jump_button_m1.add_callback(jump_m1)
+        loop_one_button.add_callback(loop_one)
+        loop_all_button.add_callback(loop_all)
+        # clear_btton.add_callback(clear)
 
         # view.add_item(clear_btton)
+        view.add_item(stop_button)
         view.add_item(jump_button_m1)
         view.add_item(pause_resume_button)
-        view.add_item(stop_button)
         view.add_item(jump_button_p1)
+        view.add_item(loop_one_button)
+        view.add_item(loop_all_button)
 
         kwargs = {
             files_arg: files,
