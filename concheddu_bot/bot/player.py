@@ -9,7 +9,7 @@ import discord
 
 from ..semaphores import SEMAPHORE_FFMPEG
 from .buttons import CallbackButton
-from .utils import safe_disconnect
+from .utils import safe_disconnect, safe_response
 
 logger = logging.getLogger('bot')
 
@@ -272,12 +272,18 @@ class Player:
         jump_button_p1 = CallbackButton(
             label='>>',
             style=discord.ButtonStyle.blurple,
-            custom_id='jump_player_p1'
+            custom_id='jump_player_p1',
         )
         jump_button_m1 = CallbackButton(
             label='<<',
             style=discord.ButtonStyle.blurple,
-            custom_id='jump_player_m1'
+            custom_id='jump_player_m1',
+        )
+        pause_resume_button = CallbackButton(
+            label='⏸️' if not self.client.is_paused() else '▶️',
+            style=discord.ButtonStyle.grey if not self.client.is_paused() else discord.ButtonStyle.green,
+            custom_id='pause_resume_player',
+            call_self=True,
         )
         # clear_btton = CallbackButton(
         #     label='🪣',
@@ -286,21 +292,43 @@ class Player:
         # )
 
         async def jump_p1(itc: discord.Interaction):
+            """Jump to the next song in the queue"""
+            logger.debug(f'Jumping to next song in queue pressed by {itc.user.name}')
             await self.jump(1, channel=self.channel)
         async def jump_m1(itc: discord.Interaction):
+            """Jump to the previous song in the queue"""
+            logger.debug(f'Jumping to previous song in queue pressed by {itc.user.name}')
             await self.jump(-1, channel=self.channel)
         # async def stop(itc: discord.Interaction):
         #     await self.stop()
         async def clear(itc: discord.Interaction):
+            """Clear the queue"""
+            logger.debug(f'Clearing queue pressed by {itc.user.name}')
             await self.clear()
+        async def pause_resume(itc: discord.Interaction, btn: CallbackButton):
+            """Pause or resume the player"""
+            if self.client.is_paused():
+                logger.debug(f'Resuming player pressed by {itc.user.name}')
+                await self.resume(channel=self.channel)
+                btn.label = '⏸️'
+                btn.style = discord.ButtonStyle.grey
+            else:
+                logger.debug(f'Pausing player pressed by {itc.user.name}')
+                await self.pause()
+                btn.label = '▶️'
+                btn.style = discord.ButtonStyle.green
+
+            await safe_response(itc, view=view)
 
         stop_button.add_callback(clear)
         jump_button_p1.add_callback(jump_p1)
         jump_button_m1.add_callback(jump_m1)
         # clear_btton.add_callback(clear)
+        pause_resume_button.add_callback(pause_resume)
 
         # view.add_item(clear_btton)
         view.add_item(jump_button_m1)
+        view.add_item(pause_resume_button)
         view.add_item(stop_button)
         view.add_item(jump_button_p1)
 
