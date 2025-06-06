@@ -20,8 +20,13 @@ RESUME_BUTTON_LABEL = 'RESUME'
 JUMP_FORWARD_LABEL = '>>'
 JUMP_BACKWARD_LABEL = '<<'
 STOP_BUTTON_LABEL = 'STOP'
-LOOP_ONE_LABEL = '🔁 Loop one'
-LOOP_ALL_LABEL = '🔂 Loop all'
+LOOP_ONE_LABEL = '🔁1'
+LOOP_ALL_LABEL = '🔂 ALL'
+
+GREY = discord.ButtonStyle.grey
+RED = discord.ButtonStyle.red
+GREEN = discord.ButtonStyle.green
+BLUE = discord.ButtonStyle.blurple
 
 def with_monitor(func):
     """Decorator to add a monitor to the function"""
@@ -277,41 +282,36 @@ class Player:
 
         stop_button = CallbackButton(
             label=STOP_BUTTON_LABEL,
-            style=discord.ButtonStyle.red,
+            style=RED,
             custom_id='stop_player',
         )
         jump_button_p1 = CallbackButton(
             label=JUMP_FORWARD_LABEL,
-            style=discord.ButtonStyle.blurple,
+            style=BLUE,
             custom_id='jump_player_p1',
         )
         jump_button_m1 = CallbackButton(
             label=JUMP_BACKWARD_LABEL,
-            style=discord.ButtonStyle.blurple,
+            style=BLUE,
             custom_id='jump_player_m1',
         )
         is_paused = self.client.is_paused() if self.client else False
         pause_resume_button = CallbackButton(
             label=PAUSE_BUTTON_LABEL if not is_paused else RESUME_BUTTON_LABEL,
-            style=discord.ButtonStyle.grey if not is_paused else discord.ButtonStyle.green,
+            style=GREY if not is_paused else GREEN,
             custom_id='pause_resume_player',
             call_self=True,
         )
         loop_one_button = CallbackButton(
             label='🔁 Loop one',
-            style=discord.ButtonStyle.grey,
+            style=GREY,
             custom_id='loop_one_player',
         )
         loop_all_button = CallbackButton(
             label='🔂 Loop all',
-            style=discord.ButtonStyle.grey,
+            style=GREY,
             custom_id='loop_all_player',
         )
-        # clear_btton = CallbackButton(
-        #     label='🪣',
-        #     style=discord.ButtonStyle.grey,
-        #     custom_id='clear_player'
-        # )
 
         async def jump_p1(itc: discord.Interaction):
             """Jump to the next song in the queue"""
@@ -333,12 +333,12 @@ class Player:
                 logger.debug(f'Resuming player pressed by {itc.user.name}')
                 await self.resume(channel=self.channel)
                 btn.label = PAUSE_BUTTON_LABEL
-                btn.style = discord.ButtonStyle.grey
+                btn.style = GREY
             else:
                 logger.debug(f'Pausing player pressed by {itc.user.name}')
                 await self.pause()
                 btn.label = RESUME_BUTTON_LABEL
-                btn.style = discord.ButtonStyle.green
+                btn.style = GREEN
 
             await safe_response(itc, view=view)
 
@@ -347,8 +347,8 @@ class Player:
             nonlocal loop_one_button, loop_all_button
             self.queue.loop_one = not self.queue.loop_one
             self.queue.loop_all = False
-            loop_one_button.style = discord.ButtonStyle.blurple if not self.queue.loop_all else discord.ButtonStyle.grey
-            loop_all_button.style = discord.ButtonStyle.grey
+            loop_one_button.style = BLUE if self.queue.loop_one else GREY
+            loop_all_button.style = GREY
 
             await safe_response(itc, view=view)
 
@@ -357,8 +357,8 @@ class Player:
             nonlocal loop_one_button, loop_all_button
             self.queue.loop_all = not self.queue.loop_all
             self.queue.loop_one = False
-            loop_all_button.style = discord.ButtonStyle.blurple if not self.queue.loop_all else discord.ButtonStyle.grey
-            loop_one_button.style = discord.ButtonStyle.grey
+            loop_all_button.style = BLUE if self.queue.loop_all else GREY
+            loop_one_button.style = GREY
 
             await safe_response(itc, view=view)
 
