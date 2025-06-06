@@ -3,6 +3,17 @@ import discord
 from ...utils import ensure_response
 from ..utils import elide, logger
 
+SKIP_TITLES = [
+    'Minkia suko',
+    'GAY ~~~!',
+    'Shame!!',
+    'Ram\'s lover',
+    'Concheddu',
+    'Is callonis',
+    'WTF is this?',
+]
+
+NONE_STR = '__NO__NE__'
 
 async def get_object_thumbnail(obj):
     """Get the thumbnail for an object"""

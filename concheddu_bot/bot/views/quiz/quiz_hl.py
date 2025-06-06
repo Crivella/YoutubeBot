@@ -11,7 +11,6 @@ from ...utils import ensure_response, ensure_user, safe_response
 from ..utils import elide, logger
 from .utils import get_object_thumbnail
 
-NONE_STR = '__NO__NE__'
 
 class QuizHighLowRunner(discord.ui.View):
     def __init__(

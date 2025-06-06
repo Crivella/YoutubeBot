@@ -12,7 +12,7 @@ from ...buttons import CallbackButton
 from ...utils import ensure_response, ensure_user, safe_response
 from ..paged import ListQuiz
 from ..utils import elide, logger
-from .utils import UserList
+from .utils import NONE_STR, SKIP_TITLES, UserList
 
 BLUR_KEY = 'blur'
 SCRAMBLE_KEY = 'scramble'
@@ -32,16 +32,6 @@ class QuizSongsList(discord.ui.View):
     async def on_timeout(self):
         await self.itc.delete_original_response()
 
-skip_titles = [
-    'Minkia suko',
-    'Shame!!',
-    'Ram\'s lover',
-    'Concheddu',
-    'Is callonis',
-    'WTF is this?',
-]
-
-NONE_STR = '__NO__NE__'
 
 class PlaylistList(discord.ui.Select):
     def __init__(self, playlists: list[m.Playlist], *args, **kwargs):
@@ -286,7 +276,7 @@ class QuizSongs(discord.ui.View):
             )
         else:
             self.answer_btn = CallbackButton(
-                label=random.choice(skip_titles),
+                label=random.choice(SKIP_TITLES),
                 style=discord.ButtonStyle.primary
             )
         if self.progressive_blur:

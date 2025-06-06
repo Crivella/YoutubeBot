@@ -10,18 +10,7 @@ from ... import get_current_bot
 from ...buttons import CallbackButton
 from ...utils import ensure_response, ensure_user, safe_response
 from ..utils import elide, logger
-from .utils import UserList, get_object_thumbnail
-
-skip_titles = [
-    'Minkia suko',
-    'Shame!!',
-    'Ram\'s lover',
-    'Concheddu',
-    'Is callonis',
-    'WTF is this?',
-]
-
-NONE_STR = '__NO__NE__'
+from .utils import SKIP_TITLES, UserList, get_object_thumbnail
 
 
 class QuizGuessCharacterRunner(discord.ui.View):
@@ -197,7 +186,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
         answered = False
 
         self.answer_btn = CallbackButton(
-            label=random.choice(skip_titles),
+            label=random.choice(SKIP_TITLES),
             style=discord.ButtonStyle.primary
         )
 
