@@ -261,50 +261,42 @@ class Player:
                 while self.playing:
                     await asyncio.sleep(0.5)
 
-    async def print_message(self):
-        """Print a message with the embed"""
-        if not self.queue or not self.queue.get_current().song:
+    def setup_view(self):
+        """Setup the view for the player"""
+        if self.view is not None:
             return
-        embed, file = await self.generate_embed()
-
-        files = [] if file is None else [file]
-        func = self.client.channel.send if self.message is None else self.message.edit
-        files_arg = 'files' if self.message is None else 'attachments'
-
-        view = discord.ui.View(timeout=None)
-
-        stop_button = CallbackButton(
+        self.view = discord.ui.View(timeout=None)
+        self.stop_button = CallbackButton(
             label=STOP_BUTTON_LABEL,
             style=RED,
             custom_id='stop_player',
             row=0,
         )
-        jump_button_p1 = CallbackButton(
+        self.jump_button_p1 = CallbackButton(
             label=JUMP_FORWARD_LABEL,
             style=BLUE,
             custom_id='jump_player_p1',
             row=0,
         )
-        jump_button_m1 = CallbackButton(
+        self.jump_button_m1 = CallbackButton(
             label=JUMP_BACKWARD_LABEL,
             style=BLUE,
             custom_id='jump_player_m1',
             row=0,
         )
-        is_paused = self.client.is_paused() if self.client else False
-        pause_resume_button = CallbackButton(
-            label=PAUSE_BUTTON_LABEL if not is_paused else RESUME_BUTTON_LABEL,
-            style=GREY if not is_paused else GREEN,
+        self.pause_resume_button = CallbackButton(
+            label=PAUSE_BUTTON_LABEL,
+            style=GREY,
             custom_id='pause_resume_player',
             call_self=True,
         )
-        loop_one_button = CallbackButton(
+        self.loop_one_button = CallbackButton(
             label=LOOP_ONE_LABEL,
             style=GREY,
             custom_id='loop_one_player',
             row=1,
         )
-        loop_all_button = CallbackButton(
+        self.loop_all_button = CallbackButton(
             label=LOOP_ALL_LABEL,
             style=GREY,
             custom_id='loop_all_player',
@@ -328,64 +320,78 @@ class Player:
             if self.client.is_paused():
                 logger.debug(f'Resuming player pressed by {itc.user.name}')
                 await self.resume(channel=self.channel)
-                btn.label = PAUSE_BUTTON_LABEL
-                btn.style = GREY
             else:
                 logger.debug(f'Pausing player pressed by {itc.user.name}')
                 await self.pause()
-                btn.label = RESUME_BUTTON_LABEL
-                btn.style = GREEN
 
-            await safe_response(itc, view=view)
+            self.refresh_view()
+
+            await safe_response(itc, view=self.view)
 
         async def loop_one(itc: discord.Interaction):
             """Loop the current song"""
-            nonlocal loop_one_button, loop_all_button
             logger.debug(f'Loop one pressed by {itc.user.name}')
             self.queue.loop_one = not self.queue.loop_one
-            self.queue.loop_all = False
-            loop_one_button.style = BLUE if self.queue.loop_one else GREY
-            loop_all_button.style = GREY
+            self.refresh_view()
 
-            await safe_response(itc, view=view)
+            await safe_response(itc, view=self.view)
 
         async def loop_all(itc: discord.Interaction):
             """Loop all songs in the queue"""
-            nonlocal loop_one_button, loop_all_button
             logger.debug(f'Loop all pressed by {itc.user.name}')
             self.queue.loop_all = not self.queue.loop_all
-            self.queue.loop_one = False
-            loop_all_button.style = BLUE if self.queue.loop_all else GREY
-            loop_one_button.style = GREY
+            self.refresh_view()
 
-            await safe_response(itc, view=view)
+            await safe_response(itc, view=self.view)
 
-        stop_button.add_callback(clear)
-        jump_button_p1.add_callback(jump_p1)
-        pause_resume_button.add_callback(pause_resume)
-        jump_button_m1.add_callback(jump_m1)
-        loop_one_button.add_callback(loop_one)
-        loop_all_button.add_callback(loop_all)
+        self.stop_button.add_callback(clear)
+        self.jump_button_p1.add_callback(jump_p1)
+        self.pause_resume_button.add_callback(pause_resume)
+        self.jump_button_m1.add_callback(jump_m1)
+        self.loop_one_button.add_callback(loop_one)
+        self.loop_all_button.add_callback(loop_all)
 
-        view.add_item(stop_button)
-        view.add_item(jump_button_m1)
-        view.add_item(pause_resume_button)
-        view.add_item(jump_button_p1)
-        view.add_item(loop_one_button)
-        view.add_item(loop_all_button)
+        self.view.add_item(self.stop_button)
+        self.view.add_item(self.jump_button_m1)
+        self.view.add_item(self.pause_resume_button)
+        self.view.add_item(self.jump_button_p1)
+        self.view.add_item(self.loop_one_button)
+        self.view.add_item(self.loop_all_button)
+
+        # Refresh the view to update the buttons
+        self.refresh_view()
+
+    def refresh_view(self):
+        """Refresh the view"""
+        is_paused = self.client.is_paused() if self.client else False
+        self.pause_resume_button.label = PAUSE_BUTTON_LABEL if not is_paused else RESUME_BUTTON_LABEL
+        self.pause_resume_button.style = GREY if not is_paused else GREEN
+
+        self.loop_one_button.style = BLUE if self.queue.loop_one else GREY
+        self.loop_all_button.style = BLUE if self.queue.loop_all else GREY
+
+    async def print_message(self):
+        """Print a message with the embed"""
+        if not self.queue or not self.queue.get_current().song:
+            return
+        embed, file = await self.generate_embed()
+
+        files = [] if file is None else [file]
+        func = self.client.channel.send if self.message is None else self.message.edit
+        files_arg = 'files' if self.message is None else 'attachments'
+
+        self.setup_view()
 
         kwargs = {
             files_arg: files,
             'embed': embed,
-            'view': view,
+            'view': self.view,
             }
         try:
             self.message = await func(**kwargs)
         except Exception as e:
             logger.error(f'Error sending/editing message: {e}', exc_info=True)
             self.message = None
-
-
 
     async def generate_embed(self) -> tuple[discord.Embed, discord.File]:
         """Generate an embed for the current song"""
