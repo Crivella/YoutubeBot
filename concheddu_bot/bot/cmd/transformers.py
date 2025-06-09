@@ -156,7 +156,6 @@ server_playlist_cache: dict[int, list[m.YTSong]] = {}
 class SongTransformer(GenericObjectTransformer):
     klass = m.YTSong
     from_argument_function_name: str = 'from_search_string'
-    descr_name = 'title'
     query_filters = [
         lambda x: Q(original_title__icontains=x) | Q(manual_title__icontains=x),
     ]
@@ -175,6 +174,16 @@ class SongFilterTransformer(app_commands.Transformer):
     async def autocomplete(self, ctx: discord.Interaction, current: str):
         return [
             app_commands.Choice(name=flt.song_order_descr[k], value=k) for k in flt.song_order_map.keys()
+            if k.startswith(current)
+        ]
+
+class AnimeFilterTransformer(app_commands.Transformer):
+    async def transform(self, ctx: discord.Interaction, argument: str):
+        return argument
+
+    async def autocomplete(self, ctx: discord.Interaction, current: str):
+        return [
+            app_commands.Choice(name=flt.anime_order_descr[k], value=k) for k in flt.anime_order_map.keys()
             if k.startswith(current)
         ]
 
@@ -224,6 +233,19 @@ class AnimeCharacterTransformer(GenericObjectTransformer):
         lambda x: Q(name__icontains=x)
     ]
     map_attribute = 'mal_id'
+    # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
+    descr_function_name = 'get_str'
+
+class AnimeCollectionTransformer(GenericObjectTransformer):
+    klass = m.AnimeCollection
+    # from_argument_function_name: str = 'from_id'
+    list_filters = [
+        lambda c, cl: cl in c.name.lower()
+    ]
+    query_filters = [
+        lambda x: Q(name__icontains=x)
+    ]
+    map_attribute = 'id'
     # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
     descr_function_name = 'get_str'
 
