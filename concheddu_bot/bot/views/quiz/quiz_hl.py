@@ -14,6 +14,7 @@ from ..paged import AnimeCollectionOption, ListMultiSelect
 from ..utils import elide, logger
 from .utils import UserList, get_object_thumbnail
 
+QUIZ_LIMIT = 200
 
 class QuizHighLowRunner(discord.ui.View):
     """Quiz runner for high/low quiz game"""
@@ -138,10 +139,10 @@ class QuizHighLowRunner(discord.ui.View):
             q = q[:self.max_top] # limit to max_top objects
         else:
             q = q.order_by('?')
-            q = q[:100]  # limit to 3000 objects to avoid performance issues
+            q = q[:QUIZ_LIMIT]  # limit to 3000 objects to avoid performance issues
         objects = [o async for o in q.all()]
         random.shuffle(objects)
-        objects = objects[:100]
+        objects = objects[:QUIZ_LIMIT]
         if not objects:
             await safe_response(itc, f'No {self.object_type} found', ephemeral=True, delete_after=10)
             return
