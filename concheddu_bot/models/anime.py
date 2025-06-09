@@ -10,6 +10,7 @@ from jikanpy import AioJikan
 from jikanpy.exceptions import JikanException
 
 from .discord import DiscordServer, DiscordUser
+from .filters import get_all_animes
 from .image import ImageObj
 
 logger = logging.getLogger('bot')
@@ -105,11 +106,11 @@ class JikanFetchMixin:
         return await cls.from_jikan_data(data, force=force)
 
     @classmethod
-    async def from_string(cls, chara_str: str):
+    async def from_string(cls, obj_str: str):
         """Create an Anime instance from a string (title or URL)"""
-        if chara_str.isdigit():
-            return await cls.from_id(int(chara_str))
-        elif (m := cls.mal_rgx.match(chara_str)):
+        if obj_str.isdigit():
+            return await cls.from_id(int(obj_str))
+        elif (m := cls.mal_rgx.match(obj_str)):
             chara_id = m.group(1)
             if not chara_id.isdigit():
                 raise ValueError('MAL ID must be a number')
@@ -237,6 +238,32 @@ class AnimeObj(models.Model, JikanFetchMixin):
         logger.info(f'Fetched {len(animes)} anime entries from MyAnimeList')
         return animes
 
+    @classmethod
+    async def get_all_animes(
+            cls, *,
+            n: int = None,
+            sorting: str = 'favorites',
+            asc: str = None,
+            filter_title: str = None,
+        ) -> list['AnimeObj']:
+        """Return N animes from the collection with custom sorting
+        Args:
+            n (int, optional): Limit the number of results. Defaults to None.
+            sorting (str, optional): The sorting method. Defaults to 'favorites'.
+            asc (str, optional): Sort in ascending order. Defaults to server auto-detect.
+            filter_title (str, optional): Filter the animes by title. Defaults to None.
+        """
+        q = cls.objects
+
+        return await get_all_animes(
+            query=q,
+            limit=n,
+            sorting=sorting,
+            asc=asc,
+            filter_title=filter_title
+        )
+
+
     async def get_str(self, verbose: bool = False) -> str:
         """Get a string representation of the anime"""
         title = self.title_english if self.title_english else self.title
@@ -328,18 +355,6 @@ class AnimeObj(models.Model, JikanFetchMixin):
             await asyncio.sleep(API_DELAY)  # When used to fecth anime sequentially, avoid hitting Jikan API too fast
 
         return new
-
-    @classmethod
-    async def from_string(cls, anime_str: str):
-        """Create an Anime instance from a string (title or URL)"""
-        if anime_str.isdigit():
-            return await cls.from_id(int(anime_str))
-        elif mal_anime_rgx.match(anime_str):
-            return await cls.from_url(anime_str)
-        else:
-            # Assume it's a title
-            # Here you would typically search for the anime by title in an API
-            raise NotImplementedError('Searching by title is not implemented yet')
 
     async def get_thumbnail(self) -> ImageObj | None:
         """Get the thumbnail image for this anime"""
@@ -658,8 +673,8 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
 
 class AnimeCollectionThrough(models.Model):
     """Through model for AnimeCollection"""
-    anime = models.ForeignKey(AnimeObj, on_delete=models.CASCADE, related_name='collections')
-    collection = models.ForeignKey('AnimeCollection', on_delete=models.CASCADE, related_name='animes')
+    anime = models.ForeignKey(AnimeObj, on_delete=models.CASCADE, related_name='+')
+    collection = models.ForeignKey('AnimeCollection', on_delete=models.CASCADE, related_name='+')
 
     start_date = models.DateField(
         null=True, blank=True,
@@ -688,17 +703,90 @@ class AnimeCollection(models.Model):
     owner = models.ForeignKey(DiscordUser, on_delete=models.CASCADE, related_name='anime_collections_owned')
     server = models.ForeignKey(DiscordServer, on_delete=models.CASCADE, related_name='anime_collections')
 
+    animes = models.ManyToManyField(
+        AnimeObj, through=AnimeCollectionThrough, related_name='collections',
+        help_text='Animes in this collection'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, help_text='Creation date of the collection')
     updated_at = models.DateTimeField(auto_now=True, help_text='Last update date of the collection')
 
     def __str__(self):
         return self.name
 
+    async def get_str(self, verbose: bool = False) -> str:
+        """Get a string representation of the collection"""
+        return self.name
+
+    async def rename(self, new_name: str):
+        """Rename the collection"""
+        self.name = new_name
+        await self.asave()
+        logger.info(f'Renamed collection to {self.name}')
+
+    async def add_anime(
+            self,
+            anime: AnimeObj,
+            start_date: datetime.date = None, end_date: datetime.date = None,
+            score: int = None
+        ):
+        """Add an anime to the collection"""
+        if not isinstance(anime, AnimeObj):
+            raise ValueError('anime must be an instance of AnimeObj')
+
+        through_obj, created = await AnimeCollectionThrough.objects.aget_or_create(
+            anime=anime,
+            collection=self,
+            defaults={
+                'start_date': start_date,
+                'end_date': end_date,
+                'score': score
+            }
+        )
+        if created:
+            logger.info(f'Added {anime.title} to collection {self.name}')
+        return created
+
+    async def remove_anime(self, anime: AnimeObj):
+        """Remove an anime from the collection"""
+        if not isinstance(anime, AnimeObj):
+            raise ValueError('anime must be an instance of AnimeObj')
+
+        if not await AnimeCollectionThrough.objects.filter(anime=anime, collection=self).aexists():
+            return False  # Anime not in collection, nothing to remove
+
+        await AnimeCollectionThrough.objects.filter(anime=anime, collection=self).adelete()
+        return True
+
+    async def get_all_animes(
+            self, *,
+            n: int = None,
+            sorting: str = 'favorites',
+            asc: str = None,
+            filter_title: str = None
+        ) -> list[AnimeObj]:
+        """Get all animes in the collection with custom sorting
+        Args:
+            n (int, optional): Limit the number of results. Defaults to None.
+            sorting (str, optional): The sorting method. Defaults to 'favorites'.
+            asc (str, optional): Sort in ascending order. Defaults to server auto-detect.
+            filter_title (str, optional): Filter the animes by title. Defaults to None.
+        """
+        q = self.animes
+
+        return await get_all_animes(
+            query=q,
+            limit=n,
+            sorting=sorting,
+            asc=asc,
+            filter_title=filter_title
+            )
+
     @classmethod
     async def from_mal_xml(cls, xml_data: str, server: DiscordServer, user: DiscordUser):
         """Create an AnimeCollection from a MyAnimeList XML file"""
         try:
-            tree = ET.ElementTree(ET.fromstring(xml_data))
+            root = ET.fromstring(xml_data)
         except ET.ParseError as e:
             logger.error(f'Failed to parse XML data: {e}')
             raise ValueError('Invalid XML data format')
@@ -707,7 +795,7 @@ class AnimeCollection(models.Model):
         # except ET.ParseError as e:
         #     logger.error(f'Failed to parse XML file: {e}')
         #     raise ValueError('Invalid XML file format')
-        root = tree.getroot()
+        # root = tree.getroot()
 
         collection, created = await cls.objects.aupdate_or_create(
             name=f'{user.username}\'s Collection',

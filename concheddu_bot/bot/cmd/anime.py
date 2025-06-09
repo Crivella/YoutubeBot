@@ -8,6 +8,7 @@ from discord.ext import commands
 
 from ... import models as m
 from ...youtube import AUDIO_DIR
+from .. import views as v
 from ..utils import ensure_response, safe_response
 from . import transformers as tfs
 from .utils import call_command_register
@@ -135,7 +136,7 @@ class Anime(commands.GroupCog, group_name='anime'):
     @app_commands.command()
     @ensure_response()
     @call_command_register()
-    async def import_mal_xml(
+    async def collection_from_mal_xml(
             self, itc: discord.Interaction,
             xml_file: discord.Attachment
         ):
@@ -162,3 +163,65 @@ class Anime(commands.GroupCog, group_name='anime'):
         await safe_response(
             itc, f'Imported anime collection from XML file `{collection.name}`', ephemeral=True
             )
+
+    @app_commands.command()
+    @ensure_response()
+    @call_command_register()
+    async def collection_edit(
+            self, itc: discord.Interaction,
+            collection: app_commands.Transform[m.AnimeCollection, tfs.AnimeCollectionTransformer],
+            rename_to: str = None,
+            limit: app_commands.Transform[int, tfs.IntRangeTransformer(min=1)] = 200,
+            sorting: app_commands.Transform[str, tfs.AnimeFilterTransformer] = 'favorites',
+            filter_title: str = None,
+            ascending: bool = None,
+        ):
+        """Edit an existing anime collection
+
+        Args:
+            itc (discord.Interaction): The interaction context
+            collection (m.AnimeCollection): The anime collection to show
+            rename_to (str, optional): The new name for the collection. Defaults to None.
+            limit (int, optional): Limit the number of animes to show. Defaults to 200.
+            sorting (str, optional): Sorting option. Defaults to 'favorites'.
+            filter_title (str, optional): Filter the animes by title. Defaults to None.
+            ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
+        """
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        if collection.owner != user:
+            await safe_response(
+                itc,
+                'You can only edit your own anime collections',
+                ephemeral=True
+            )
+            return
+        # server = await m.DiscordServer.from_discord_guild(itc.guild)
+
+        all_anime = await m.AnimeObj.get_all_animes(
+            n=limit,
+            sorting=sorting,
+            filter_title=filter_title,
+            asc=ascending
+        )
+
+        clc_anime = await collection.get_all_animes(
+            sorting=sorting,
+            filter_title=filter_title,
+            asc=ascending
+        )
+
+        view = v.EditAnimeCollection(
+            itc,
+            collection=collection,
+            anime_Lst=all_anime,
+            defaults=clc_anime,
+            new_name=rename_to
+        )
+
+        await safe_response(
+            itc,
+            f'Edit the anime collection `{collection.name}`',
+            view=view,
+            ephemeral=True
+        )
+        await view.list.go_to_page(0)

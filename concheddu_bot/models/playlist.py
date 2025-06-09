@@ -1,5 +1,7 @@
 """Playlist model"""
 
+import logging
+
 import discord
 from django.db import models
 
@@ -8,6 +10,7 @@ from .discord import DiscordServer, DiscordUser
 from .through_objects import PlaylistThrough
 from .yt_song import YTSong
 
+logger = logging.getLogger('bot')
 
 class Playlist(models.Model):
     """Playlist model"""
@@ -50,6 +53,7 @@ class Playlist(models.Model):
         """Rename the playlist"""
         self.name = name
         await self.asave()
+        logger.info(f'Renamed playlist to {self.name}')
 
     async def get_all_songs(
             self,

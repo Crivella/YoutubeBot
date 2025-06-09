@@ -168,3 +168,95 @@ async def get_all_songs(
     res = [a async for a in res.all()]
 
     return res
+
+def anime_odby_title(queryset: m.QuerySet, asc: str = '') -> m.QuerySet:
+    """Filter queryset by title"""
+    logger.debug(f'Ordering queryset by title `{asc or "+"}`')
+    res = queryset
+    ord_func = m.functions.Lower('title')
+    ord_func = ord_func if asc == '' else ord_func.desc()
+    res = res.order_by(ord_func)
+    return res
+
+def anime_odby_episodes(queryset: m.QuerySet, asc: str = '-') -> m.QuerySet:
+    """Filter queryset by number of episodes"""
+    logger.debug(f'Ordering queryset by number of episodes `{asc or "+"}`')
+    res = queryset
+    res = res.order_by(f'{asc}num_episodes')
+    return res
+
+def anime_odby_random(queryset: m.QuerySet, asc: str = '') -> m.QuerySet:
+    """Filter queryset by random"""
+    logger.debug(f'Ordering queryset by random')
+    res = queryset
+    res = res.order_by('?')
+    return res
+
+def anime_odby_favorites(queryset: m.QuerySet, asc: str = '-') -> m.QuerySet:
+    """Filter queryset by number of favorites"""
+    logger.debug(f'Ordering queryset by number of favorites `{asc or "+"}`')
+    res = queryset
+    res = res.order_by(f'{asc}favorites')
+    return res
+
+def anime_odby_score(queryset: m.QuerySet, asc: str = '-') -> m.QuerySet:
+    """Filter queryset by score"""
+    logger.debug(f'Ordering queryset by score `{asc or "+"}`')
+    res = queryset
+    res = res.order_by(f'{asc}score')
+    return res
+
+anime_order_map = {
+    'favorites': anime_odby_favorites,
+    'score': anime_odby_score,
+    'random': anime_odby_random,
+    'title': anime_odby_title,
+    'episodes': anime_odby_episodes,
+}
+
+anime_order_descr = {
+    'title': 'Sort by title',
+    'episodes': 'Sort by number of episodes',
+    'favorites': 'Sort by number of favorites',
+    'score': 'Sort by score',
+    'random': 'Sort randomly',
+}
+
+async def get_all_animes(
+        query: m.QuerySet,
+        limit: int = None,
+        sorting: str = 'title',
+        asc: str = None,
+        filter_title: str = None,
+    ) -> m.QuerySet:
+    """Return N animes from the collection with custom sorting
+
+    Args:
+        query (m.QuerySet): The original query set of AnimeObj objects
+        limit (int, optional): Limit the number of results. Defaults to None.
+        sorting (str, optional): The sorting method. Defaults to 'title'.
+        asc (str, optional): The sorting direction. Defaults to None.
+        filter_title (str, optional): Filter by title. Defaults to None.
+
+    Returns:
+        m.QuerySet: The filtered / ordered queryset
+    """
+    if isinstance(query, m.QuerySet):
+        res = query
+    elif isinstance(query, m.Manager):
+        res = query.get_queryset()
+    else:
+        raise ValueError('Invalid queryset')
+    if filter_title:
+        res = res.filter(
+            m.Q(title__icontains=filter_title) |
+            m.Q(title_english__icontains=filter_title) |
+            m.Q(title_japanese__icontains=filter_title)
+        )
+    kwargs = {}
+    if asc is not None:
+        kwargs['asc'] = '' if asc else '-'
+    res = anime_order_map[sorting](res, **kwargs)
+    if limit:
+        res = res[:limit]
+    return [a async for a in res.all()]

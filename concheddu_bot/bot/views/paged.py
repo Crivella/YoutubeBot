@@ -6,17 +6,58 @@ from ..utils import ensure_response, safe_response, sense_check
 from .utils import MAX_LIST_OPT, elide, logger
 
 
-class SongOption(discord.SelectOption):
-    def __init__(self, song: m.YTSong, *args,**kwargs):
+class GeneralOption(discord.SelectOption):
+    _emoji = '🔧'  # Default emoji for general option
+    def __init__(self, obj, *args, **kwargs):
         super().__init__(
-            label=elide(song.title),
-            value=song.youtube_id,
-            description=f'[{song.duration} s] [{song.times_played} plays]',
-            # description=f'[{song.duration} s]',
-            emoji='🎵',
+            label=elide(self.get_label(obj)),
+            value=self.get_value(obj),
+            description=self.get_description(obj),
+            emoji=self.emoji,
             *args, **kwargs
         )
-        self.song = song
+        self.obj = obj
+
+    @staticmethod
+    def get_description(obj):
+        raise NotImplementedError('Subclasses must implement get_description method')
+
+    @staticmethod
+    def get_value(obj):
+        raise NotImplementedError('Subclasses must implement get_value method')
+
+    @staticmethod
+    def get_label(obj):
+        raise NotImplementedError('Subclasses must implement get_label method')
+
+
+class SongOption(GeneralOption):
+    _emoji = '🎵'
+    def get_label(self, song: m.YTSong):
+        return elide(song.title)
+    def get_value(self, song: m.YTSong):
+        return song.youtube_id
+    def get_description(self, song: m.YTSong):
+        return f'[{song.duration} s] [{song.times_played} plays]'
+
+class AnimeCollectionOption(GeneralOption):
+    _emoji = '📚'
+    def get_label(self, collection: m.AnimeCollection):
+        return elide(collection.name)
+    def get_value(self, collection: m.AnimeCollection):
+        return str(collection.id)
+    def get_description(self, collection: m.AnimeCollection):
+        # return f'[{collection.num_animes} animes]'
+        return ''
+
+class AnimeOption(GeneralOption):
+    _emoji = '📺'
+    def get_label(self, anime: m.AnimeObj):
+        return elide(anime.title)
+    def get_value(self, anime: m.AnimeObj):
+        return str(anime.id)
+    def get_description(self, anime: m.AnimeObj):
+        return f'{anime.num_episodes} episodes'
 
 class Paged:
     def __init__(self, view: discord.ui.View, *args, **kwargs):
@@ -102,7 +143,7 @@ class ListPlay(Paged, discord.ui.Select):
         self.follow_changes = False
 
         self.options_ = opts
-        self.songs_map = {opt.value: opt.song for opt in opts}
+        self.songs_map = {opt.value: opt.obj for opt in opts}
 
     @sense_check
     @ensure_response(before=False, defer=True)
@@ -115,12 +156,12 @@ class ListPlay(Paged, discord.ui.Select):
         await song.play(itc=itc)
 
 class ListMultiSelect(Paged, discord.ui.Select):
-    def __init__(self, songs: list[m.YTSong], defaults: list[m.YTSong] = None, *args, **kwargs):
+    def __init__(self, opt_type, objects: list, defaults: list = None, *args, **kwargs):
         defaults = defaults or []
-        logger.debug(f'ListMultiSelect: {len(songs)}')
-        opts = [SongOption(song) for song in songs]
+        logger.debug(f'ListMultiSelect: {len(objects)}')
+        opts = [opt_type(obj) for obj in objects]
         for opt in opts:
-            opt.default = opt.song in defaults
+            opt.default = opt.obj in defaults
         super().__init__(
             placeholder='Select a song to play',
             options=opts[:MAX_LIST_OPT],
@@ -128,7 +169,7 @@ class ListMultiSelect(Paged, discord.ui.Select):
         )
         self.follow_changes = True
         self.options_ = opts
-        self.songs_map = {opt.value: opt.song for opt in opts}
+        self.objects_map = {opt.value: opt.obj for opt in opts}
 
     @ensure_response(before=False, defer=True)
     async def callback(self, itc: discord.Interaction):

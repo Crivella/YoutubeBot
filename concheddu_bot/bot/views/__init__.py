@@ -1,3 +1,4 @@
+from .anime_collections import EditAnimeCollection
 from .list_songs import SongList
 from .playlist import DeletePlaylist, EditPlaylist
 from .quiz import QuizGuessCharacterRunner, QuizHighLowRunner, QuizSongs
@@ -9,5 +10,6 @@ __all__ = [
     'CreatePlaylist', 'DeletePlaylist', 'EditPlaylist',
     'QuizSongs', 'QuizSongsList',
     'QuizHighLowRunner',
-    'QuizGuessCharacterRunner'
+    'QuizGuessCharacterRunner',
+    'EditAnimeCollection',
 ]

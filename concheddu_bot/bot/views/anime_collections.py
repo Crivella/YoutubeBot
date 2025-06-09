@@ -3,23 +3,23 @@ import discord
 from ... import models as m
 from ..buttons import CallbackButton
 from ..utils import ensure_response, safe_response
-from .paged import ListMultiSelect, SongOption
+from .paged import AnimeOption, ListMultiSelect
 from .utils import MAX_LIST_OPT, logger
 
 
-class EditPlaylist(discord.ui.View):
+class EditAnimeCollection(discord.ui.View):
     def __init__(
             self,
             itc: discord.Interaction,
-            playlist: m.Playlist, songs: list[m.YTSong], defaults: list[m.YTSong] = None,
+            collection: m.AnimeCollection, anime_Lst: list[m.AnimeObj], defaults: list[m.AnimeObj] = None,
             new_name: str = None
         ):
         super().__init__()
         defaults = defaults or []
         self.itc = itc
-        self.playlist = playlist
+        self.collection = collection
 
-        if not songs:
+        if not anime_Lst:
             self.add_item(discord.ui.Button(
                 label='No songs found',
                 style=discord.ButtonStyle.secondary,
@@ -28,13 +28,13 @@ class EditPlaylist(discord.ui.View):
             return
 
         lst = defaults.copy()
-        for song in songs:
-            if song not in defaults:
-                lst.append(song)
+        for anime in anime_Lst:
+            if anime not in defaults:
+                lst.append(anime)
 
-        mv = min(MAX_LIST_OPT, len(songs))
+        mv = min(MAX_LIST_OPT, len(anime_Lst))
         self.list = ListMultiSelect(
-            SongOption,
+            AnimeOption,
             lst,
             defaults,
             row=1, min_values=0, max_values=mv,
@@ -42,20 +42,20 @@ class EditPlaylist(discord.ui.View):
         )
 
         async def submit_callback(itc: discord.Interaction):
-            logger.info(f'Editing playlist `{playlist.name}`:')
+            logger.info(f'Editing anime collection `{collection.name}`:')
             added = 0
             removed = 0
             for opt in self.list.options_:
                 if opt.default:
                     logger.debug(f'  PRESENT - {opt.obj.title}')
-                    added += await playlist.add_song(opt.obj)
+                    added += await collection.add_anime(opt.obj)
                 else:
                     logger.debug(f'  ABSENT - {opt.obj.title}')
-                    removed += await playlist.remove_song(opt.obj)
-            total = await playlist.songs.acount()
-            msg = [f'Playlist `{playlist.name}` edited ADDED: {added} - REMOVED: {removed} - TOTAL: {total}']
+                    removed += await collection.remove_anime(opt.obj)
+            total = await collection.animes.acount()
+            msg = [f'Collection `{collection.name}` edited ADDED: {added} - REMOVED: {removed} - TOTAL: {total}']
             if new_name:
-                await playlist.rename(new_name)
+                await collection.rename(new_name)
                 msg.append(f'Playlist renamed to `{new_name}`')
             self.clear_items()
             await safe_response(itc, '\n'.join(msg), view=None)
