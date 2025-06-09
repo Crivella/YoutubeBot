@@ -27,7 +27,8 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             self, itc: discord.Interaction,
             object_type: app_commands.Transform[str, tfs.ObjectTypeTransformer()],
             object_param: app_commands.Transform[str, tfs.ObjectParamTransformer()],
-            max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=5000)] = 0
+            max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=5000)] = 0,
+            max_failures: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=10)] = 3
         ):
         """Start a high/low quiz game.
 
@@ -36,13 +37,17 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             object_type (str): Must be one of the allowed object type
             object_param (str): Must be one of the allowed object param for the object type.
             max_top (int): Limit the items in the quiz to the top X items ordered by the object param.
+            max_failures (int): Maximum number of failures before the quiz ends. Defaults to 3.
         """
+        collections = [c async for c in m.AnimeCollection.objects.all()]
+
         view = v.QuizHighLowRunner(
             itc,
             object_type=object_type,
             object_param=object_param,
             max_top=max_top,
-            user=itc.user
+            max_failures=max_failures,
+            collections=collections,
         )
 
         server_id = itc.guild.id
@@ -57,6 +62,7 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
         view.on_finish.append(finish_callback)
 
         await safe_response(itc, 'Starting high/low quiz', view=view, ephemeral=True)
+        await view.select_collections.go_to_page(0)
 
     @app_commands.command()
     @ensure_response()

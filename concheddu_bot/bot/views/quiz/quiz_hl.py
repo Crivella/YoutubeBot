@@ -1,4 +1,6 @@
+import asyncio
 import random
+from collections import defaultdict
 from typing import Awaitable
 
 import discord
@@ -8,18 +10,24 @@ from ....models.quiz_hl import object_type_map
 from ... import get_current_bot
 from ...buttons import CallbackButton
 from ...utils import ensure_response, ensure_user, safe_response
+from ..paged import AnimeCollectionOption, ListMultiSelect
 from ..utils import elide, logger
-from .utils import get_object_thumbnail
+from .utils import UserList, get_object_thumbnail
 
 
 class QuizHighLowRunner(discord.ui.View):
+    """Quiz runner for high/low quiz game"""
+    CHANNEL_PREFIX = 'quiz-hl'
+
     def __init__(
             self,
             itc: discord.Interaction,
             object_type: str,
             object_param: str,
             max_top: int,
-            user: discord.Member | None = None,
+            max_failures: int = 3,
+            # user: discord.Member | None = None,
+            collections: list[m.AnimeCollection] = None,
         ):
         super().__init__()
         self.itc = itc
@@ -27,11 +35,21 @@ class QuizHighLowRunner(discord.ui.View):
         self.orig_channel = self.channel = itc.channel
         self.quiz_obj: m.QuizHighLow = None
         self.object_map: dict = {}
+        self.max_failures = max_failures
 
         self.object_type = object_type
         self.object_param = object_param
         self.max_top = max_top
 
+        users = self.itc.user.voice.channel.members
+
+        self.select_users = UserList(users, min_values=1, max_values=len(users))
+        collections = collections or []
+        self.select_collections = ListMultiSelect(
+            AnimeCollectionOption,
+            collections,
+            view=self
+        )
         self.start = CallbackButton(
             label='Start Quiz',
             style=discord.ButtonStyle.primary
@@ -39,24 +57,32 @@ class QuizHighLowRunner(discord.ui.View):
 
         self.start.add_callback(self.submit_quiz)
 
+        self.add_item(self.select_users)
+        self.add_item(self.select_collections)
         self.add_item(self.start)
 
         self.objects: list = None
         self.object_score_map: dict[int, int] = {}
 
         self.idx = 0
+        self.offset = 0  # Offset for the current user to account eliminated users
         self.id1 = 0  # Id for the first object
         self.id2 = 0  # Id for the second object
 
-
+        self.creator: m.DiscordUser = None
+        self.lives: dict[int, int] = {}
         self.score: dict[int, int] = {}
         self.answers: list[bool] = []
+        self.user_answers: dict[int, list[bool]] = defaultdict(list)
 
         self.play_view = discord.ui.View()
         self.play_message: discord.Message = None
 
-        self.player: discord.Member = user
-        self.user: m.DiscordUser = None
+        # self.player: discord.Member = user
+        self.users: list[discord.Member] = []
+        self.alive_users: list[discord.Member] = []
+        self.user_map: dict[int, m.DiscordUser] = {}
+        self.user_collections: dict[int, m.AnimeCollection] = defaultdict(discord.Color.random)
         self.server: m.DiscordServer = None
 
         self.scoreboard: discord.Message = None
@@ -73,12 +99,40 @@ class QuizHighLowRunner(discord.ui.View):
             itc (discord.Interaction): Interaction
             num_songs (int, optional): The number of songs to pick from the playlist. Defaults to 20.
         """
+        self.users = users = self.select_users.get_users()
+        self.alive_users = users.copy()
+        self.lives = {user.id: self.max_failures for user in users}
+        for user in users:
+            user_obj = await m.DiscordUser.from_discord_user(user)
+            self.user_map[user.id] = user_obj
+        self.score = {user.id: 0 for user in users}
+        random.shuffle(users)
+
+        if not users:
+            await safe_response(itc, 'No users selected', ephemeral=True, delete_after=10)
+            return
+
         object_cls = object_type_map.get(self.object_type, None)
         if object_cls is None:
             await safe_response(itc, f'Invalid object type: {self.object_type}', ephemeral=True, delete_after=10)
             return
 
+        collections = self.select_collections.get_objects()
+
         q = object_cls.objects
+
+        if collections:
+            collection_ids = [c.id for c in collections]
+            if self.object_type == 'anime_character':
+                # For characters, we need to filter by collection
+                q = q.filter(animes__collections__id__in=collection_ids)
+            elif self.object_type == 'anime':
+                # For other object types, we can filter directly by collection
+                q = q.filter(collections__id__in=collection_ids)
+            else:
+                raise ValueError(f'Unsupported object type: {self.object_type}')
+            q = q.distinct()  # Ensure unique objects
+
         if self.max_top > 0:
             q = q.order_by(f'-{self.object_param}')  # order by the object parameter in descending order
             q = q[:self.max_top] # limit to max_top objects
@@ -104,29 +158,59 @@ class QuizHighLowRunner(discord.ui.View):
 
         logger.info(f'Found {len(objects)} objects of type {self.object_type} with parameter {self.object_param}')
 
-        self.score = {self.player.id: 0}
+        # self.score = {self.player.id: 0}
 
-        self.user = await m.DiscordUser.from_discord_user(self.player)
-        self.server = server = await m.DiscordServer.from_discord_guild(itc.guild)
+        # self.user = await m.DiscordUser.from_discord_user(self.player)
+        self.creator = await m.DiscordUser.from_discord_user(itc.user)
+        self.server = await m.DiscordServer.from_discord_guild(itc.guild)
 
         self.quiz_obj = await m.QuizHighLow.objects.acreate(
             object_type=self.object_type,
             object_param=self.object_param,
             num_objects=len(objects),
             max_top=self.max_top,
+            max_failures=self.max_failures,
 
-            player=self.user,
-            server=server,
+            # player=self.user,
+            creator=self.creator,
+            server=self.server,
 
             object_choice_ids=self.objects,
         )
 
+        for user in self.users:
+            user = await m.DiscordUser.from_discord_user(user)
+            await self.quiz_obj.players.aadd(user)
+        if collections:
+            await self.quiz_obj.collections.aadd(*collections)
+
         for callback in self.on_start:
             await callback(self.quiz_obj)
 
+
+        # Create a new text channel and add only the users that are participating in the quiz
+        new_channel = await itc.guild.create_text_channel(
+            name=f'{self.CHANNEL_PREFIX}-{self.quiz_obj.id}',
+            category=itc.channel.category,
+            overwrites={
+                itc.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                **{user: discord.PermissionOverwrite(read_messages=True) for user in users},
+                self.bot.user: discord.PermissionOverwrite(
+                    read_messages=True,
+                    send_messages=True,
+                    embed_links=True,
+                    attach_files=True,
+                    manage_channels=True,
+                    # https://github.com/discord/discord-api-docs/issues/2520
+                    # manage_permissions=True,
+                )
+            }
+        )
+        self.channel = new_channel
+
         self.id2 = self.objects[0]
         self.idx = 1
-        self.channel = itc.channel
+        # self.channel = itc.channel
 
         embed = discord.Embed(
             title='Quiz started',
@@ -142,6 +226,8 @@ class QuizHighLowRunner(discord.ui.View):
         if self.idx >= len(self.objects):
             return await self.quiz_finish()
 
+        user = self.alive_users.pop(0)
+        user_obj = self.user_map[user.id]
         self.play_view.clear_items()
 
         self.id1 = self.id2
@@ -160,34 +246,43 @@ class QuizHighLowRunner(discord.ui.View):
 
         async def process_guess(correct: bool):
             """Process the guess and update the score"""
+            self.answers.append(correct)
+            self.user_answers[user.id].append(correct)
             if not correct:
-                await self.quiz_finish()
+                self.lives[user.id] -= 1
             else:
-                self.score[self.player.id] += 1
-                self.idx += 1
-                await self.quiz_step()
+                self.score[user.id] += 1
+            if self.lives[user.id] > 0:
+                self.alive_users.append(user)
+            else:
+                logger.info(f'User {user.name} has no lives left in quiz {self.quiz_obj.id}')
+                if len(self.alive_users) <= 0:
+                    await self.quiz_finish()
+                    return
+            self.idx += 1
+            await self.quiz_step()
 
         @ensure_response(before=False, defer=True)
-        @ensure_user(users=[self.player], defer=True)
+        @ensure_user(users=[user], defer=True)
         async def high_guess(itc: discord.Interaction):
             """Guess that the first object has a higher score"""
             correct = await self.quiz_obj.guess(
                 id1=self.id1,
                 id2=self.id2,
                 guess_direction=1,
-                user=self.user
+                user=user_obj
             )
             await process_guess(correct)
 
         @ensure_response(before=False, defer=True)
-        @ensure_user(users=[self.player], defer=True)
+        @ensure_user(users=[user], defer=True)
         async def low_guess(itc: discord.Interaction):
             """Guess that the first object has a lower score"""
             correct = await self.quiz_obj.guess(
                 id1=self.id1,
                 id2=self.id2,
                 guess_direction=-1,
-                user=self.user
+                user=user_obj
             )
             await process_guess(correct)
 
@@ -199,9 +294,9 @@ class QuizHighLowRunner(discord.ui.View):
         view.add_item(self.lower_btn)
         self.play_view = view
 
-        await self.step_message(view=view)
+        await self.step_message(view=view, user=user)
 
-    async def step_message(self, view=None, reveal_last=False):
+    async def step_message(self, view=None, user=None, reveal_last=False):
         """Generate/update the message for the current quiz step"""
         item1 = self.object_map[self.id1]
         item2 = self.object_map[self.id2]
@@ -247,6 +342,10 @@ class QuizHighLowRunner(discord.ui.View):
             'view': view
         }
 
+        if user is not None:
+            kwargs['allowed_mentions'] = discord.AllowedMentions(users=[user])
+            kwargs['content'] = f'{user.mention} {kwargs["content"]}'
+
         if self.play_message is None:
             logger.debug(f'Sending new play message for quiz {self.quiz_obj.id}')
             self.play_message = await self.channel.send(**kwargs)
@@ -268,6 +367,16 @@ class QuizHighLowRunner(discord.ui.View):
         self.embed_score(embed)
         await self.orig_channel.send(embed=embed)
 
+        if self.channel is not None and self.orig_channel != self.channel and self.channel.name.startswith(self.CHANNEL_PREFIX):
+            try:
+                await asyncio.sleep(10)
+                await self.channel.delete()
+            except discord.Forbidden:
+                logger.warning(f'Could not delete channel {self.channel.name}, missing permissions')
+            except discord.NotFound:
+                logger.warning(f'Channel {self.channel.name} not found, already deleted?')
+            self.channel = self.orig_channel
+
         for callback in self.on_finish:
             await callback()
         await safe_response(self.itc, 'Quiz finished!!!')
@@ -283,7 +392,8 @@ class QuizHighLowRunner(discord.ui.View):
             f'- Object parameter: {self.object_param}',
             f'- Number of objects: {len(self.objects)}',
             f'- Max top: {self.max_top}' if self.max_top > 0 else '- Random order',
-            f'- Started by: {self.player.name}',
+            f'- Max failures: {self.max_failures}',
+            f'- Started by: {self.creator.username}',
         ]
 
     def embed_details(self, embed: discord.Embed):
@@ -294,13 +404,35 @@ class QuizHighLowRunner(discord.ui.View):
             inline=False
         )
 
-    def embed_score(self, embed: discord.Embed):
+    def embed_score(self, embed: discord.Embed, sort: bool = True):
         """Embed the score in the given embed
 
         Args:
             embed (discord.Embed): The embed to add the score to
         """
-        embed.add_field(name='Score', value=f'- {self.player.name}: {self.score[self.player.id]} points', inline=False)
+        if sort:
+            lst = sorted(self.users, key=lambda user: self.score[user.id])[::-1]
+        else:
+            lst = self.users
+
+        emoji_map = {
+            None: '❔',
+            False: '❌',
+            True: '✅',
+            1: '✅',
+            0: '❌',
+        }
+        for user in lst:
+            val = ''
+            for ans in self.user_answers[user.id]:
+                val += emoji_map[ans]
+            lives = '❤️' * self.lives[user.id] if self.lives[user.id] > 0 else '💀'
+            embed.add_field(
+                name=f'{user.name} [{self.score[user.id]} points] ({lives})',
+                value=val,
+                inline=True
+            )
+        # embed.add_field(name='Score', value=f'- {self.player.name}: {self.score[self.player.id]} points', inline=False)
 
     async def on_timeout(self):
         try:

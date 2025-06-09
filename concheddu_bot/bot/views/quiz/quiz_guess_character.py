@@ -63,7 +63,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
         self.users: list[discord.Member] = []
         self.user_map: dict[int, discord.Member] = {}
         self.user_colors: dict[int, discord.Color] = defaultdict(discord.Color.random)
-        self.characters: list = [m.AnimeCharacter]
+        self.characters: list[m.AnimeCharacter] = []
         self.score: dict[int, int] = {}
         self.answers: list[bool] = []
         self.user_answers: dict[int, list[bool]] = defaultdict(list)

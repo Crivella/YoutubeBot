@@ -29,9 +29,13 @@ class QuizHighLow(models.Model):
     object_param = models.CharField(max_length=64, null=True, blank=True)
     num_objects = models.IntegerField(default=0)
     max_top = models.IntegerField(default=0)
+    max_failures = models.IntegerField(default=1)
 
     server = models.ForeignKey('DiscordServer', on_delete=models.CASCADE)
-    player = models.ForeignKey('DiscordUser', on_delete=models.CASCADE, related_name='quiz_highlow')
+    creator = models.ForeignKey('DiscordUser', on_delete=models.CASCADE, related_name='quiz_highlow')
+
+    players = models.ManyToManyField('DiscordUser', related_name='quiz_highlow_players')
+    collections = models.ManyToManyField('AnimeCollection', related_name='quiz_highlow_collections', blank=True)
 
     object_choice_ids = models.JSONField()
 
