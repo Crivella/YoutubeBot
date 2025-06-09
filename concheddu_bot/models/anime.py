@@ -731,7 +731,7 @@ class AnimeCollection(models.Model):
             else:
                 end_date = None
 
-            anime_obj = await AnimeObj.from_id(mal_id, force=True)
+            anime_obj = await AnimeObj.from_id(mal_id)
             if anime_obj is None:
                 logger.warning(f'Anime with MAL ID {mal_id} not found, skipping')
                 continue
