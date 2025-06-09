@@ -38,6 +38,8 @@ def serialize(app):
         return f'{app.__class__.__name__}<{app.pk}>'
     elif isinstance(app, (discord.User, discord.Member)):
         return f'{app.__class__.__name__}<{app.id}>'
+    elif isinstance(app, discord.Attachment):
+        return f'{app.__class__.__name__}<{app.id}:{app.filename}>'
     return app
 
 def recursive_serialize(obj):

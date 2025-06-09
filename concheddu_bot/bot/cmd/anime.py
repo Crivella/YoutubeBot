@@ -1,8 +1,6 @@
 """Anime commands for the bot"""
-import asyncio
 import logging
 import os
-import sys
 
 import discord
 from discord import app_commands
@@ -118,8 +116,6 @@ class Anime(commands.GroupCog, group_name='anime'):
         logger.info(f'Found {len(res)} anime in top {num}')
         await safe_response(itc, f'Imported {len(res)} anime', ephemeral=True)
 
-
-
     # @app_commands.command()
     # @ensure_response()
     # @call_command_register()
@@ -135,3 +131,34 @@ class Anime(commands.GroupCog, group_name='anime'):
     #         embed.add_field(name=anime.title, value=f'ID: {anime.id}', inline=False)
 
     #     await itc.response.send_message(embed=embed)
+
+    @app_commands.command()
+    @ensure_response()
+    @call_command_register()
+    async def import_mal_xml(
+            self, itc: discord.Interaction,
+            xml_file: discord.Attachment
+        ):
+        """Import an anime collection from a MyAnimeList XML file
+
+        Args:
+            itc (discord.Interaction): The interaction context
+            xml_file (discord.Attachment): The XML file to import
+        """
+
+        user = await m.DiscordUser.from_discord_user(itc.user)
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+
+        bytes_data = await xml_file.read()
+        str_data = bytes_data.decode('utf-8')
+
+        try:
+            collection = await m.AnimeCollection.from_mal_xml(str_data, server=server, user=user)
+        except ValueError as e:
+            logger.error(f'Failed to import anime collection from XML: {e}')
+            await safe_response(itc, f'Failed to import anime collection: {e}', ephemeral=True)
+            return
+
+        await safe_response(
+            itc, f'Imported anime collection from XML file `{collection.name}`', ephemeral=True
+            )

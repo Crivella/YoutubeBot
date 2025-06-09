@@ -2,12 +2,14 @@ import asyncio
 import datetime
 import logging
 import re
+import xml.etree.ElementTree as ET
 
 import discord
 from django.db import models
 from jikanpy import AioJikan
 from jikanpy.exceptions import JikanException
 
+from .discord import DiscordServer, DiscordUser
 from .image import ImageObj
 
 logger = logging.getLogger('bot')
@@ -653,3 +655,96 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
         embed.add_field(name='Animes', value=anime_msg, inline=False)
 
         return embed, file
+
+class AnimeCollectionThrough(models.Model):
+    """Through model for AnimeCollection"""
+    anime = models.ForeignKey(AnimeObj, on_delete=models.CASCADE, related_name='collections')
+    collection = models.ForeignKey('AnimeCollection', on_delete=models.CASCADE, related_name='animes')
+
+    start_date = models.DateField(
+        null=True, blank=True,
+        help_text='Date started watching the anime in this collection'
+    )
+    end_date = models.DateField(
+        null=True, blank=True,
+        help_text='Date finished watching the anime in this collection'
+    )
+
+    score = models.IntegerField(
+        null=True, blank=True,
+        help_text='Score given to the anime in this collection'
+    )
+
+    cdate = models.DateTimeField(auto_now=True, help_text='Date when the collection was last updated')
+    class Meta:
+        unique_together = ('anime', 'collection')
+
+    def __str__(self):
+        return f'{self.anime.title} in {self.collection.name}'
+
+class AnimeCollection(models.Model):
+    """Anime Collection model"""
+    name = models.CharField(max_length=255, help_text='Name of the anime collection')
+    owner = models.ForeignKey(DiscordUser, on_delete=models.CASCADE, related_name='anime_collections_owned')
+    server = models.ForeignKey(DiscordServer, on_delete=models.CASCADE, related_name='anime_collections')
+
+    created_at = models.DateTimeField(auto_now_add=True, help_text='Creation date of the collection')
+    updated_at = models.DateTimeField(auto_now=True, help_text='Last update date of the collection')
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    async def from_mal_xml(cls, xml_data: str, server: DiscordServer, user: DiscordUser):
+        """Create an AnimeCollection from a MyAnimeList XML file"""
+        try:
+            tree = ET.ElementTree(ET.fromstring(xml_data))
+        except ET.ParseError as e:
+            logger.error(f'Failed to parse XML data: {e}')
+            raise ValueError('Invalid XML data format')
+        # try:
+        #     tree = ET.parse(xml_file)
+        # except ET.ParseError as e:
+        #     logger.error(f'Failed to parse XML file: {e}')
+        #     raise ValueError('Invalid XML file format')
+        root = tree.getroot()
+
+        collection, created = await cls.objects.aupdate_or_create(
+            name=f'{user.username}\'s Collection',
+            server=server,
+            owner=user
+        )
+
+        for anime in root.findall('anime'):
+            mal_id = int(anime.find('series_animedb_id').text)
+            start_date = anime.find('my_start_date').text
+            end_date = anime.find('my_finish_date').text
+            score = int(anime.find('my_score').text)
+            if score == 0:
+                score = None
+            if start_date != '0000-00-00':
+                start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            else:
+                start_date = None
+            if end_date != '0000-00-00':
+                end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            else:
+                end_date = None
+
+            anime_obj = await AnimeObj.from_id(mal_id, force=True)
+            if anime_obj is None:
+                logger.warning(f'Anime with MAL ID {mal_id} not found, skipping')
+                continue
+
+            through_obj, _ = await AnimeCollectionThrough.objects.aget_or_create(
+                anime=anime_obj,
+                collection=collection,
+                defaults={
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'score': score
+                }
+            )
+            logger.info(f'Added {anime_obj.title} to collection {collection.name}')
+
+        return collection
