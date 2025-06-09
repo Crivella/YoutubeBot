@@ -132,7 +132,7 @@ class GenericObjectTransformer(app_commands.Transformer):
         return [
             app_commands.Choice(
                 # name=f'[{s.duration}] {elide(s.title, 50)}',
-                name=await getattr(obj, self.descr_function_name)(self.verbose),
+                name=elide(await getattr(obj, self.descr_function_name)(self.verbose), length=90),
                 value=str(getattr(obj, self.map_attribute))
             )
             for obj in objects
