@@ -188,7 +188,7 @@ class Anime(commands.GroupCog, group_name='anime'):
             ascending (bool, optional): Sort in ascending order. Defaults to server auto-detect.
         """
         user = await m.DiscordUser.from_discord_user(itc.user)
-        if collection.owner != user:
+        if collection.owner_id != user.id:
             await safe_response(
                 itc,
                 'You can only edit your own anime collections',
