@@ -57,7 +57,7 @@ class AnimeOption(GeneralOption):
     def get_value(self, anime: m.AnimeObj):
         return str(anime.id)
     def get_description(self, anime: m.AnimeObj):
-        return f'{anime.num_episodes} episodes'
+        return f'{anime.num_episodes} eps - {anime.favorites} favs - {anime.score} score'
 
 class Paged:
     def __init__(self, view: discord.ui.View, *args, **kwargs):
