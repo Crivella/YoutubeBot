@@ -85,6 +85,7 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=40)] = 10,
             max_top: app_commands.Transform[int, tfs.IntRangeTransformer(min=0, max=10000)] = 0,
             max_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=5000)] = 500,
+            max_anime_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=5000)] = 1000,
             min_favorites: app_commands.Transform[int, tfs.IntRangeTransformer(min=-1)] = -1,
             max_favorites: app_commands.Transform[int, tfs.IntRangeTransformer(min=-1)] = -1,
             ):
@@ -95,29 +96,43 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             num (int): The number of characters to guess per user. Defaults to 10.
             max_top (int): Limit the items in the quiz to the top X items ordered by favorites.
             max_choices (int): The maximum number of choices to show for each character. Defaults to 20.
+            max_anime_choices (int): The maximum number of anime choices to show. Defaults to 1000.
+            min_favorites (int): Minimum number of favorites for the characters to be included. Defaults to -1 (no limit).
+            max_favorites (int): Maximum number of favorites for the characters to be included. Defaults to -1 (no limit).
         """
+        collections = [c async for c in m.AnimeCollection.objects.all()]
+
         view = v.QuizGuessCharacterRunner(
             itc,
             num_items=num,
             max_top=max_top,
             max_choices=max_choices,
+            max_anime_choices=max_anime_choices,
             min_favorites=min_favorites,
             max_favorites=max_favorites,
+            collections=collections,
         )
 
         server_id = itc.guild.id
 
-        async def start_callback(char: list[m.AnimeCharacter], all_char: list[m.AnimeCharacter], quiz: m.QuizSong):
+        async def start_callback(
+                char: list[m.AnimeCharacter], all_char: list[m.AnimeCharacter],
+                all_anime: list[m.AnimeObj],
+                quiz: m.QuizSong
+            ):
             tfs.AnimeCharacterTransformer.register_cache(server_id, all_char)
+            tfs.AnimeTransformer.register_cache(server_id, all_anime)
             current_quiz_gc[server_id] = view
         view.on_start.append(start_callback)
 
         async def finish_callback():
             tfs.AnimeCharacterTransformer.remove_cache(server_id)
+            tfs.AnimeTransformer.remove_cache(server_id)
             current_quiz_gc.pop(server_id, None)
         view.on_finish.append(finish_callback)
 
         await safe_response(itc, 'Starting high/low quiz', view=view, ephemeral=True)
+        await view.select_collections.go_to_page(0)
 
     @app_commands.command()
     @ensure_response()
@@ -128,7 +143,7 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
                 m.AnimeCharacter, tfs.AnimeCharacterTransformer(from_cache=True, verbose=True)
             ] = None,
             anime: app_commands.Transform[
-                m.AnimeObj, tfs.AnimeTransformer(verbose=True)
+                m.AnimeObj, tfs.AnimeTransformer(from_cache=True, verbose=True)
             ] = None
             ):
         """List the quizzes"""

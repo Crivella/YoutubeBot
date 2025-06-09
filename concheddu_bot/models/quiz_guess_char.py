@@ -22,8 +22,16 @@ class QuizAnimeCharacter(models.Model):
     num_objects = models.IntegerField(default=0)
     max_top = models.IntegerField(default=0)
     max_choices = models.IntegerField(default=0)
+    max_anime_choices = models.IntegerField(default=0)
     min_favorites = models.IntegerField(default=-1)
     max_favorites = models.IntegerField(default=-1)
+
+    collections = models.ManyToManyField(
+        'AnimeCollection',
+        related_name='quiz_anime_characters',
+        blank=True,
+        help_text='Collections to filter the characters from'
+    )
 
     server = models.ForeignKey('DiscordServer', on_delete=models.CASCADE)
     creator = models.ForeignKey('DiscordUser', on_delete=models.CASCADE)

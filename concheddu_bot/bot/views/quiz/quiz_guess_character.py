@@ -9,6 +9,7 @@ from .... import models as m
 from ... import get_current_bot
 from ...buttons import CallbackButton
 from ...utils import ensure_response, ensure_user, safe_response
+from ..paged import AnimeCollectionOption, ListMultiSelect
 from ..utils import elide, logger
 from .utils import SKIP_TITLES, UserList, get_object_thumbnail
 
@@ -21,8 +22,10 @@ class QuizGuessCharacterRunner(discord.ui.View):
             num_items: int = 5,
             max_top: int = 1000,
             max_choices: int = 1000,
+            max_anime_choices: int = 1000,
             min_favorites: int = -1,
             max_favorites: int = -1,
+            collections: list[m.AnimeCollection] = None,
         ):
         super().__init__()
         self.itc = itc
@@ -31,12 +34,20 @@ class QuizGuessCharacterRunner(discord.ui.View):
         self.num_items = num_items
         self.max_top = max_top
         self.max_choices = max_choices
+        self.max_anime_choices = max_anime_choices
         self.min_favorites = min_favorites
         self.max_favorites = max_favorites
 
         users = self.itc.user.voice.channel.members
 
         self.select_users = UserList(users, min_values=1, max_values=len(users))
+        if collections is None:
+            collections = []
+        self.select_collections = ListMultiSelect(
+            AnimeCollectionOption,
+            collections,
+            view=self,
+        )
         self.start = CallbackButton(
             label='Start Quiz',
             style=discord.ButtonStyle.primary
@@ -45,6 +56,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
         self.start.add_callback(self.submit_quiz)
 
         self.add_item(self.select_users)
+        self.add_item(self.select_collections)
         self.add_item(self.start)
 
         self.idx = 0
@@ -81,6 +93,19 @@ class QuizGuessCharacterRunner(discord.ui.View):
             return
 
         q = m.AnimeCharacter.objects.get_queryset()
+
+        collections = self.select_collections.get_objects()
+
+        if collections:
+            # Get only characters belonging to animes in the selected collections
+            logger.info(f'Filtering characters by collections: {collections}')
+            # num_chara = await q.acount()
+            # logger.info(f'Found {num_chara} characters in total before filtering by collections')
+            collection_ids = [collection.id for collection in collections]
+            q = q.filter(animes__collections__id__in=collection_ids)
+            q = q.distinct()  # Ensure we don't get duplicates
+            # num_chara = await q.acount()
+            # logger.info(f'Found {num_chara} characters in total after filtering by collections')
         q = q.order_by('-favorites')
         if self.max_top > 0:
             q = q[:self.max_top]
@@ -110,6 +135,15 @@ class QuizGuessCharacterRunner(discord.ui.View):
             self.all_characters = random.sample(characters, self.max_choices)
         self.characters = random.sample(self.all_characters, needed)
 
+        if self.max_anime_choices > 0:
+            animes = set(await m.AnimeObj.get_all_animes(n=self.max_anime_choices, sorting='random'))
+            for char in self.characters:
+                animes.add(await char.get_main_anime())
+        else:
+            animes = [a async for a in m.AnimeObj.objects.all()]
+
+        self.all_animes = list(animes)
+
         self.users = users
         self.user_map = {user.id: user for user in users}
         self.score = {user.id: 0 for user in users}
@@ -129,16 +163,23 @@ class QuizGuessCharacterRunner(discord.ui.View):
             num_objects=len(self.characters),
             max_top=self.max_top,
             max_choices=self.max_choices,
+            max_anime_choices=self.max_anime_choices,
             min_favorites=self.min_favorites,
             max_favorites=self.max_favorites,
 
             object_choice_ids=[char.id for char in self.characters],
         )
+        if collections:
+            await self.quiz_obj.collections.aadd(*collections)
         for user in users:
             await self.quiz_obj.players.aadd(await m.DiscordUser.from_discord_user(user))
 
         for callback in self.on_start:
-            await callback(self.characters, self.all_characters, self.quiz_obj)
+            await callback(
+                self.characters, self.all_characters,
+                self.all_animes,
+                self.quiz_obj,
+            )
 
         # Create a new text channel and add only the users that are participating in the quiz
         new_channel = await itc.guild.create_text_channel(

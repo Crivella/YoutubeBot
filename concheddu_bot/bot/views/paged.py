@@ -8,6 +8,7 @@ from .utils import MAX_LIST_OPT, elide, logger
 
 class GeneralOption(discord.SelectOption):
     _emoji = '🔧'  # Default emoji for general option
+    obj_descr = None
     def __init__(self, obj, *args, **kwargs):
         super().__init__(
             label=elide(self.get_label(obj)),
@@ -33,6 +34,8 @@ class GeneralOption(discord.SelectOption):
 
 class SongOption(GeneralOption):
     _emoji = '🎵'
+    obj_descr ='YTSong'
+
     def get_label(self, song: m.YTSong):
         return elide(song.title)
     def get_value(self, song: m.YTSong):
@@ -42,6 +45,8 @@ class SongOption(GeneralOption):
 
 class AnimeCollectionOption(GeneralOption):
     _emoji = '📚'
+    obj_descr = 'AnimeCollection'
+
     def get_label(self, collection: m.AnimeCollection):
         return elide(collection.name)
     def get_value(self, collection: m.AnimeCollection):
@@ -52,6 +57,8 @@ class AnimeCollectionOption(GeneralOption):
 
 class AnimeOption(GeneralOption):
     _emoji = '📺'
+    obj_descr = 'AnimeObj'
+
     def get_label(self, anime: m.AnimeObj):
         return elide(anime.title)
     def get_value(self, anime: m.AnimeObj):
@@ -156,14 +163,20 @@ class ListPlay(Paged, discord.ui.Select):
         await song.play(itc=itc)
 
 class ListMultiSelect(Paged, discord.ui.Select):
-    def __init__(self, opt_type, objects: list, defaults: list = None, *args, **kwargs):
+    def __init__(
+            self,
+            opt_type: GeneralOption,
+            objects: list,
+            defaults: list = None,
+            *args, **kwargs
+        ):
         defaults = defaults or []
         logger.debug(f'ListMultiSelect: {len(objects)}')
         opts = [opt_type(obj) for obj in objects]
         for opt in opts:
             opt.default = opt.obj in defaults
         super().__init__(
-            placeholder='Select a song to play',
+            placeholder=f'Select a {opt_type.obj_descr} to play',
             options=opts[:MAX_LIST_OPT],
             *args, **kwargs
         )
@@ -176,6 +189,10 @@ class ListMultiSelect(Paged, discord.ui.Select):
         values = set(self.values)
         for opt in self.options_[self.page * MAX_LIST_OPT:(self.page + 1) * MAX_LIST_OPT]:
             opt.default = opt.value in values
+
+    def get_objects(self) -> list:
+        """Get the selected objects from the current page."""
+        return [opt.obj for opt in self.options_ if opt.default]
 
 class ListQuiz(Paged, discord.ui.Select):
     def __init__(self, quizes: list[m.QuizSong], *args, **kwargs):
