@@ -736,7 +736,7 @@ class AnimeCollection(models.Model):
                 logger.warning(f'Anime with MAL ID {mal_id} not found, skipping')
                 continue
 
-            through_obj, _ = await AnimeCollectionThrough.objects.aget_or_create(
+            through_obj, _ = await AnimeCollectionThrough.objects.aupdate_or_create(
                 anime=anime_obj,
                 collection=collection,
                 defaults={
