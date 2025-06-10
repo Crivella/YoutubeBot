@@ -62,6 +62,7 @@ class GenericObjectTransformer(app_commands.Transformer):
     from_argument_function_name: str = None
     list_filters = []
     query_filters = []
+    exact_query_filter = None
     map_attribute = None
     descr_function_name = None
 
@@ -130,17 +131,18 @@ class GenericObjectTransformer(app_commands.Transformer):
                 q = q.filter(filter(current))
             cnt = await q.acount()
             if cnt > MAX_AUTO_COMPLETE:
-                q  = q.filter(
-                    **{self.map_attribute: current}
-                )
-                if await q.aexists():
-                    obj = await q.afirst()
-                return [
-                    app_commands.Choice(
-                        name=elide(await getattr(obj, self.descr_function_name)(self.verbose), length=90),
-                        value=str(getattr(obj, self.map_attribute))
-                    )
-                ] + [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
+                res = [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
+                if self.exact_query_filter is not None:
+                    q = q.filter(self.exact_query_filter(current))
+                    if await q.aexists():
+                        obj = await q.afirst()
+                        res = [
+                            app_commands.Choice(
+                                name=elide(await getattr(obj, self.descr_function_name)(self.verbose), length=90),
+                                value=str(getattr(obj, self.map_attribute))
+                            )
+                        ] + res
+                return res
             objects = [obj async for obj in q.all()]
 
         self.object_map = {str(getattr(s, self.map_attribute)): s for s in objects}
@@ -235,6 +237,7 @@ class AnimeTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(title__icontains=x) | Q(title_english__icontains=x),
     ]
+    exact_query_filter = lambda x: Q(title=x) | Q(title_english=x),
     map_attribute = 'mal_id'
     # descr_function = lambda cls, a: f'{elide(a.title, 50)}'
     descr_function_name = 'get_str'
@@ -248,6 +251,7 @@ class AnimeCharacterTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(name__icontains=x)
     ]
+    exact_query_filter = lambda x: Q(name=x)
     map_attribute = 'mal_id'
     # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
     descr_function_name = 'get_str'
@@ -261,6 +265,7 @@ class AnimeCollectionTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(name__icontains=x)
     ]
+    exact_query_filter = lambda x: Q(name=x)
     map_attribute = 'id'
     # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
     descr_function_name = 'get_str'
