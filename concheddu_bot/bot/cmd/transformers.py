@@ -126,7 +126,7 @@ class GenericObjectTransformer(app_commands.Transformer):
                         name=elide(await getattr(s, self.descr_function_name)(self.verbose), length=90),
                         value=str(getattr(s, self.map_attribute))
                     )
-                    for s in objects if str(getattr(s, self.map_attribute)) == cl
+                    for s in objects if str(getattr(s, self.map_attribute)).lower() == cl
                 ]
             else:
                 objects = app
@@ -239,7 +239,7 @@ class AnimeTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(title__icontains=x) | Q(title_english__icontains=x),
     ]
-    exact_query_filter = [lambda x: Q(title=x) | Q(title_english=x),]
+    exact_query_filter = [lambda x: Q(title__iexact=x) | Q(title_english__iexact=x),]
     map_attribute = 'mal_id'
     # descr_function = lambda cls, a: f'{elide(a.title, 50)}'
     descr_function_name = 'get_str'
@@ -253,7 +253,7 @@ class AnimeCharacterTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(name__icontains=x)
     ]
-    exact_query_filter = [lambda x: Q(name=x)]
+    exact_query_filter = [lambda x: Q(name_iexact=x)]
     map_attribute = 'mal_id'
     # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
     descr_function_name = 'get_str'
@@ -267,7 +267,7 @@ class AnimeCollectionTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(name__icontains=x)
     ]
-    exact_query_filter = [lambda x: Q(name=x)]
+    exact_query_filter = [lambda x: Q(name__iexact=x)]
     map_attribute = 'id'
     # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
     descr_function_name = 'get_str'
