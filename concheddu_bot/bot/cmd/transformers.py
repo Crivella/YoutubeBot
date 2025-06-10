@@ -105,9 +105,7 @@ class GenericObjectTransformer(app_commands.Transformer):
     async def autocomplete(self, ctx: discord.Interaction, current: str):
         await safe_defer(ctx)
 
-        exact = []
         none_choice = []
-
         if self.from_cache:
             cache = object_server_cache.setdefault(self.klass.__name__, {})
             objects = cache.get(ctx.guild.id, [])
@@ -119,7 +117,7 @@ class GenericObjectTransformer(app_commands.Transformer):
                     if flt(obj, cl):
                         app2.append(obj)
                 app = app2
-            if len(objects) > MAX_AUTO_COMPLETE:
+            if len(app) > MAX_AUTO_COMPLETE:
                 none_choice = [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
                 objects = [
                     app_commands.Choice(
