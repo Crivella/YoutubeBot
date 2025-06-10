@@ -117,14 +117,30 @@ class GenericObjectTransformer(app_commands.Transformer):
                 app = app2
             objects = app
             if len(objects) > MAX_AUTO_COMPLETE:
-                return [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
+                return [
+                    app_commands.Choice(
+                        name=elide(await getattr(s, self.descr_function_name)(self.verbose), length=90),
+                        value=str(getattr(s, self.map_attribute))
+                    )
+                    for s in objects if str(getattr(s, self.map_attribute)) == cl
+                ] + [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
         else:
             q = self.klass.objects
             for filter in self.query_filters:
                 q = q.filter(filter(current))
             cnt = await q.acount()
             if cnt > MAX_AUTO_COMPLETE:
-                return [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
+                q  = q.filter(
+                    **{self.map_attribute: current}
+                )
+                if await q.aexists():
+                    obj = await q.afirst()
+                return [
+                    app_commands.Choice(
+                        name=elide(await getattr(obj, self.descr_function_name)(self.verbose), length=90),
+                        value=str(getattr(obj, self.map_attribute))
+                    )
+                ] + [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
             objects = [obj async for obj in q.all()]
 
         self.object_map = {str(getattr(s, self.map_attribute)): s for s in objects}
