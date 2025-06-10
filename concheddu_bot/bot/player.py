@@ -338,6 +338,7 @@ class Player:
             async def loop_one(itc: discord.Interaction):
                 """Loop the current song"""
                 logger.debug(f'Loop one pressed by {itc.user.name}')
+                self.queue.loop_all = False
                 self.queue.loop_one = not self.queue.loop_one
                 self.refresh_view()
 
@@ -346,6 +347,7 @@ class Player:
             async def loop_all(itc: discord.Interaction):
                 """Loop all songs in the queue"""
                 logger.debug(f'Loop all pressed by {itc.user.name}')
+                self.queue.loop_one = False
                 self.queue.loop_all = not self.queue.loop_all
                 self.refresh_view()
 
