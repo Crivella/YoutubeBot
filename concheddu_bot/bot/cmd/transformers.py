@@ -105,6 +105,9 @@ class GenericObjectTransformer(app_commands.Transformer):
     async def autocomplete(self, ctx: discord.Interaction, current: str):
         await safe_defer(ctx)
 
+        exact = []
+        none_choice = []
+
         if self.from_cache:
             cache = object_server_cache.setdefault(self.klass.__name__, {})
             objects = cache.get(ctx.guild.id, [])
@@ -116,34 +119,33 @@ class GenericObjectTransformer(app_commands.Transformer):
                     if flt(obj, cl):
                         app2.append(obj)
                 app = app2
-            objects = app
             if len(objects) > MAX_AUTO_COMPLETE:
-                return [
+                none_choice = [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
+                objects = [
                     app_commands.Choice(
                         name=elide(await getattr(s, self.descr_function_name)(self.verbose), length=90),
                         value=str(getattr(s, self.map_attribute))
                     )
                     for s in objects if str(getattr(s, self.map_attribute)) == cl
-                ] + [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
+                ]
+            else:
+                objects = app
         else:
             q = self.klass.objects
             for filter in self.query_filters:
                 q = q.filter(filter(current))
             cnt = await q.acount()
             if cnt > MAX_AUTO_COMPLETE:
-                res = [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
+                none_choice = [app_commands.Choice(name=f'{cnt} items found', value=NONE_STR)]
+                objects = []
                 for flt in self.exact_query_filter:
-                    app = q.filter(flt(current))
-                    if await app.aexists():
-                        obj = await app.afirst()
-                        res = [
-                            app_commands.Choice(
-                                name=elide(await getattr(obj, self.descr_function_name)(self.verbose), length=90),
-                                value=str(getattr(obj, self.map_attribute))
-                            )
-                        ] + res
-                return res
-            objects = [obj async for obj in q.all()]
+                    exact_q = q.filter(flt(current))
+                    if await exact_q.aexists():
+                        obj = await exact_q.afirst()
+                        objects = [obj]
+                        break
+            else:
+                objects = [obj async for obj in q.all()]
 
         self.object_map = {str(getattr(s, self.map_attribute)): s for s in objects}
 
@@ -154,7 +156,7 @@ class GenericObjectTransformer(app_commands.Transformer):
                 value=str(getattr(obj, self.map_attribute))
             )
             for obj in objects
-        ]
+        ] + none_choice
 
     @classmethod
     def register_cache(cls, server_id: int, objects: list):
