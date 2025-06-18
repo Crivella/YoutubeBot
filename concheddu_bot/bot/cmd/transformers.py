@@ -251,7 +251,7 @@ class AnimeCharacterTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(name__icontains=x)
     ]
-    exact_query_filter = [lambda x: Q(name_iexact=x)]
+    exact_query_filter = [lambda x: Q(name__iexact=x)]
     map_attribute = 'mal_id'
     # descr_function = lambda cls, c: f'{elide(c.name, 50)}'
     descr_function_name = 'get_str'
