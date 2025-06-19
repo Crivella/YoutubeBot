@@ -188,10 +188,10 @@ class Admin(commands.GroupCog, group_name='admin'):
 
             # Get the eyes from the file name
             md5 = character.thumbnail.md5
-            print(f'Processing character {character.name}  with MD5: {md5}')
+            logger.info(f'Processing character {character.name}  with MD5: {md5}')
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
-                print(f'Found eyes for character {character.name} at {path}')
+                logger.info(f'Found eyes for character {character.name} at {path}')
                 # eyes = await m.ImageObj.from_local(path)
 
             # character.eyes = eyes
