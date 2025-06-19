@@ -190,8 +190,8 @@ class Admin(commands.GroupCog, group_name='admin'):
             if cnt % 20 == 0:
                 logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
                 await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
-            print(eyes)
-            break
+            # print(eyes)
+            # break
 
             character.eyes = eyes
             await character.asave()
