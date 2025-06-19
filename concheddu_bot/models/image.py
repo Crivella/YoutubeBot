@@ -69,19 +69,18 @@ class ImageObj(models.Model):
         return None
 
     @classmethod
-    async def from_local(cls, local_path: str) -> 'ImageObj':
+    async def from_local(cls, local_path: str, force: bool = False) -> 'ImageObj':
         """Create an ImageObj from a local path"""
         # Calculate the md5 of the file
         with open(local_path, 'rb') as file:
             fp = io.BytesIO(file.read())
-        # md5 = cls._md5(fp)
+        md5 = cls._md5(fp)
+        ext = (os.path.splitext(local_path) + [''])[1]
 
         # Check if the image already exists
-        new, created = cls()
-        if created:
-            await new.save_local(fp, os.path.splitext(local_path)[1])
-
-        await new.asave()
+        new, created = await cls.objects.aget_or_create(md5=md5)
+        if created or force:
+            await new.save_local(fp, os.path.splitext(local_path)[1], ext=ext)
 
         return new
 
