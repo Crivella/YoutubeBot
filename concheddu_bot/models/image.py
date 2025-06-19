@@ -80,7 +80,7 @@ class ImageObj(models.Model):
         # Check if the image already exists
         new, created = await cls.objects.aget_or_create(md5=md5)
         if created or force:
-            await new.save_local(fp, os.path.splitext(local_path)[1], ext=ext)
+            await new.save_local(fp, ext=ext)
 
         return new
 
