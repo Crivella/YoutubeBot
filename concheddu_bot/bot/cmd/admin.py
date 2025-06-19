@@ -178,7 +178,7 @@ class Admin(commands.GroupCog, group_name='admin'):
                 await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
 
             if character.thumbnail_id is None:
-                logger.warning(f'Character {character.name} has no thumbnail, skipping eyes import')
+                # logger.warning(f'Character {character.name} has no thumbnail, skipping eyes import')
                 continue
 
             thumbnail = await m.ImageObj.objects.aget(id=character.thumbnail_id)
@@ -187,12 +187,11 @@ class Admin(commands.GroupCog, group_name='admin'):
             md5 = thumbnail.md5
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
-                logger.debug(f'-- Importing eyes for character {character.name} from {path}')
+                # logger.debug(f'-- Importing eyes for character {character.name} from {path}')
                 eyes = await m.ImageObj.from_local(path)
-                logger.debug(f'>> MD5: {eyes.md5 if eyes else "None"}s')
-            else:
-                logger.warning(f'-- No eyes found for character {character.name} at {path}')
-                eyes = None
+                # logger.debug(f'>> MD5: {eyes.md5 if eyes else "None"}s')
 
-            character.eyes = eyes
-            await character.asave()
+                character.eyes = eyes
+                await character.asave()
+            # else:
+            #     logger.warning(f'-- No eyes found for character {character.name} at {path}')
