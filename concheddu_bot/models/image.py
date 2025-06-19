@@ -75,7 +75,7 @@ class ImageObj(models.Model):
         with open(local_path, 'rb') as file:
             fp = io.BytesIO(file.read())
         md5 = cls._md5(fp)
-        ext = (os.path.splitext(local_path) + [''])[1]
+        ext = os.path.splitext(local_path)[1]
 
         # Check if the image already exists
         new, created = await cls.objects.aget_or_create(md5=md5)
