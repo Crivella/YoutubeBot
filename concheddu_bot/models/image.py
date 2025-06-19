@@ -61,6 +61,31 @@ class ImageObj(models.Model):
         await self.asave()
 
     @classmethod
+    async def from_hash(cls, md5: str) -> 'ImageObj':
+        """Create an ImageObj from a hash"""
+        q = cls.objects.filter(md5=md5)
+        if await q.aexists():
+            return await q.aget()
+        return None
+
+    @classmethod
+    async def from_local(cls, local_path: str) -> 'ImageObj':
+        """Create an ImageObj from a local path"""
+        # Calculate the md5 of the file
+        with open(local_path, 'rb') as file:
+            fp = io.BytesIO(file.read())
+        # md5 = cls._md5(fp)
+
+        # Check if the image already exists
+        new, created = cls()
+        if created:
+            await new.save_local(fp, os.path.splitext(local_path)[1])
+
+        await new.asave()
+
+        return new
+
+    @classmethod
     async def from_url(cls, url: str) -> 'ImageObj':
         """Create an ImageObj from a URL"""
         if not url:

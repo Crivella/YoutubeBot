@@ -158,3 +158,40 @@ class Admin(commands.GroupCog, group_name='admin'):
     #     msg += f'\nFinished quizzes: {len(quizzes)}'
     #     msg += f'\nPlay events in quizzes: {len(to_flag)}'
     #     await safe_response(itc, msg, ephemeral=True)
+
+    @app_commands.command()
+    @app_commands.check(lambda itc: itc.user.id == ADMIN_ID)
+    @ensure_response()
+    @call_command_register()
+    async def import_charcter_eyes(self, itc: discord.Interaction):
+        """Import character eyes from a local folder"""
+        from ...models.image import IMAGE_DIR
+        await safe_response(itc, f'Importing anim eyes...', ephemeral=True)
+
+        cnt = 0
+        root = os.path.join(IMAGE_DIR, 'eyse_out')
+        num = len(os.listdir(root))
+        async for character in m.AnimeCharacter.objects.select_related('thumbnail').all():
+            if character.thumbnail is None:
+                continue
+            if not character.thumbnail.local_path:
+                continue
+            local_path = character.thumbnail.local_path
+            if not os.path.exists(local_path):
+                continue
+
+            # Get the eyes from the file name
+            md5 = character.thumbnail.md5
+            path = os.path.join(root, f'{md5}_eyes.webp')
+            if os.path.exists(path):
+                eyes = m.ImageObj.from_local(path)
+
+            cnt += 1
+            if cnt % 20 == 0:
+                logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
+                await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
+            print(eyes)
+            break
+
+            character.eyes = eyes
+            await character.asave()
