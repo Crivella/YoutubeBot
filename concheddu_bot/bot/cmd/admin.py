@@ -171,18 +171,20 @@ class Admin(commands.GroupCog, group_name='admin'):
         cnt = 0
         root = os.path.join(IMAGE_DIR, 'eyse_out')
         num = len(os.listdir(root))
-        async for character in m.AnimeCharacter.objects.select_related('thumbnail').all():
+        async for character in m.AnimeCharacter.objects.all():
             cnt += 1
             if cnt % 20 == 0:
                 logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
                 await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
 
-            if character.thumbnail is None:
+            if character.thumbnail_id is None:
                 logger.warning(f'Character {character.name} has no thumbnail, skipping eyes import')
                 continue
 
+            thumbnail = await m.ImageObj.objects.aget(id=character.thumbnail_id)
+
             # Get the eyes from the file name
-            md5 = character.thumbnail.md5
+            md5 = thumbnail.md5
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
                 logger.debug(f'-- Importing eyes for character {character.name} from {path}')
