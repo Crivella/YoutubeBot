@@ -41,6 +41,7 @@ class ImageObj(models.Model):
         #     async for chunk in file.iter_chunks(4096):
         #         md5.update(chunk)
         # with open(file_path, 'rb') as file:
+        fp.seek(0)
         for chunk in iter(lambda: fp.read(4096), b''):
             md5.update(chunk)
         return md5.hexdigest()
