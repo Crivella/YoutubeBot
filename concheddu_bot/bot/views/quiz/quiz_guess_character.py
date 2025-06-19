@@ -25,6 +25,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
             max_anime_choices: int = 1000,
             min_favorites: int = -1,
             max_favorites: int = -1,
+            image_type: str = 'thumbnail',
             collections: list[m.AnimeCollection] = None,
         ):
         super().__init__()
@@ -37,6 +38,11 @@ class QuizGuessCharacterRunner(discord.ui.View):
         self.max_anime_choices = max_anime_choices
         self.min_favorites = min_favorites
         self.max_favorites = max_favorites
+
+        if image_type not in ['thumbnail', 'eyes']:
+            raise ValueError(f'Unknown image type: {image_type}')
+
+        self.image_type = image_type
 
         users = self.itc.user.voice.channel.members
 
@@ -106,6 +112,12 @@ class QuizGuessCharacterRunner(discord.ui.View):
             q = q.distinct()  # Ensure we don't get duplicates
             # num_chara = await q.acount()
             # logger.info(f'Found {num_chara} characters in total after filtering by collections')
+
+        if self.image_type == 'thumbnail':
+            q = q.filter(thumbnail__isnull=False)
+        elif self.image_type == 'eyes':
+            q = q.filter(eyes_img_id__isnull=False)
+
         q = q.order_by('-favorites')
         if self.max_top > 0:
             q = q[:self.max_top]
@@ -166,6 +178,8 @@ class QuizGuessCharacterRunner(discord.ui.View):
             max_anime_choices=self.max_anime_choices,
             min_favorites=self.min_favorites,
             max_favorites=self.max_favorites,
+
+            image_type=self.image_type,
 
             object_choice_ids=[char.id for char in self.characters],
         )
@@ -305,7 +319,16 @@ class QuizGuessCharacterRunner(discord.ui.View):
             title=f'Guess the character',
             color=self.user_colors[user.id]
         )
-        thumb = await get_object_thumbnail(chara)
+
+        thumb = None
+        try:
+            if self.image_type == 'thumbnail':
+                thumb = await get_object_thumbnail(chara)
+            elif self.image_type == 'eyes':
+                thumb = await chara.get_eyes()
+        except Exception as e:
+            logger.error(f'Error getting thumbnail for character {chara.name}: {e}', exc_info=True)
+
         if thumb:
             attach_name = f'char-{chara.mal_id}.png'
             file = discord.File(await thumb.get_image(), filename=attach_name)

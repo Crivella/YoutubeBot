@@ -610,6 +610,16 @@ class AnimeCharacter(models.Model, JikanFetchMixin):
             logger.warning(f'Thumbnail for character {self.name} (ID: {self.mal_id}) not found')
             return None
 
+    async def get_eyes(self) -> ImageObj | None:
+        """Get the eyes image for this character"""
+        if self.eyes_img_id is None:
+            return None
+        try:
+            return await ImageObj.objects.aget(id=self.eyes_img_id)
+        except ImageObj.DoesNotExist:
+            logger.warning(f'Eyes image for character {self.name} (ID: {self.mal_id}) not found')
+            return None
+
     async def get_str(self, verbose: bool = False) -> str:
         """Get a string representation of the character"""
         if not verbose:

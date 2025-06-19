@@ -8,6 +8,7 @@ from django.db.models import Q
 
 from ... import models as m
 from ...models import filters as flt
+from ...models.quiz_guess_char import allowed_image_types
 from ...models.quiz_hl import allowed_params, object_type_map
 from ..utils import safe_defer, safe_response
 from ..views.utils import elide
@@ -226,6 +227,18 @@ class ObjectParamTransformer(app_commands.Transformer):
         return [
             app_commands.Choice(name=el, value=el) for el in allowed
             if el.startswith(current.upper())
+        ]
+
+class ImageTypeTransformer(app_commands.Transformer):
+    async def transform(self, ctx: discord.Interaction, argument: str):
+        if argument not in allowed_image_types:
+            raise ValueError(f'Unknown image type: {argument}')
+        return argument
+
+    async def autocomplete(self, ctx: discord.Interaction, current: str):
+        return [
+            app_commands.Choice(name=el, value=el) for el in allowed_image_types
+            if current.lower() in el
         ]
 
 class AnimeTransformer(GenericObjectTransformer):

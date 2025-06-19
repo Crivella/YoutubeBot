@@ -173,7 +173,7 @@ class Admin(commands.GroupCog, group_name='admin'):
         num = len(os.listdir(root))
         async for character in m.AnimeCharacter.objects.all():
             cnt += 1
-            if cnt % 20 == 0:
+            if cnt % 100 == 0:
                 logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
                 await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
 
@@ -195,3 +195,5 @@ class Admin(commands.GroupCog, group_name='admin'):
                 await character.asave()
             # else:
             #     logger.warning(f'-- No eyes found for character {character.name} at {path}')
+
+        await safe_response(itc, f'Imported eyes for {cnt} characters', ephemeral=True)

@@ -94,6 +94,7 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             max_anime_choices: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=5000)] = 1000,
             min_favorites: app_commands.Transform[int, tfs.IntRangeTransformer(min=-1)] = -1,
             max_favorites: app_commands.Transform[int, tfs.IntRangeTransformer(min=-1)] = -1,
+            image_type: app_commands.Transform[str, tfs.ImageTypeTransformer()] = 'thumbnail'
             ):
         """Start a guess the character quiz.
 
@@ -116,6 +117,9 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             max_anime_choices=max_anime_choices,
             min_favorites=min_favorites,
             max_favorites=max_favorites,
+
+            image_type=image_type,
+
             collections=collections,
         )
 

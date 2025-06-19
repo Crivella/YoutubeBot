@@ -6,16 +6,8 @@ from .anime import AnimeCharacter, AnimeCharacterThrough, AnimeObj
 from .discord import DiscordUser
 from .events import GuessAnimeCharacterEvent
 
-object_type_map = {
-    'anime': AnimeObj,
-    'anime_character': AnimeCharacter,
-}
-object_type_map_inv = {v: k for k, v in object_type_map.items()}
+allowed_image_types = ['thumbnail', 'eyes']
 
-allowed_params = {
-    'anime': ['favorites', 'score'],
-    'anime_character': ['favorites'],
-}
 
 class QuizAnimeCharacter(models.Model):
     """QuizHighLow song model"""
@@ -25,6 +17,12 @@ class QuizAnimeCharacter(models.Model):
     max_anime_choices = models.IntegerField(default=0)
     min_favorites = models.IntegerField(default=-1)
     max_favorites = models.IntegerField(default=-1)
+
+    image_type = models.CharField(
+        max_length=64,
+        default='thumbnail',
+        help_text='Type of image to use for the characters (thumbnail, eyes, etc.)'
+    )
 
     collections = models.ManyToManyField(
         'AnimeCollection',
