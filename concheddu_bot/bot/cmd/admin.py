@@ -176,7 +176,6 @@ class Admin(commands.GroupCog, group_name='admin'):
             if cnt % 20 == 0:
                 logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
                 await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
-                break
 
             if character.thumbnail is None:
                 continue
@@ -188,13 +187,9 @@ class Admin(commands.GroupCog, group_name='admin'):
 
             # Get the eyes from the file name
             md5 = character.thumbnail.md5
-            logger.info(f'Processing character {character.name}  with MD5: {md5}')
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
                 eyes = await m.ImageObj.from_local(path, force=True)
-                logger.info(f'Found eyes for character {character.name} at {path} with MD5: {eyes.md5 if eyes else "None"}')
 
             character.eyes = eyes
             await character.asave()
-
-            logger.info('---')
