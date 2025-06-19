@@ -191,8 +191,8 @@ class Admin(commands.GroupCog, group_name='admin'):
             logger.info(f'Processing character {character.name}  with MD5: {md5}')
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
-                logger.info(f'Found eyes for character {character.name} at {path}')
                 eyes = await m.ImageObj.from_local(path, force=True)
+                logger.info(f'Found eyes for character {character.name} at {path} with MD5: {eyes.md5 if eyes else "None"}')
 
             character.eyes = eyes
             await character.asave()
