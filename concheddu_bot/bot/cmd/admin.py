@@ -179,17 +179,14 @@ class Admin(commands.GroupCog, group_name='admin'):
 
             if character.thumbnail is None:
                 continue
-            if not character.thumbnail.local_path:
-                continue
-            local_path = character.thumbnail.local_path
-            if not os.path.exists(local_path):
-                continue
 
             # Get the eyes from the file name
             md5 = character.thumbnail.md5
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
-                eyes = await m.ImageObj.from_local(path, force=True)
+                logger.debug(f'-- Importing eyes for character {character.name} from {path}')
+                eyes = await m.ImageObj.from_local(path)
+                logger.debug(f'>> MD5: {eyes.md5 if eyes else "None"}s')
 
             character.eyes = eyes
             await character.asave()
