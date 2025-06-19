@@ -184,7 +184,7 @@ class Admin(commands.GroupCog, group_name='admin'):
             md5 = character.thumbnail.md5
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
-                eyes = m.ImageObj.from_local(path)
+                eyes = await m.ImageObj.from_local(path)
 
             cnt += 1
             if cnt % 20 == 0:
