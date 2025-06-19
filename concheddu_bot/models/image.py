@@ -52,6 +52,7 @@ class ImageObj(models.Model):
         dir_path = os.path.join(IMAGE_DIR, md5[:2])
         os.makedirs(dir_path, exist_ok=True)
         local_path = os.path.join(dir_path, f'{md5}{ext}')
+        fp.seek(0)
         with open(local_path, 'wb') as file:
             file.write(fp.getbuffer())
 
@@ -74,6 +75,7 @@ class ImageObj(models.Model):
         # Calculate the md5 of the file
         with open(local_path, 'rb') as file:
             fp = io.BytesIO(file.read())
+        fp.seek(0)
         md5 = cls._md5(fp)
         ext = os.path.splitext(local_path)[1]
 

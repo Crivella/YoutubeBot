@@ -192,7 +192,9 @@ class Admin(commands.GroupCog, group_name='admin'):
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
                 logger.info(f'Found eyes for character {character.name} at {path}')
-                # eyes = await m.ImageObj.from_local(path)
+                eyes = await m.ImageObj.from_local(path, force=True)
 
-            # character.eyes = eyes
-            # await character.asave()
+            character.eyes = eyes
+            await character.asave()
+
+            logger.info('---')
