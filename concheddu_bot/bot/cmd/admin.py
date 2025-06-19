@@ -178,6 +178,7 @@ class Admin(commands.GroupCog, group_name='admin'):
                 await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
 
             if character.thumbnail is None:
+                logger.warning(f'Character {character.name} has no thumbnail, skipping eyes import')
                 continue
 
             # Get the eyes from the file name
@@ -187,6 +188,9 @@ class Admin(commands.GroupCog, group_name='admin'):
                 logger.debug(f'-- Importing eyes for character {character.name} from {path}')
                 eyes = await m.ImageObj.from_local(path)
                 logger.debug(f'>> MD5: {eyes.md5 if eyes else "None"}s')
+            else:
+                logger.warning(f'-- No eyes found for character {character.name} at {path}')
+                eyes = None
 
             character.eyes = eyes
             await character.asave()
