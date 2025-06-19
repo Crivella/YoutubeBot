@@ -172,6 +172,12 @@ class Admin(commands.GroupCog, group_name='admin'):
         root = os.path.join(IMAGE_DIR, 'eyse_out')
         num = len(os.listdir(root))
         async for character in m.AnimeCharacter.objects.select_related('thumbnail').all():
+            cnt += 1
+            if cnt % 20 == 0:
+                logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
+                await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
+                break
+
             if character.thumbnail is None:
                 continue
             if not character.thumbnail.local_path:
@@ -182,16 +188,11 @@ class Admin(commands.GroupCog, group_name='admin'):
 
             # Get the eyes from the file name
             md5 = character.thumbnail.md5
+            print(f'Processing character {character.name}  with MD5: {md5}')
             path = os.path.join(root, f'{md5}_eyes.webp')
             if os.path.exists(path):
-                eyes = await m.ImageObj.from_local(path)
+                print(f'Found eyes for character {character.name} at {path}')
+                # eyes = await m.ImageObj.from_local(path)
 
-            cnt += 1
-            if cnt % 20 == 0:
-                logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
-                await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
-            # print(eyes)
-            # break
-
-            character.eyes = eyes
-            await character.asave()
+            # character.eyes = eyes
+            # await character.asave()
