@@ -173,7 +173,7 @@ class Admin(commands.GroupCog, group_name='admin'):
         num = len(os.listdir(root))
         async for character in m.AnimeCharacter.objects.all():
             cnt += 1
-            if cnt % 100 == 0:
+            if cnt % 200 == 0:
                 logger.info(f'Processed {cnt:>4d} / {num:>5d} characters')
                 await safe_response(itc, f'Processed {cnt:>4d} / {num:>5d} characters', ephemeral=True)
 
@@ -191,7 +191,7 @@ class Admin(commands.GroupCog, group_name='admin'):
                 eyes = await m.ImageObj.from_local(path)
                 # logger.debug(f'>> MD5: {eyes.md5 if eyes else "None"}s')
 
-                character.eyes = eyes
+                character.eyes_img = eyes
                 await character.asave()
             # else:
             #     logger.warning(f'-- No eyes found for character {character.name} at {path}')
