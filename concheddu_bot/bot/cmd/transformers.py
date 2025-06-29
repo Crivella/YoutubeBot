@@ -113,14 +113,12 @@ class GenericObjectTransformer(app_commands.Transformer):
             cl = current.lower()
             app = objects.copy()
             for flt in self.list_filters:
-                app2 = []
-                for obj in app:
-                    if flt(obj, cl):
-                        app2.append(obj)
-                app = app2
+                app = [obj for obj in app if flt(obj, cl)]
             if len(app) > MAX_AUTO_COMPLETE:
                 none_choice = [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
-                objects = [s for s in objects if str(getattr(s, self.map_attribute)).lower() == cl]
+                app2 = []
+                for flt in self.exact_list_filter:
+                    app2 += [obj for obj in app if flt(obj, cl)]
             else:
                 objects = app
         else:
@@ -244,6 +242,11 @@ class AnimeTransformer(GenericObjectTransformer):
     query_filters = [
         lambda x: Q(title__icontains=x) | Q(title_english__icontains=x),
     ]
+    exact_list_filter = [
+        lambda a, cl: cl == a.title.lower() or cl == (a.title_english or '').lower(),
+        lambda a, cl: cl in a.title.lower().replace(',', ' ').split(' ') or
+                      cl in (a.title_english or '').lower().replace(',', ' ').split(' ')
+    ]
     exact_query_filter = [lambda x: Q(title__iexact=x) | Q(title_english__iexact=x),]
     map_attribute = 'mal_id'
     # descr_function = lambda cls, a: f'{elide(a.title, 50)}'
@@ -257,6 +260,10 @@ class AnimeCharacterTransformer(GenericObjectTransformer):
     ]
     query_filters = [
         lambda x: Q(name__icontains=x)
+    ]
+    exact_list_filter = [
+        lambda c, cl: cl == c.name.lower(),
+        lambda c, cl: cl in c.name.lower().replace(',', ' ').split(' ')
     ]
     exact_query_filter = [lambda x: Q(name__iexact=x)]
     map_attribute = 'mal_id'
