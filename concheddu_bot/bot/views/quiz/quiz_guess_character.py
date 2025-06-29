@@ -239,6 +239,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
         # server = self.server
         message = None
         answered = False
+        full_thumb = None
 
         self.answer_btn = CallbackButton(
             label=random.choice(SKIP_TITLES),
@@ -299,9 +300,15 @@ class QuizGuessCharacterRunner(discord.ui.View):
             answer = answer_character or answer_anime
             self.user_answers[user.id].append(app if answer is not None else None)
 
+            file = None
+            if full_thumb:
+                attach_name = f'char-{chara.mal_id}.png'
+                file = discord.File(await full_thumb.get_image(), filename=attach_name)
+                embed.set_image(url=f'attachment://{attach_name}')
+
             view.clear_items()
             await message.edit(
-                embed=embed,
+                embed=embed, file=file,
                 view=None,
                 # attachments=attach,
                 )
@@ -322,8 +329,9 @@ class QuizGuessCharacterRunner(discord.ui.View):
 
         thumb = None
         try:
+            full_thumb = await get_object_thumbnail(chara)
             if self.image_type == 'thumbnail':
-                thumb = await get_object_thumbnail(chara)
+                thumb = full_thumb
             elif self.image_type == 'eyes':
                 thumb = await chara.get_eyes()
         except Exception as e:
