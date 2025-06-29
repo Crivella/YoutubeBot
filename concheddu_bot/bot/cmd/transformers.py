@@ -63,6 +63,7 @@ class GenericObjectTransformer(app_commands.Transformer):
     from_argument_function_name: str = None
     list_filters = []
     query_filters = []
+    exact_list_filter = []
     exact_query_filter = []
     map_attribute = None
     descr_function_name = None
@@ -119,6 +120,7 @@ class GenericObjectTransformer(app_commands.Transformer):
                 app2 = []
                 for flt in self.exact_list_filter:
                     app2 += [obj for obj in app if flt(obj, cl)]
+                objects = app2
             else:
                 objects = app
         else:
@@ -137,6 +139,9 @@ class GenericObjectTransformer(app_commands.Transformer):
                         break
             else:
                 objects = [obj async for obj in q.all()]
+
+        if len(objects) > MAX_AUTO_COMPLETE:
+            objects = objects[:MAX_AUTO_COMPLETE - 1]
 
         self.object_map = {str(getattr(s, self.map_attribute)): s for s in objects}
 
