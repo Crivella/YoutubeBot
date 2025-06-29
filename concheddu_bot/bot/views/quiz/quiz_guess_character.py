@@ -308,7 +308,7 @@ class QuizGuessCharacterRunner(discord.ui.View):
 
             view.clear_items()
             await message.edit(
-                embed=embed, file=file,
+                embed=embed, attachments=[file,],
                 view=None,
                 # attachments=attach,
                 )
