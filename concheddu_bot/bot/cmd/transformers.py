@@ -120,13 +120,7 @@ class GenericObjectTransformer(app_commands.Transformer):
                 app = app2
             if len(app) > MAX_AUTO_COMPLETE:
                 none_choice = [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
-                objects = [
-                    app_commands.Choice(
-                        name=elide(await getattr(s, self.descr_function_name)(self.verbose), length=90),
-                        value=str(getattr(s, self.map_attribute))
-                    )
-                    for s in objects if str(getattr(s, self.map_attribute)).lower() == cl
-                ]
+                objects = [s for s in objects if str(getattr(s, self.map_attribute)).lower() == cl]
             else:
                 objects = app
         else:
