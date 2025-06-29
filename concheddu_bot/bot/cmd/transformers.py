@@ -116,7 +116,7 @@ class GenericObjectTransformer(app_commands.Transformer):
             for flt in self.list_filters:
                 app = [obj for obj in app if flt(obj, cl)]
             if len(app) > MAX_AUTO_COMPLETE:
-                none_choice = [app_commands.Choice(name=f'{len(objects)} items found', value=NONE_STR)]
+                none_choice = [app_commands.Choice(name=f'{len(app)} items found', value=NONE_STR)]
                 app2 = []
                 for flt in self.exact_list_filter:
                     app2 += [obj for obj in app if flt(obj, cl)]
