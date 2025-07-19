@@ -121,6 +121,8 @@ class QuizHighLowRunner(discord.ui.View):
         collections = self.select_collections.get_objects()
 
         q = object_cls.objects
+        # Filter objects that do not have the required parameter
+        q = q.exclude(**{f'{self.object_param}__isnull': True})
 
         if collections:
             collection_ids = [c.id for c in collections]
