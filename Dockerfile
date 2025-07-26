@@ -2,6 +2,7 @@ FROM python:3.12.9-slim-bullseye
 
 RUN apt-get update && apt-get install \
     ffmpeg \
+    git \
     -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
