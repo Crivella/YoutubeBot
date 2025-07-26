@@ -1,3 +1,5 @@
+# discord.py
+# See https://github.com/Rapptz/discord.py/pull/10210
 git+https://github.com/Rapptz/discord.py.git@2175bd51c0d0c2817e69a708e507108f3bc902bd
 pynacl
 yt_dlp

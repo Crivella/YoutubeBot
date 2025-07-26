@@ -18,7 +18,9 @@ classifiers = [
 keywords = ["discord", "bot", "music"]
 requires-python = ">=3.10"
 dependencies = [
-    "discord.py",
+    # "discord.py",
+    # See https://github.com/Rapptz/discord.py/pull/10210
+    "discord.py@git+https://github.com/Rapptz/discord.py.git#egg=2175bd51c0d0c2817e69a708e507108f3bc902bd",
     "pynacl",
     "yt_dlp",
     "Django",
@@ -78,7 +80,7 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 DJANGO_SETTINGS_MODULE = "concheddu_bot.settings"
-log_cli = 1
+log_cli = true
 
 [tool.pylint.main]
 load-plugins = [
