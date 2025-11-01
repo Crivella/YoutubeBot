@@ -24,6 +24,7 @@ class Music(commands.GroupCog, group_name='music'):
             self, itc: discord.Interaction,
             song: app_commands.Transform[m.YTSong, tfs.SongTransformer(allow_new=True)],
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
+            pos: int = None,
             audio_filter: str = None
         ):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
@@ -39,7 +40,7 @@ class Music(commands.GroupCog, group_name='music'):
         if playlist is not None:
             await playlist.add_song(song)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
-        await song.play(itc=itc, audio_filter=audio_filter)
+        await song.play(itc=itc, audio_filter=audio_filter, pos=pos)
 
     @app_commands.command()
     @ensure_response(allowed_exceptions=[m.YTSong.MaxDurationError])
@@ -205,6 +206,19 @@ class MusicPlayer(commands.GroupCog, group_name='player'):
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         await server.stop()
         await safe_response(itc, 'Stopped the bot', ephemeral=True, delete_after=10)
+
+    @app_commands.command()
+    @ensure_response()
+    @call_command_register()
+    async def remove(self, itc: discord.Interaction, pos: int = 0):
+        """Remove a song from the queue at the relative index
+
+        Args:
+            pos (int, optional): The relative index to remove. Defaults to 0 (the current song).
+        """
+        server = await m.DiscordServer.from_discord_guild(itc.guild)
+        await server.player.remove_source(pos=pos, channel=itc.user.voice.channel)
+        await safe_response(itc, f'Removed song at relative index `{pos}`', ephemeral=True, delete_after=10)
 
     @app_commands.command()
     @ensure_response(allowed_exceptions=[SenseCheckError])

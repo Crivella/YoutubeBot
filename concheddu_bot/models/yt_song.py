@@ -225,6 +225,7 @@ class YTSong(models.Model):
             *,
             itc: discord.Interaction,
             quiz_id: int = None,
+            pos: int = 0,
             **kwargs
         ):
         """Play or queue the song"""
@@ -252,7 +253,7 @@ class YTSong(models.Model):
 
         itc_ = itc if update_msg else None
 
-        await server.add_source(self, itc.user, on_play, audio_filter, channel=channel)
+        await server.add_source(self, itc.user, on_play, audio_filter, channel=channel, pos=pos)
         asyncio.create_task(self.get_source(itc=itc_))
 
     def get_thumbnails_urls(self) -> list[str]:

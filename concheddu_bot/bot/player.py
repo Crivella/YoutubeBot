@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
-from functools import wraps
+from functools import partial, wraps
 from typing import Callable
 
 import discord
@@ -81,6 +81,16 @@ class Queue(list):
             return QueueObject()
         return self[self.idx]
 
+    def remov_relative_idx(self, val: int = 0):
+        """Remove the song at the relative index"""
+        real_idx = self.idx + val
+        if 0 <= real_idx < len(self):
+            self.pop(real_idx)
+            if real_idx < self.idx:
+                self.idx -= 1
+        else:
+            logger.warning(f'Cannot remove index {real_idx} from queue of size {len(self)}')
+
     def go_next(self, val = 1):
         if not self.loop_one:
             self.idx += val
@@ -121,7 +131,7 @@ class Player:
         # self.text_channel: discord.TextChannel = None
         self.view: discord.ui.View = None
         self.message: discord.Message = None
-        self.verobse: bool = True
+        self.verbose: bool = True
 
     @property
     def playing(self) -> bool:
@@ -146,11 +156,11 @@ class Player:
 
     async def enable_verbose(self):
         """Enable verbose mode"""
-        self.verobse = True
+        self.verbose = True
 
     async def disable_verbose(self):
         """Disable verbose mode"""
-        self.verobse = False
+        self.verbose = False
 
     # Rewrite monitor to be used directly without a thread
     async def monitor(self, delay: float = 0.5):
@@ -173,14 +183,37 @@ class Player:
                 logger.error(e, exc_info=True)
 
     @with_monitor
-    async def add_source(self, song, user: discord.Member, on_play: Callable = None, audio_filter: str = None):
+    async def add_source(
+            self,
+            song, user: discord.Member,
+            on_play: Callable = None,
+            audio_filter: str = None,
+            pos: int = None
+        ):
         """Add a song to the queue"""
-        self.queue.append(QueueObject(
+        if pos is None:
+            func = self.queue.append
+        else:
+            func = partial(self.queue.insert, pos)
+        func(QueueObject(
             song=song,
             user=user,
             on_play=on_play,
             afilt=audio_filter
-         ))
+        ))
+        if self.playing and pos == 0:
+            await self.jump(0, channel=self.channel)  # Restart the song if added at position 0
+        await self.print_message()  # Update the message to show the new song
+
+    @with_monitor
+    async def remove_source(self, pos: int = 0):
+        """Remove a song from the queue at the relative index"""
+        self.queue.remov_relative_idx(pos)
+        await asyncio.sleep(0.1)
+
+        if self.playing and pos == 0:
+            await self.jump(0, channel=self.channel)
+        await self.print_message()  # Update the message to not show the removed song
 
     @with_monitor
     async def jump(self, pos: int):
@@ -260,12 +293,10 @@ class Player:
                 await self.stop()
             else:
                 await obj.on_play()
-                # Keep the semaphore locked until the song is finished
-                if self.verobse:
-                    await self.print_message()
-                else:
-                    logger.debug(f'Playing {obj.song.title} from `{obj.user.name}`')
+                logger.debug(f'Playing {obj.song.title} from `{obj.user.name}`')
+                await self.print_message()
                 await asyncio.sleep(0.1)
+                # Keep the semaphore locked until the song is finished
                 while self.playing:
                     await asyncio.sleep(0.5)
 
@@ -384,6 +415,10 @@ class Player:
 
     async def print_message(self):
         """Print a message with the embed"""
+        if not self.verbose:
+            return
+        if self.message is None and self.client is None:
+            return
         if not self.queue or not self.queue.get_current().song:
             return
         embed, file = await self.generate_embed()
