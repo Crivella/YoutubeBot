@@ -195,8 +195,15 @@ class Player:
         if pos is None:
             func = self.queue.append
         else:
-            pos = pos + self.queue.idx
-            func = partial(self.queue.insert, pos)
+            rel_pos = pos + self.queue.idx
+            # Limit rel_pos to be within the queue bounds
+            if rel_pos < 0:
+                rel_pos = 0
+            if rel_pos > len(self.queue):
+                rel_pos = len(self.queue)
+            func = partial(self.queue.insert, rel_pos)
+            if pos < 0:
+                self.queue.idx += 1  # Adjust current index if inserting before current song
         func(QueueObject(
             song=song,
             user=user,
