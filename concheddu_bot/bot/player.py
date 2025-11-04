@@ -17,6 +17,7 @@ logger = logging.getLogger('bot')
 # RESUME_BUTTON_LABEL = '▶️'
 PAUSE_BUTTON_LABEL = 'PAUSE'
 RESUME_BUTTON_LABEL = 'RESUME'
+REMOVE_BUTTON_LABEL = 'REMOVE'
 JUMP_FORWARD_LABEL = '>>'
 JUMP_BACKWARD_LABEL = '<<'
 STOP_BUTTON_LABEL = 'STOP'
@@ -324,6 +325,12 @@ class Player:
                 row=0,
             )
             self.pause_resume_button = CallbackButton(
+                label=REMOVE_BUTTON_LABEL,
+                style=GREY,
+                custom_id='remove_song_player',
+                call_self=True,
+            )
+            self.pause_resume_button = CallbackButton(
                 label=PAUSE_BUTTON_LABEL,
                 style=GREY,
                 custom_id='pause_resume_player',
@@ -366,6 +373,14 @@ class Player:
                 self.refresh_view()
 
                 await safe_response(itc, view=self.view)
+            async def remove_song(itc: discord.Interaction):
+                """Remove the current song from the queue"""
+                logger.debug(f'Removing current song pressed by {itc.user.name}')
+                await self.remove_source(0)
+
+                self.refresh_view()
+
+                await safe_response(itc, view=self.view)
 
             async def loop_one(itc: discord.Interaction):
                 """Loop the current song"""
@@ -388,6 +403,7 @@ class Player:
             self.stop_button.add_callback(clear)
             self.jump_button_p1.add_callback(jump_p1)
             self.pause_resume_button.add_callback(pause_resume)
+            self.remove_song_button.add_callback(remove_song)
             self.jump_button_m1.add_callback(jump_m1)
             self.loop_one_button.add_callback(loop_one)
             self.loop_all_button.add_callback(loop_all)
@@ -395,6 +411,7 @@ class Player:
             self.view.add_item(self.stop_button)
             self.view.add_item(self.jump_button_m1)
             self.view.add_item(self.pause_resume_button)
+            self.view.add_item(self.remove_song_button)
             self.view.add_item(self.jump_button_p1)
             self.view.add_item(self.loop_one_button)
             self.view.add_item(self.loop_all_button)
