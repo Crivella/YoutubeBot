@@ -194,6 +194,7 @@ class Player:
         if pos is None:
             func = self.queue.append
         else:
+            pos = pos + self.queue.idx
             func = partial(self.queue.insert, pos)
         func(QueueObject(
             song=song,
