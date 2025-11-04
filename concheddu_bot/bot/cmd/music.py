@@ -24,7 +24,7 @@ class Music(commands.GroupCog, group_name='music'):
             self, itc: discord.Interaction,
             song: app_commands.Transform[m.YTSong, tfs.SongTransformer(allow_new=True)],
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
-            pos: int = None,
+            pos: int = 1,
             audio_filter: str = None
         ):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
