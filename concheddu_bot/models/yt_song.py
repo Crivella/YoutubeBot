@@ -225,7 +225,7 @@ class YTSong(models.Model):
             *,
             itc: discord.Interaction,
             quiz_id: int = None,
-            pos: int = 0,
+            pos: int = None,
             **kwargs
         ):
         """Play or queue the song"""
