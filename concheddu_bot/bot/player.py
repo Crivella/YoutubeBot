@@ -328,7 +328,7 @@ class Player:
                 label=REMOVE_BUTTON_LABEL,
                 style=GREY,
                 custom_id='remove_song_player',
-                row=1,
+                row=0,
             )
             self.pause_resume_button = CallbackButton(
                 label=PAUSE_BUTTON_LABEL,
@@ -376,7 +376,7 @@ class Player:
             async def remove_song(itc: discord.Interaction):
                 """Remove the current song from the queue"""
                 logger.debug(f'Removing current song pressed by {itc.user.name}')
-                await self.remove_source(0)
+                await self.remove_source(0, channel=self.channel)
 
                 self.refresh_view()
 
