@@ -328,7 +328,7 @@ class Player:
                 label=REMOVE_BUTTON_LABEL,
                 style=GREY,
                 custom_id='remove_song_player',
-                call_self=True,
+                row=1,
             )
             self.pause_resume_button = CallbackButton(
                 label=PAUSE_BUTTON_LABEL,
