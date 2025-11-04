@@ -324,7 +324,7 @@ class Player:
                 custom_id='jump_player_m1',
                 row=0,
             )
-            self.pause_resume_button = CallbackButton(
+            self.remove_song_button = CallbackButton(
                 label=REMOVE_BUTTON_LABEL,
                 style=GREY,
                 custom_id='remove_song_player',
