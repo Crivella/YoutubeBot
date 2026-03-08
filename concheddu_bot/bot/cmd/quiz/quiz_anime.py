@@ -157,6 +157,9 @@ class QuizAnime(commands.GroupCog, group_name='quiz_anime'):
             ] = None
             ):
         """List the quizzes"""
+        if chara is None and anime is None:
+            await safe_response(itc, 'You must provide either a character or an anime', ephemeral=True)
+            return
         quiz = current_quiz_gc.get(itc.guild.id, None)
         if quiz is None:
             await safe_response(itc, 'No quiz started', ephemeral=True)
