@@ -74,6 +74,45 @@ class Music(commands.GroupCog, group_name='music'):
         await safe_response(itc, msg, ephemeral=True, delete_after=30)
 
     @app_commands.command()
+    @call_command_register()
+    async def set_manual_title(
+            self, itc: discord.Interaction,
+            song: app_commands.Transform[m.YTSong, tfs.SongTransformer(allow_new=False)],
+            manual_title: str,
+        ):
+        """Search for a song and add it to the database and set a manual title
+
+        Args:
+            search (str): The search string or youtube url
+        """
+        user = itc.user
+        guild = itc.guild
+
+        server = await m.DiscordServer.from_discord_guild(guild)
+        user = await m.DiscordUser.from_discord_user(user)
+
+        old_manual_title = song.manual_title
+        song.manual_title = manual_title
+        await song.asave()
+
+        if len(manual_title) > 255:
+            logger.warning(f'Manual title too long for song {song.id} ({song.title}), manual title: {manual_title}')
+            await safe_response(
+                itc, f'Manual title is too long',
+                ephemeral=True, delete_after=10
+            )
+        else:
+            logger.info(
+                f'Set manual title for song {song.id} ({song.title}) from `{old_manual_title}` to `{manual_title}`.'
+                f'Action performed by user `{user.username}` in server `{server.name}`'
+            )
+            await safe_response(
+                itc, f'Setting manual title for {song.title} from `{old_manual_title}` to {manual_title}',
+                ephemeral=True, delete_after=10
+            )
+
+
+    @app_commands.command()
     @ensure_response(allowed_exceptions=[SenseCheckError])
     @call_command_register()
     @sense_check
