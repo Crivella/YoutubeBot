@@ -69,6 +69,7 @@ class Queue(list):
         for i in range(max(0, idx-pre), min(len(self), idx + post)):
             pre = '` ‣‣‣`' if idx == i else f'`{i - idx:>4d}`'
             obj = self[i]
+            title = title[:37] + '...' if len(title) > 40  else title
             res.append(f'{pre} [{obj.song.duration:>4d} s] ({obj.user.name:>10s}) - {obj.song.title:>40s}')
         if after > 0:
             res.append(f'... ({after} songs) ...')
