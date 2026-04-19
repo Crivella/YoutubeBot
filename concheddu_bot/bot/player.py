@@ -69,8 +69,9 @@ class Queue(list):
         for i in range(max(0, idx-pre), min(len(self), idx + post)):
             pre = '` ‣‣‣`' if idx == i else f'`{i - idx:>4d}`'
             obj = self[i]
+            title = obj.song.title
             title = title[:37] + '...' if len(title) > 40  else title
-            res.append(f'{pre} [{obj.song.duration:>4d} s] ({obj.user.name:>10s}) - {obj.song.title:>40s}')
+            res.append(f'{pre} [{obj.song.duration:>4d} s] ({obj.user.name:>10s}) - {title:>40s}')
         if after > 0:
             res.append(f'... ({after} songs) ...')
         return '\n'.join(res)
@@ -467,7 +468,7 @@ class Player:
                 logger.error(f'Error editing message: {e}', exc_info=True)
                 self.message = None
                 try:
-                    self.message = await func = self.client.channel.send(**kwargs)
+                    self.message = await self.client.channel.send(**kwargs)
                 except Exception as e:
                     logger.error(f'Error sending message after edit failure: {e}', exc_info=True)
             else:
