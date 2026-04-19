@@ -463,8 +463,15 @@ class Player:
         try:
             self.message = await func(**kwargs)
         except Exception as e:
-            logger.error(f'Error sending/editing message: {e}', exc_info=True)
-            self.message = None
+            if self.message is not None:
+                logger.error(f'Error editing message: {e}', exc_info=True)
+                self.message = None
+                try:
+                    self.message = await func = self.client.channel.send(**kwargs)
+                except Exception as e:
+                    logger.error(f'Error sending message after edit failure: {e}', exc_info=True)
+            else:
+                logger.error(f'Error sending message after edit failure: {e}', exc_info=True)
 
     async def generate_embed(self) -> tuple[discord.Embed, discord.File]:
         """Generate an embed for the current song"""
