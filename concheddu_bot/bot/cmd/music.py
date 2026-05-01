@@ -118,7 +118,7 @@ class Music(commands.GroupCog, group_name='music'):
     @sense_check
     async def play_random(
             self, itc: discord.Interaction,
-            num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=10)] = 1
+            num: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=50)] = 1
         ):
         """Play from 1 to 10 random songs
 
