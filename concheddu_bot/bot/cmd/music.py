@@ -148,18 +148,20 @@ class Music(commands.GroupCog, group_name='music'):
             num (int, optional): The number of random songs to play. Defaults to 1.
         """
         guild = itc.guild
+        server = await m.DiscordServer.from_discord_guild(guild)
         song = await m.YTSong.get_all_songs(server=guild, n=num, sorting='random')
         res = []
         awaitables = []
         duration = 0
         for s in song:
-            awaitables.append(s.play(itc=itc))
+            awaitables.append(s.play(itc=itc, bulk_mode=True))
             duration += s.duration
             res.append(f'[{s.duration} s] {s.title}')
         res += ['-'*30]
         await safe_response(itc, '\n'.join(res), ephemeral=True)
         for a in awaitables:
             await a
+        await server.player.print_message()
 
     @app_commands.command()
     @ensure_response(before=True, defer=True)  # Defer to avoid timeout

@@ -188,10 +188,12 @@ class Player:
     @with_monitor
     async def add_source(
             self,
-            song, user: discord.Member,
+            song: 'YTSong',
+            user: discord.Member,
             on_play: Callable = None,
             audio_filter: str = None,
-            pos: int = None
+            pos: int = None,
+            bulk_mode: bool = False
         ):
         """Add a song to the queue"""
         if pos is None:
@@ -214,7 +216,8 @@ class Player:
         ))
         if self.playing and pos == 0:
             await self.jump(0, channel=self.channel)  # Restart the song if added at position 0
-        await self.print_message()  # Update the message to show the new song
+        if not bulk_mode:
+            await self.print_message()  # Update the message to show the new song
 
     @with_monitor
     async def remove_source(self, pos: int = 0):

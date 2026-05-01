@@ -203,7 +203,7 @@ class YTSong(models.Model):
                 await safe_response(itc, msg, ephemeral=True, append=True)
                 await normalize
 
-            if hasattr(self, 'start') and hasattr(self, 'end') and self.start is not None and self.end is not None:
+            if getattr(self, 'start', None) is not None and getattr(self, 'end', None) is not None:
                 start = self.start
                 end = self.end
                 logger.debug(f'Setting segment {start} -> {end}')
@@ -226,6 +226,7 @@ class YTSong(models.Model):
             itc: discord.Interaction,
             quiz_id: int = None,
             pos: int = None,
+            bulk_mode: bool = False,
             **kwargs
         ):
         """Play or queue the song"""
@@ -251,9 +252,9 @@ class YTSong(models.Model):
                 quiz_id=quiz_id
             )
 
-        itc_ = itc if update_msg else None
+        itc_ = itc if (update_msg and not bulk_mode) else None
 
-        await server.add_source(self, itc.user, on_play, audio_filter, channel=channel, pos=pos)
+        await server.add_source(self, itc.user, on_play, audio_filter, channel=channel, pos=pos, bulk_mode=bulk_mode)
         asyncio.create_task(self.get_source(itc=itc_))
 
     def get_thumbnails_urls(self) -> list[str]:
