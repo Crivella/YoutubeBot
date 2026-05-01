@@ -14,6 +14,33 @@ from .utils import call_command_register, sanitize_ffmpeg_filter
 
 logger = logging.getLogger('bot')
 
+async def set_manual_title(
+        song: m.YTSong, manual_title: str, user: m.DiscordUser, server: m.DiscordServer
+    ) -> str | None:
+    """Set a manual title for a song, if the manual title is None, it will not be set
+    
+    Args:
+        song (m.YTSong): The song to set the manual title for
+        manual_title (str): The manual title to set
+        user (m.DiscordUser): The user who set the manual title
+        server (m.DiscordServer): The server where the song is being played
+
+    Returns:
+        str | None: The old manual title if it was set, otherwise None
+    """
+    if manual_title is None:
+        return None
+
+    old_manual_title = song.manual_title
+    song.manual_title = manual_title
+    await song.asave()
+    logger.info(
+        f'Set manual title for song {song.id} ({song.title}) from `{old_manual_title}` to `{manual_title}`.'
+        f'Action performed by user `{user.username}` in server `{server.name}`'
+    )
+
+    return old_manual_title
+
 class Music(commands.GroupCog, group_name='music'):
     """Play command"""
     @app_commands.command()
@@ -25,17 +52,22 @@ class Music(commands.GroupCog, group_name='music'):
             song: app_commands.Transform[m.YTSong, tfs.SongTransformer(allow_new=True)],
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
             pos: int = 1,
-            audio_filter: str = None
+            audio_filter: str = None,
+            manual_title: app_commands.Transform[str, tfs.StringLimitedTransformer(max_length=255)] = None,
         ):
         """Play a song from a search string, if a playlist is provided, it will be added to the playlist
 
         Args:
             song (str): Existing song / search string / youtube url
             playlist (str, optional): Playlist name (must exist). Defaults to None.
+            pos (int, optional): Position to add the song in the queue. Defaults to 1 (next song).
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
+            manual_title (str, optional): Manual title to set for the song. Defaults to None.
         """
         server = await m.DiscordServer.from_discord_guild(itc.guild)
         user = await m.DiscordUser.from_discord_user(itc.user)
+
+        await set_manual_title(song, manual_title, user, server)
         await server.add_song(song=song, user=user)
         if playlist is not None:
             await playlist.add_song(song)
@@ -49,6 +81,7 @@ class Music(commands.GroupCog, group_name='music'):
             self, itc: discord.Interaction,
             search: str,
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
+            manual_title: app_commands.Transform[str, tfs.StringLimitedTransformer(max_length=255)] = None,
         ):
         """Search for a song and add it to the database, if a playlist is provided, it will be added to the playlist
 
@@ -67,6 +100,8 @@ class Music(commands.GroupCog, group_name='music'):
             user = await m.DiscordUser.from_discord_user(user)
             await server.add_song(song=song, user=user)
 
+        await set_manual_title(song, manual_title, user, server)
+
         msg = f'Added song `{song.title}`'
         if playlist is not None:
             await playlist.add_song(song)
@@ -78,7 +113,7 @@ class Music(commands.GroupCog, group_name='music'):
     async def set_manual_title(
             self, itc: discord.Interaction,
             song: app_commands.Transform[m.YTSong, tfs.SongTransformer(allow_new=False)],
-            manual_title: str,
+            manual_title: app_commands.Transform[str, tfs.StringLimitedTransformer(max_length=255)] = None,
         ):
         """Search for a song and add it to the database and set a manual title
 
@@ -91,25 +126,12 @@ class Music(commands.GroupCog, group_name='music'):
         server = await m.DiscordServer.from_discord_guild(guild)
         user = await m.DiscordUser.from_discord_user(user)
 
-        old_manual_title = song.manual_title
-        song.manual_title = manual_title
-        await song.asave()
-
-        if len(manual_title) > 255:
-            logger.warning(f'Manual title too long for song {song.id} ({song.title}), manual title: {manual_title}')
-            await safe_response(
-                itc, f'Manual title is too long',
-                ephemeral=True, delete_after=10
-            )
-        else:
-            logger.info(
-                f'Set manual title for song {song.id} ({song.title}) from `{old_manual_title}` to `{manual_title}`.'
-                f'Action performed by user `{user.username}` in server `{server.name}`'
-            )
-            await safe_response(
-                itc, f'Setting manual title for {song.title} from `{old_manual_title}` to {manual_title}',
-                ephemeral=True, delete_after=10
-            )
+        old_manual_title = await set_manual_title(song, manual_title, user, server)
+        
+        await safe_response(
+            itc, f'Setting manual title for {song.title} from `{old_manual_title}` to {manual_title}',
+            ephemeral=True, delete_after=10
+        )
 
 
     @app_commands.command()

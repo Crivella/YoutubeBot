@@ -345,3 +345,25 @@ class IntRangeTransformer(app_commands.Transformer):
             raise ValueError(f'Value must be less than {self.max_}')
 
         return res
+
+class StringLimitedTransformer(app_commands.Transformer):
+    def __init__(
+            self, *args,
+            max_length: int = None,
+            nullable: bool = True,
+            **kwargs
+        ):
+        super().__init__(*args, **kwargs)
+        self.max_length = max_length
+        self.nullable = nullable
+
+    async def transform(self, ctx: discord.Interaction, argument: str):
+        if argument is None:
+            if self.nullable:
+                return None
+            await safe_response(ctx, f'Value cannot be null', ephemeral=True)
+            raise ValueError(f'Value cannot be null')
+        if self.max_length is not None and len(argument) > self.max_length:
+            await safe_response(ctx, f'Value must be at most {self.max_length} characters long', ephemeral=True)
+            raise ValueError(f'Value must be at most {self.max_length} characters long')
+        return argument
