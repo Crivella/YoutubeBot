@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from ... import models as m
 from .. import views as v
+from ...youtube import YTDLSource
 from ..utils import (SenseCheckError, ensure_response, safe_response,
                      sense_check)
 from . import transformers as tfs
@@ -14,32 +15,6 @@ from .utils import call_command_register, sanitize_ffmpeg_filter
 
 logger = logging.getLogger('bot')
 
-async def set_manual_title(
-        song: m.YTSong, manual_title: str, user: m.DiscordUser, server: m.DiscordServer
-    ) -> str | None:
-    """Set a manual title for a song, if the manual title is None, it will not be set
-    
-    Args:
-        song (m.YTSong): The song to set the manual title for
-        manual_title (str): The manual title to set
-        user (m.DiscordUser): The user who set the manual title
-        server (m.DiscordServer): The server where the song is being played
-
-    Returns:
-        str | None: The old manual title if it was set, otherwise None
-    """
-    if manual_title is None:
-        return None
-
-    old_manual_title = song.manual_title
-    song.manual_title = manual_title
-    await song.asave()
-    logger.info(
-        f'Set manual title for song {song.id} ({song.title}) from `{old_manual_title}` to `{manual_title}`.'
-        f'Action performed by user `{user.username}` in server `{server.name}`'
-    )
-
-    return old_manual_title
 
 class Music(commands.GroupCog, group_name='music'):
     """Play command"""
@@ -64,11 +39,8 @@ class Music(commands.GroupCog, group_name='music'):
             audio_filter (str, optional): FFMPEG audio filter to apply. Defaults to None.
             manual_title (str, optional): Manual title to set for the song. Defaults to None.
         """
-        server = await m.DiscordServer.from_discord_guild(itc.guild)
-        user = await m.DiscordUser.from_discord_user(itc.user)
-
-        await set_manual_title(song, manual_title, user, server)
-        await server.add_song(song=song, user=user)
+        await song.set_manual_title(manual_title, itc=itc)
+        await song.add_to_server_from_interaction(itc)
         if playlist is not None:
             await playlist.add_song(song)
         audio_filter = sanitize_ffmpeg_filter(audio_filter)
@@ -80,33 +52,44 @@ class Music(commands.GroupCog, group_name='music'):
     async def search_and_add(
             self, itc: discord.Interaction,
             search: str,
+            max_results: app_commands.Transform[int, tfs.IntRangeTransformer(min=1, max=20)] = 5,
             playlist: app_commands.Transform[m.Playlist, tfs.PlaylistTransformer] = None,
+            play: bool = False,
             manual_title: app_commands.Transform[str, tfs.StringLimitedTransformer(max_length=255)] = None,
         ):
         """Search for a song and add it to the database, if a playlist is provided, it will be added to the playlist
 
         Args:
             search (str): The search string or youtube url
+            max_results (int, optional): The maximum number of search results to return. Defaults to 5.
             playlist (str, optional): Playlist name (must exist). Defaults to None.
+            play (bool, optional): Whether to play the song after adding it. Defaults to False.
+            manual_title (str, optional): Manual title to set for the song. Defaults to None.
         """
-        user = itc.user
-        guild = itc.guild
-
         await safe_response(itc, f'Searching for {search}', ephemeral=True, delete_after=240)
 
-        song = await m.YTSong.from_search_string(search)
-        if song:
-            server = await m.DiscordServer.from_discord_guild(guild)
-            user = await m.DiscordUser.from_discord_user(user)
-            await server.add_song(song=song, user=user)
+        song = await m.YTSong.from_url(search)
+        if song is None:
+            songs = await YTDLSource.youtube_search(search, max_results=max_results)
+            view = v.SongSearchList(
+                itc, songs,
+                manual_title=manual_title,
+                play=play,
+                playlist=playlist
+            )
+            await safe_response(itc, 'Select a song to add', view=view, ephemeral=True)
+            await view.list.go_to_page(0)
+        else:
+            await song.set_manual_title(manual_title, itc=itc)
+            await song.add_to_server_from_interaction(itc)
 
-        await set_manual_title(song, manual_title, user, server)
-
-        msg = f'Added song `{song.title}`'
-        if playlist is not None:
-            await playlist.add_song(song)
-            msg += f' with playlist `{playlist.name}`'
-        await safe_response(itc, msg, ephemeral=True, delete_after=30)
+            msg = f'Added song `{song.title}`'
+            if playlist is not None:
+                await playlist.add_song(song)
+                msg += f' with playlist `{playlist.name}`'
+            await safe_response(itc, msg, ephemeral=True, delete_after=30)
+            if play:
+                await song.play(itc=itc)
 
     @app_commands.command()
     @call_command_register()
@@ -120,14 +103,8 @@ class Music(commands.GroupCog, group_name='music'):
         Args:
             search (str): The search string or youtube url
         """
-        user = itc.user
-        guild = itc.guild
+        old_manual_title = await song.set_manual_title(manual_title, itc=itc)
 
-        server = await m.DiscordServer.from_discord_guild(guild)
-        user = await m.DiscordUser.from_discord_user(user)
-
-        old_manual_title = await set_manual_title(song, manual_title, user, server)
-        
         await safe_response(
             itc, f'Setting manual title for {song.title} from `{old_manual_title}` to {manual_title}',
             ephemeral=True, delete_after=10

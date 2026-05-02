@@ -1,8 +1,9 @@
 import discord
 
 from ... import models as m
+from ...youtube import YTDLSource
 from ..buttons import CallbackButton
-from ..utils import ensure_response, safe_response, sense_check
+from ..utils import ensure_response, safe_response, sense_check, _sense_check
 from .utils import MAX_LIST_OPT, elide, logger
 
 
@@ -42,6 +43,17 @@ class SongOption(GeneralOption):
         return song.youtube_id
     def get_description(self, song: m.YTSong):
         return f'[{song.duration} s] [{song.times_played} plays]'
+
+class SongSourceOption(GeneralOption):
+    _emoji = '🎵'
+    obj_descr ='YTDLSource'
+
+    def get_label(self, song: YTDLSource):
+        return elide(song.title)
+    def get_value(self, song: YTDLSource):
+        return song.youtube_id
+    def get_description(self, song: YTDLSource):
+        return f'[{song.duration} s]'
 
 class AnimeCollectionOption(GeneralOption):
     _emoji = '📚'
@@ -131,6 +143,52 @@ class Paged:
         self.pge_btn.label = f'{page+1} / {self.num_pages+1}'
         await safe_response(self.view.itc, view=self.view)
 
+class ListSearch(Paged, discord.ui.Select):
+    def __init__(
+            self,
+            songs: list[YTDLSource],
+            *args,
+            manual_title: str = None,
+            play: bool = False,
+            playlist: m.Playlist = None,
+            **kwargs
+        ):
+        logger.debug(f'ListSearch: {len(songs)}')
+        opts = [SongSourceOption(song) for song in songs]
+        super().__init__(
+            placeholder='Select a song to add',
+            min_values=0,
+            max_values=1,
+            options=opts[:MAX_LIST_OPT],
+            *args, **kwargs
+        )
+        self.manual_title = manual_title
+        self.play = play
+        self.playlist = playlist
+        self.follow_changes = False
+
+        self.options_ = opts
+        self.songs_map: dict[str, YTDLSource] = {opt.value: opt.obj for opt in opts}
+
+    @ensure_response(before=False, defer=True)
+    async def callback(self, itc: discord.Interaction):
+        if not self.values:
+            return
+        song_id = self.values[0]
+        song_src = self.songs_map.get(song_id)
+
+        song = await m.YTSong.from_ytdl_source(song_src)
+        await song.set_manual_title(self.manual_title, itc=itc)
+        await song.add_to_server_from_interaction(itc)
+
+        if self.playlist is not None:
+            logger.debug(f'Adding song {song} to playlist {self.playlist}')
+            await self.playlist.add_song(song)
+
+        if self.play:
+            await _sense_check(itc)
+            await song.play(itc=itc)
+
 class ListPlay(Paged, discord.ui.Select):
     def __init__(
             self,
@@ -150,7 +208,7 @@ class ListPlay(Paged, discord.ui.Select):
         self.follow_changes = False
 
         self.options_ = opts
-        self.songs_map = {opt.value: opt.obj for opt in opts}
+        self.songs_map: dict[str, m.YTSong] = {opt.value: opt.obj for opt in opts}
 
     @sense_check
     @ensure_response(before=False, defer=True)
