@@ -341,3 +341,35 @@ class YTSong(models.Model):
         server = await DiscordServer.from_discord_guild(guild)
         user = await DiscordUser.from_discord_user(user)
         await server.add_song(song=self, user=user)
+
+    async def set_manual_title(
+            self, title: str, *,
+            itc: discord.Interaction = None, user: DiscordUser = None, server: DiscordServer = None
+        ) -> str | None:
+        """Set the manual title
+
+        Args:
+            title: The new manual title
+            itc: The interaction that triggered the change (optional if user and server are provided)
+            user: The user that triggered the change (optional, only used if itc is not provided)
+            server: The server that triggered the change (optional, only used if itc is not provided)
+
+        Returns:
+            The old manual title if the change was successful, None otherwise
+        """
+        if title is None:
+            return None
+        if itc is not None:
+            user = user or await DiscordUser.from_discord_user(itc.user)
+            server = server or await DiscordServer.from_discord_guild(itc.guild)
+
+        username = user.username if user else 'Unknown user'
+        server_name = server.name if server else 'Unknown server'
+
+        old_manual_title = self.manual_title
+        self.manual_title = title
+        await self.asave()
+        logger.info(f'Set manual title for song {self.id} ({self.title}) from `{old_manual_title}` to `{title}`.')
+        logger.info(f'Action performed by user `{username}` in server `{server_name}`')
+
+        return old_manual_title
