@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import urllib
-from typing import Awaitable, Optional
+from typing import Awaitable, Optional, Self
 
 import discord
 import yt_dlp
@@ -79,13 +79,26 @@ class YTDLSource():
         self.ff_opts = ffmpeg_options.copy()
 
     @classmethod
+    async def youtube_search(cls, query: str, max_results: int = 5,  *, loop = None) -> list[Self]:
+        """Search YouTube for a query and return a list of results"""
+        logger.debug(f'YTDLSource.youtube_search: {query}')
+        query_str = f'ytsearch{max_results}:{query}'
+        async with SEMAPHORE_DOWNLOAD:
+            loop = loop or asyncio.get_event_loop()
+            search_result = await loop.run_in_executor(None, lambda: ytdl.extract_info(query_str, download=False))
+        search_result.setdefault('entries', [])
+        if len(search_result) != max_results:
+            logger.warning(f'Expected {max_results} results, got {len(search_result)}')
+        return [cls.from_url(entry['url'], data=entry) for entry in search_result['entries'][:max_results]]
+
+    @classmethod
     def from_url(cls, url, data=None, *, loop=None):
         """Create a YTDLSource from a URL"""
         logger.debug(f'YTDLSource.from_url: {url}')
         return cls(url=url, data=data)
 
     @classmethod
-    def from_path(cls, filename, metadata):
+    def from_path(cls, filename, metadata) -> Optional[Self]:
         """Create a YTDLSource from a path"""
         logger.debug(f'YTDLSource.from_path: {filename}')
         if filename is None:
@@ -172,7 +185,7 @@ class YTDLSource():
             if 'entries' in data:
                 # take first item from a playlist
                 data = data['entries'][0]
-            data['thumbnails'] = [_['url'] for _ in data['thumbnails'] if thumbnail_rgx.search(_['url'])]
+            # data['thumbnails'] = [_['url'] for _ in data['thumbnails'] if thumbnail_rgx.search(_['url'])]
             self.data = data
 
         self.path = ytdl.prepare_filename(self.data)
@@ -203,6 +216,10 @@ class YTDLSource():
     @property
     def duration(self):
         return self.data['duration']
+
+    @property
+    def youtube_id(self):
+        return self.data['id']
 
     @staticmethod
     def get_id_from_url(url: str) -> str:
