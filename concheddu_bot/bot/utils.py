@@ -23,17 +23,21 @@ class SenseCheckError(Exception):
     """Error for sense check"""
     pass
 
+async def _sense_check(itc: discord.Interaction):
+    """Check if the user can use the command"""
+    user = itc.user
+    guild = itc.guild
+    if not user.voice:
+        raise SenseCheckError('You must be in a voice channel to use this command')
+    server = await m.DiscordServer.from_discord_guild(guild)
+    if server.playing and user.voice.channel != server.channel:
+        raise SenseCheckError('Bot already playing. You must be in the same voice channel as you to use this command')
+
 def sense_check(func):
     """Check if the user can use the command"""
     @wraps(func)
     async def wrapper(self, itc: discord.Interaction, *args, **kwargs):
-        user = itc.user
-        guild = itc.guild
-        if not user.voice:
-            raise SenseCheckError('You must be in a voice channel to use this command')
-        server = await m.DiscordServer.from_discord_guild(guild)
-        if server.playing and user.voice.channel != server.channel:
-            raise SenseCheckError('Bot already playing. You must be in the same voice channel as you to use this command')
+        await _sense_check(itc)
         return await func(self, itc, *args, **kwargs)
     return wrapper
 
