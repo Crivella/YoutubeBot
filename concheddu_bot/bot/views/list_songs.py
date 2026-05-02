@@ -2,7 +2,7 @@ import discord
 
 from ...youtube import YTDLSource
 from ... import models as m
-from .paged import ListPlay
+from .paged import ListPlay, ListSearch
 
 
 class SongList(discord.ui.View):
@@ -44,7 +44,7 @@ class SongSearchList(discord.ui.View):
                 disabled=True
             ))
             return
-        self.list = ListPlay(
+        self.list = ListSearch(
             songs, row=0,
             view = self,
             manual_title=manual_title,

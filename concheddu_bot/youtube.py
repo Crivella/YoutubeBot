@@ -81,15 +81,20 @@ class YTDLSource():
     @classmethod
     async def youtube_search(cls, query: str, max_results: int = 5,  *, loop = None) -> list[Self]:
         """Search YouTube for a query and return a list of results"""
-        logger.debug(f'YTDLSource.youtube_search: {query}')
         query_str = f'ytsearch{max_results}:{query}'
+        logger.debug(f'YTDLSource.youtube_search: {query} -> {query_str}')
         async with SEMAPHORE_DOWNLOAD:
             loop = loop or asyncio.get_event_loop()
             search_result = await loop.run_in_executor(None, lambda: ytdl.extract_info(query_str, download=False))
-        search_result.setdefault('entries', [])
-        if len(search_result) != max_results:
-            logger.warning(f'Expected {max_results} results, got {len(search_result)}')
-        return [cls.from_url(entry['url'], data=entry) for entry in search_result['entries'][:max_results]]
+        entries = search_result.setdefault('entries', [])
+        if len(entries) != max_results:
+            logger.warning(f'Expected {max_results} results, got {len(entries)}')
+
+        res = []
+        for entry in entries:
+            url = entry.get('webpage_url', None) or entry.get('url')
+            res.append(cls.from_url(url, data=entry))
+        return res[:max_results]
 
     @classmethod
     def from_url(cls, url, data=None, *, loop=None):
