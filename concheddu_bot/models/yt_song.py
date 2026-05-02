@@ -331,7 +331,8 @@ class YTSong(models.Model):
         path = f'{self.youtube_id}.{self.extension}'
         src = YTDLSource.from_path(path, self.metadata)
 
-        await src.delete_files()
+        if src is not None:
+            await src.delete_files()
 
     async def add_to_server_from_interaction(self, itc: discord.Interaction):
         """Add the song to the server from an interaction"""
