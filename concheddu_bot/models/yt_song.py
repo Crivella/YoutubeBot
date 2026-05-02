@@ -111,37 +111,44 @@ class YTSong(models.Model):
         return song
 
     @classmethod
-    async def from_search_string(cls, search: str) -> 'YTSong':
-        """Return the song from search string"""
-        logger.debug(f'Getting song from search string {search}')
+    async def from_url(cls, search: str) -> 'YTSong':
+        """Return the song from a youtube url"""
+        logger.info(f'Getting song from search string {search}')
+        if not urllib.parse.urlparse(search).scheme:
+            logger.debug(f'Search string `{search}` is not a URL')
+            return
+
         song = None
-        if urllib.parse.urlparse(search).scheme:
-            ytid = YTDLSource.get_id_from_url(search)
-            q = cls.objects
-            q = q.filter(youtube_id=ytid)
-            if await q.aexists():
-                song = await q.aget()
-        if song is None:
+
+        ytid = YTDLSource.get_id_from_url(search)
+        q = cls.objects
+        q = q.filter(youtube_id=ytid)
+        if await q.aexists():
+            song = await q.aget()
+        else:
             # print('search', search)
             src = YTDLSource.from_url(search)
-            data = await src.get_info()
+            song = await cls.from_ytdl_source(src)
 
-            title = data['title'].strip()
-            duration = int(data['duration'])
-            extension = data['ext']
-            if duration > MAX_DURATION:
-                raise YTSong.MaxDurationError(
-                    f'The song durations {duration} exceeds the maximum duration {MAX_DURATION}'
-                )
-            # source = await YTDLSource.from_url(search, loop=asyncio.get_event_loop())
+        return song
 
-            # data = source.data
-            song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
-            song.original_title = title
-            song.duration = duration
-            song.extension = extension
-
+    @classmethod
+    async def from_ytdl_source(cls, src: YTDLSource) -> 'YTSong':
+        """Return the song from a YTDLSource"""
+        data = await src.get_info()
+        title = data['title'].strip()
+        duration = int(data['duration'])
+        extension = data['ext']
+        if duration > MAX_DURATION:
+            raise YTSong.MaxDurationError(
+                f'The song durations {duration} exceeds the maximum duration {MAX_DURATION}'
+            )
+        song, _ = await cls.objects.aget_or_create(youtube_id=data['id'])
+        song.original_title = title
+        song.duration = duration
+        song.extension = extension
         await song.asave()
+
         return song
 
     @property
