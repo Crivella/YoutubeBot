@@ -325,3 +325,12 @@ class YTSong(models.Model):
         src = YTDLSource.from_path(path, self.metadata)
 
         await src.delete_files()
+
+    async def add_to_server_from_interaction(self, itc: discord.Interaction):
+        """Add the song to the server from an interaction"""
+        user = itc.user
+        guild = itc.guild
+
+        server = await DiscordServer.from_discord_guild(guild)
+        user = await DiscordUser.from_discord_user(user)
+        await server.add_song(song=self, user=user)
