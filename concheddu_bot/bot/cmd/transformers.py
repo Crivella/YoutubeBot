@@ -89,19 +89,24 @@ class GenericObjectTransformer(app_commands.Transformer):
                 return
             raise ValueError(f'{self.klass.__name__} cannot be null')
         res = self.object_map.get(argument, argument)
+        logger.debug(f'Transformer: got argument {argument}, mapped to {res}')
         if isinstance(res, str):
             if not self.allow_new:
                 await safe_response(ctx, f'{self.klass.__name__} `{argument}` not found', ephemeral=True)
                 raise ValueError(f'{self.klass.__name__} `{argument}` not found')
+            logger.info(f'Transformer: Searching for {argument}')
             await safe_response(ctx, f'Searching for {argument}', ephemeral=True, delete_after=240)
             try:
+                logger.debug(f'Transformer: Looking for function {self.from_argument_function_name} in {self.klass.__name__}')
                 func = getattr(self.klass, self.from_argument_function_name, None)
                 if func is None:
                     raise ValueError(f'No function {self.from_argument_function_name} found in {self.klass.__name__}')
+                logger.debug(f'Transformer: Found function {func}, calling it with argument {argument}')
                 res = await func(argument)
             except Exception as e:
-                await safe_response(ctx, f'Error searching for {argument}: {e}', ephemeral=True)
-                raise ValueError(f'Error searching for {argument}: {e}')
+                logger.error(f'Transformer: Error searching for {argument}: {e}')
+                await safe_response(ctx, f'Transformer: Error searching for {argument}: {e}', ephemeral=True)
+                raise ValueError(f'Transformer: Error searching for {argument}: {e}')
         return res
 
     async def autocomplete(self, ctx: discord.Interaction, current: str):
