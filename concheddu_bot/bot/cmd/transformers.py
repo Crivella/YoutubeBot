@@ -176,7 +176,7 @@ class GenericObjectTransformer(app_commands.Transformer):
 server_playlist_cache: dict[int, list[m.YTSong]] = {}
 class SongTransformer(GenericObjectTransformer):
     klass = m.YTSong
-    from_argument_function_name: str = 'from_search_string'
+    from_argument_function_name: str = 'from_url'
     query_filters = [
         lambda x: Q(original_title__icontains=x) | Q(manual_title__icontains=x),
     ]
