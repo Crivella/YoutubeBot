@@ -2,7 +2,7 @@
 # See https://github.com/Rapptz/discord.py/pull/10210
 # git+https://github.com/Rapptz/discord.py.git@2175bd51c0d0c2817e69a708e507108f3bc902bd
 discord.py[voice]==2.7.1
-yt_dlp>=2026.3.17
+yt_dlp>=2026.08.19
 Django
 ffmpeg-normalize
 pymysql==1.1.0
