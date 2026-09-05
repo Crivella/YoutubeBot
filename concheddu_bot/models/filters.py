@@ -36,6 +36,24 @@ def song_annotate_times_played(
     ))
     return res
 
+def ytsong_odby_added(queryset: m.QuerySet, asc: str = '-', server_id: int = None) -> m.QuerySet:
+    """Filter queryset by date added"""
+    logger.debug(f'Ordering queryset by date added to server `{asc or "+"}`')
+    # Needs to query through the AddedSongEvent model to get the date added to the server
+    res = queryset
+    event_query = m.Q(addedsongevent__song=m.F('id'))
+    if server_id is not None:
+        event_query &= m.Q(addedsongevent__server_id=server_id)
+    res = res.annotate(date_added=m.Max(
+        m.Case(
+            m.When(event_query, then=m.F('addedsongevent__date')),
+            default=m.Value('1970-01-01T00:00:00Z'),
+            output_field=m.DateTimeField(),
+        )
+    ))
+    res = res.order_by(f'{asc}date_added')
+    return res
+
 def ytsong_odby_title(queryset: m.QuerySet, asc: str = '', server_id: int = None) -> m.QuerySet:
     """Filter queryset by title"""
     logger.debug(f'Ordering queryset by title `{asc or "+"}`')
@@ -104,6 +122,7 @@ def ytsong_odby_random(queryset: m.QuerySet, asc: str = '', server_id: int = Non
     return res
 
 song_order_map = {
+    'added': ytsong_odby_added,
     'times_played': ytsong_odby_times_played,
     'times_added': ytsong_odby_times_added,
     'last_played': ytsong_odby_last_played,
@@ -113,6 +132,7 @@ song_order_map = {
 }
 
 song_order_descr = {
+    'added': 'Sort by date added',
     'title': 'Sort by title',
     'duration': 'Sort by duration',
     'last_played': 'Sort by last played',
