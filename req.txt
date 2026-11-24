@@ -6,6 +6,6 @@ yt_dlp>=2026.08.19
 Django
 ffmpeg-normalize
 pymysql==1.1.0
-psycopg2-binary==2.9.10
+psycopg2-binary
 Pillow
 jikanpy-v4
